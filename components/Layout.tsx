@@ -31,7 +31,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 md:pb-0 h-screen">
+    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 md:pb-0">
       {/* Top Bar */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50 px-4 py-3 flex items-center justify-between shadow-sm flex-shrink-0">
         <Link to="/inventory" className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
@@ -117,7 +117,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+      <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 md:ml-64">
         {children}
       </main>
 
@@ -142,7 +142,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       </nav>
 
       {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around p-3 pb-safe z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around p-3 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]" style={{paddingBottom: 'env(safe-area-inset-bottom)'}}>
         <Link to="/inventory" className={`flex flex-col items-center gap-1 ${isActive('/inventory')}`}>
           <Home size={24} />
           <span className="text-xs">Home</span>
