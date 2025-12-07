@@ -33,8 +33,10 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 export const isSupabaseConfigured = () => {
   return supabaseUrl !== 'https://placeholder-project.supabase.co' && 
          supabaseUrl !== '' &&
+         supabaseUrl !== 'https://gbsgkvmjtsjpmjrpupma.supabase.co' &&
          supabaseKey !== 'placeholder-key' &&
-         supabaseKey !== '';
+         supabaseKey !== '' &&
+         supabaseKey !== 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdic2drdm1qdHNqcG1qcnB1cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwOTQ4MjQsImV4cCI6MjA4MDY3MDgyNH0.GYsoEO8qJXOsiOjK2QHYMOOI0OFAdc9KqX1SA-Z-3ac';
 };
 
 export const saveSupabaseConfig = (url: string, key: string) => {
