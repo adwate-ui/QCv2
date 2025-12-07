@@ -14,17 +14,12 @@
     "@google/genai": "^1.31.0",
     "lucide-react": "^0.555.0",
     "react-router-dom": "^7.10.1",
-    "@supabase/supabase-js": "^2.52.1"
+    "@supabase/supabase-js": "^2.45.0"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "vite": "^5.0.0",
-    "@types/react": "^18.3.1",
-    "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.1",
-    "tailwindcss": "^3.4.3",
-    "autoprefixer": "^10.4.19",
-    "postcss": "^8.4.38",
-    "gh-pages": "^6.1.1"
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
   }
 }
