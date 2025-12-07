@@ -231,7 +231,7 @@ export const ProductDetailPage = () => {
       </div>
     );
   };
-
+  
   return (
     <div className="pb-20 relative">
       {/* Lightbox */}
