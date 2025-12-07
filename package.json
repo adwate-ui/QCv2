@@ -1,5 +1,30 @@
 {
+  "name": "authentiqc",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "@google/genai": "^1.31.0",
+    "lucide-react": "^0.555.0",
+    "react-router-dom": "^7.10.1",
+    "@supabase/supabase-js": "^2.52.1"
+  },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^6.5.1",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "tailwindcss": "^3.4.3",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "gh-pages": "^6.1.1"
   }
 }
