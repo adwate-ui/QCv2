@@ -40,33 +40,45 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [tasks, setTasks] = useState<BackgroundTask[]>([]);
 
   useEffect(() => {
-    setLoading(true);
-
-    // onAuthStateChange fires immediately with the session from storage,
-    // and then again whenever the auth state changes.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // This function runs once on initial app load.
+    const checkSession = async () => {
       try {
+        const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const profileUser = await db.getUser(session.user.email!);
           setUser(profileUser || { email: session.user.email!, passwordHash: '', apiKey: '' });
           await loadProducts();
         } else {
-          // If there's no session, ensure the user and products are cleared.
           setUser(null);
           setProducts([]);
         }
       } catch (error) {
-        // If any async operation fails (db fetch, etc.), log the error and clear the session.
-        console.error("Error handling auth state change:", error);
+        console.error("Error checking initial session:", error);
         setUser(null);
         setProducts([]);
       } finally {
-        // This is the crucial part: ALWAYS set loading to false after the first check.
         setLoading(false);
+      }
+    };
+
+    checkSession();
+
+    // This listener handles auth changes that happen *after* the initial load.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        // To prevent re-fetching data we already have, we can be more intelligent here,
+        // but for now, we'll just ensure the user state is correct.
+        if (!user || user.email !== session.user.email) {
+          db.getUser(session.user.email!).then(profileUser => {
+            setUser(profileUser || { email: session.user.email!, passwordHash: '', apiKey: '' });
+          });
+        }
+      } else {
+        setUser(null);
+        setProducts([]);
       }
     });
 
-    // Cleanup subscription on component unmount
     return () => {
       subscription.unsubscribe();
     };
