@@ -40,42 +40,33 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [tasks, setTasks] = useState<BackgroundTask[]>([]);
 
   useEffect(() => {
-    const initializeSession = async () => {
+    setLoading(true);
+
+    // onAuthStateChange fires immediately with the session from storage,
+    // and then again whenever the auth state changes.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       try {
-        // 1. Explicitly fetch the session on initial load
-        const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const profileUser = await db.getUser(session.user.email!);
           setUser(profileUser || { email: session.user.email!, passwordHash: '', apiKey: '' });
           await loadProducts();
         } else {
+          // If there's no session, ensure the user and products are cleared.
           setUser(null);
           setProducts([]);
         }
       } catch (error) {
-        console.error("Error during initial session fetch:", error);
+        // If any async operation fails (db fetch, etc.), log the error and clear the session.
+        console.error("Error handling auth state change:", error);
         setUser(null);
         setProducts([]);
       } finally {
-        // GUARANTEE that loading is set to false after the initial check completes.
+        // This is the crucial part: ALWAYS set loading to false after the first check.
         setLoading(false);
-      }
-    };
-
-    initializeSession();
-
-    // 2. Listen for subsequent auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        const profileUser = await db.getUser(session.user.email!);
-        setUser(profileUser || { email: session.user.email!, passwordHash: '', apiKey: '' });
-        // No need to set loading here, as this handles changes after the initial load
-      } else {
-        setUser(null);
-        setProducts([]);
       }
     });
 
+    // Cleanup subscription on component unmount
     return () => {
       subscription.unsubscribe();
     };
