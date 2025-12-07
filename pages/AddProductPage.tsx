@@ -176,19 +176,18 @@ export const AddProductPage = () => {
 
   const handleDiscard = (e: React.MouseEvent) => {
     e.preventDefault();
-    
-    // Use timeout to allow event to bubble cleanly before confirm dialog
-    setTimeout(() => {
-        if (window.confirm("Are you sure you want to discard this draft?")) {
-          setImages([]);
-          setProductUrl('');
-          setProfile(null);
-          setGeneratedSettings(null);
-          setStep('UPLOAD');
-          localStorage.removeItem(STORAGE_KEY);
-          navigate('/inventory');
-        }
-    }, 10);
+    if (window.confirm("Are you sure you want to discard this draft?")) {
+      setImages([]);
+      setProductUrl('');
+      setProfile(null);
+      setGeneratedSettings(null);
+      setStep('UPLOAD');
+      setSelectedImage(null);
+      setIsEditingUrl(false);
+      setLoading(false);
+      localStorage.removeItem(STORAGE_KEY);
+      navigate('/inventory');
+    }
   };
 
   const handleSave = async (e: React.MouseEvent) => {
