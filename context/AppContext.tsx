@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Product, AppSettings, ModelTier, ExpertMode, BackgroundTask } from '../types';
 import { db } from '../services/db';
@@ -17,6 +16,7 @@ interface AppContextType {
   updateApiKey: (key: string) => Promise<void>;
   addProduct: (product: Product) => Promise<void>;
   updateProduct: (product: Product) => Promise<void>;
+  deleteProduct: (productId: string) => Promise<void>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   toggleModelTier: () => void;
@@ -41,36 +41,33 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   // Initialize Supabase Auth Listener
   useEffect(() => {
-    const initSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        // Fetch extended profile info (API Key)
-        const profileUser = await db.getUser(session.user.email!);
-        setUser(profileUser || { email: session.user.email!, passwordHash: '', apiKey: '' });
-        await loadProducts();
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
-    };
-
-    initSession();
-
+    setLoading(true);
+    
+    // This listener handles both the initial session check and any subsequent auth changes.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        const profileUser = await db.getUser(session.user.email!);
-        // If profile doesn't exist yet (first login after signup), create default structure in state
-        // It will be saved to DB when they add an API key
-        setUser(profileUser || { email: session.user.email!, passwordHash: '', apiKey: '' });
-        await loadProducts();
-      } else {
+      try {
+        if (session?.user) {
+          const profileUser = await db.getUser(session.user.email!);
+          // If profile doesn't exist yet (first login after signup), create default structure in state
+          // It will be saved to DB when they add an API key
+          setUser(profileUser || { email: session.user.email!, passwordHash: '', apiKey: '' });
+          await loadProducts();
+        } else {
+          setUser(null);
+          setProducts([]);
+        }
+      } catch (error) {
+        console.error("Error handling auth state change:", error);
         setUser(null);
         setProducts([]);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const loadProducts = async () => {
@@ -126,6 +123,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const updateProduct = async (product: Product) => {
     await db.saveProduct(product);
     await loadProducts();
+  };
+
+  const deleteProduct = async (productId: string) => {
+    await db.deleteProduct(productId);
+    setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
   };
 
   const logout = async () => {
@@ -275,7 +277,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   return (
     <AppContext.Provider value={{
       user, loading, products, settings, tasks,
-      login, register, updateApiKey, addProduct, updateProduct, logout, deleteAccount,
+      login, register, updateApiKey, addProduct, updateProduct, deleteProduct, logout, deleteAccount,
       toggleModelTier, toggleExpertMode, refreshProducts: loadProducts,
       startIdentificationTask, startQCTask, dismissTask
     }}>
