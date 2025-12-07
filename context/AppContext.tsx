@@ -256,8 +256,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
        const validPrevImages = previousImages.filter(Boolean) as string[];
        const combinedAnalysisImages = [...validPrevImages, ...qcImages];
 
-       // 3. Run Analysis, now passing the new image IDs
-       const report = await runQCAnalysis(apiKey, product.profile, refImages, combinedAnalysisImages, newImageIds, settings);
+      // 3. Run Analysis — include ALL QC image IDs (previous + new) so the report references every image used
+      const combinedQcImageIds = [...previousBatchIds, ...newImageIds];
+      const report = await runQCAnalysis(apiKey, product.profile, refImages, combinedAnalysisImages, combinedQcImageIds, settings);
 
        // 4. Update Product in DB with the new batch
        const newBatch = {
@@ -269,7 +270,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
        const updatedProduct = {
          ...product,
          qcBatches: [...(product.qcBatches || []), newBatch],
-         reports: [...(product.reports || []), report] 
+         // Append the new report (which now references all qc image ids)
+         reports: [...(product.reports || []), report]
        };
 
        await db.saveProduct(updatedProduct);

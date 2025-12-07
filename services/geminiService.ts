@@ -318,8 +318,39 @@ export const runQCAnalysis = async (
     //   config.tools = [{ googleSearch: {} }];
     // }
 
-    const response = await ai.models.generateContent({ model, contents: { parts }, config });
-    const result = JSON.parse(cleanJson(response.text || "{}"));
+    let result: any = {};
+
+    // Two-step Expert flow: allow web-search/tools in a first pass (unstructured),
+    // then synthesize a structured JSON report in a second pass without tools.
+    if (settings.expertMode === ExpertMode.EXPERT && settings.modelTier === ModelTier.DETAILED) {
+      // First pass: allow tools (web search) but do not request JSON schema
+      const firstConfig: any = {
+        systemInstruction: getSystemInstruction(settings.expertMode, settings.modelTier, 'QC'),
+        thinkingConfig,
+        safetySettings: config.safetySettings,
+        tools: [{ googleSearch: {} }]
+      };
+
+      const firstResp = await ai.models.generateContent({ model, contents: { parts }, config: firstConfig });
+      const firstText = firstResp.text || "";
+
+      // Second pass: request structured JSON using the prior analysis as context
+      const partsForJson = [...parts, { text: `SYNTHESIZE THE ANALYSIS ABOVE INTO A VALID JSON REPORT MATCHING THE SCHEMA. Use the previous analysis results and web search findings to populate fields. Respond ONLY with valid JSON.` }, { text: firstText }];
+
+      const secondConfig: any = {
+        systemInstruction: getSystemInstruction(settings.expertMode, settings.modelTier, 'QC'),
+        responseMimeType: "application/json",
+        responseSchema: schema,
+        thinkingConfig,
+        safetySettings: config.safetySettings,
+      };
+
+      const secondResp = await ai.models.generateContent({ model, contents: { parts: partsForJson }, config: secondConfig });
+      result = JSON.parse(cleanJson(secondResp.text || "{}"));
+    } else {
+      const response = await ai.models.generateContent({ model, contents: { parts }, config });
+      result = JSON.parse(cleanJson(response.text || "{}"));
+    }
     
     return {
       id: generateUUID(),

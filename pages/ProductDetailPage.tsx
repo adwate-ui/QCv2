@@ -252,17 +252,40 @@ export const ProductDetailPage: React.FC = () => {
         </div>
       )}
 
+      {currentReport ? <ReportCard report={currentReport} previous={previousReport} /> : (
+        <div className="text-center py-10 bg-white rounded border-dashed border">
+          <div className="text-gray-500">No QC reports generated yet.</div>
+        </div>
+      )}
+
+      {/* Running indicator placed near report area for clarity */}
       {isRunningQC && (
-        <div className="bg-blue-50 p-4 rounded mb-6">
-          <div className="flex items-center justify-center gap-2">
-            <Activity /> <span>Analysis in progress</span>
+        <div className="bg-blue-50 p-3 rounded mb-6 flex items-center gap-3">
+          <Activity className="text-blue-600" />
+          <div className="flex-1">
+            <div className="font-semibold text-blue-800">Analysis running in background</div>
+            <div className="text-sm text-blue-600">The inspection is processing and will appear in history when complete.</div>
           </div>
         </div>
       )}
 
-      {currentReport ? <ReportCard report={currentReport} previous={previousReport} /> : (
-        <div className="text-center py-10 bg-white rounded border-dashed border">
-          <div className="text-gray-500">No QC reports generated yet.</div>
+      {/* History (previous reports) below the latest report, descending order */}
+      {sortedReports.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-sm font-semibold text-gray-600 mb-2">Previous Inspections</h3>
+          <div className="space-y-3">
+            {sortedReports.filter(r => r.id !== currentReport?.id).map(r => (
+              <div key={r.id} className="p-4 border rounded bg-white">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="text-xs text-gray-500">{new Date(r.generatedAt).toLocaleString()}</div>
+                    <div className="font-semibold">Score: {r.overallScore}/100</div>
+                  </div>
+                  <div className="text-sm text-gray-600">{r.overallGrade}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -285,8 +308,22 @@ export const ProductDetailPage: React.FC = () => {
           </div>
         </div>
 
-        <button onClick={executeQC} disabled={qcImages.length === 0 || isRunningQC} className="mt-4 w-full py-2 rounded bg-primary text-white">
-          {isRunningQC ? <><Loader2 className="animate-spin" /> Running...</> : 'Start Background Analysis'}
+        <button
+          onClick={executeQC}
+          disabled={qcImages.length === 0 || isRunningQC}
+          className={`mt-4 w-full py-2 rounded font-semibold flex items-center justify-center gap-2 ${qcImages.length === 0 || isRunningQC ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-primary text-white hover:bg-indigo-700'}`}
+        >
+          {isRunningQC ? (
+            <>
+              <Loader2 className="animate-spin" size={18} />
+              <span>Running...</span>
+            </>
+          ) : (
+            <>
+              <Zap size={16} />
+              <span>Start Background Analysis</span>
+            </>
+          )}
         </button>
       </div>
     </div>
