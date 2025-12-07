@@ -299,23 +299,27 @@ export const runQCAnalysis = async (
     }
     // Pro 3.0 relies on prompt complexity and model size for duration (45-60s)
 
-    const response = await ai.models.generateContent({
-        model,
-        contents: { parts },
-        config: {
-            systemInstruction: getSystemInstruction(settings.expertMode, settings.modelTier, 'QC'),
-            responseMimeType: "application/json",
-            responseSchema: schema,
-            thinkingConfig,
-            safetySettings: [
-                { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-                { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-                { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-                { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            ],
-            tools: settings.expertMode === ExpertMode.EXPERT ? [{ googleSearch: {} }] : undefined
-        }
-    });    const result = JSON.parse(cleanJson(response.text || "{}"));
+    const config: any = {
+        systemInstruction: getSystemInstruction(settings.expertMode, settings.modelTier, 'QC'),
+        responseMimeType: "application/json",
+        responseSchema: schema,
+        thinkingConfig,
+        safetySettings: [
+            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        ],
+    };
+
+    // CRITICAL FIX: The API does not support tools and response_mime_type together.
+    // Since we require JSON output, we must conditionally omit tools for now.
+    // if (settings.expertMode === ExpertMode.EXPERT) {
+    //   config.tools = [{ googleSearch: {} }];
+    // }
+
+    const response = await ai.models.generateContent({ model, contents: { parts }, config });
+    const result = JSON.parse(cleanJson(response.text || "{}"));
     
     return {
       id: generateUUID(),
