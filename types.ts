@@ -45,6 +45,7 @@ export interface QCReport {
   summary: string;
   sections: QCSection[];
   basedOnBatchIds: string[];
+  qcImageIds: string[]; // <-- ADD THIS LINE
   modelTier: ModelTier; // Track which model generated this report
   expertMode: ExpertMode; // Track which persona generated this report
 }

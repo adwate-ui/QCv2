@@ -232,35 +232,34 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
        createdAt: Date.now(),
        meta: {
            title: `QC Inspection: ${product.profile.name}`,
-           targetId: product.id
+           targetId: product.id,
+           images: qcImages // Pass images for UI
        }
    };
    setTasks(prev => [task, ...prev]);
 
    (async () => {
      try {
-       // 1. Fetch ALL previous batch images (Cumulative Analysis)
+       // 1. Save NEW QC images to DB and get their IDs
+       const newImageIds = await Promise.all(
+         qcImages.map(async (img) => {
+           const id = generateUUID();
+           await db.saveImage(id, img);
+           return id;
+         })
+       );
+
+       // 2. Fetch ALL previous batch images (Cumulative Analysis)
        const batches = product.qcBatches || [];
        const previousBatchIds = batches.flatMap(b => b.imageIds);
-       
        const previousImages = await Promise.all(previousBatchIds.map(id => db.getImage(id)));
        const validPrevImages = previousImages.filter(Boolean) as string[];
-       
-       // Combine
        const combinedAnalysisImages = [...validPrevImages, ...qcImages];
 
-       // 2. Run Analysis
-       const report = await runQCAnalysis(apiKey, product.profile, refImages, combinedAnalysisImages, settings);
+       // 3. Run Analysis, now passing the new image IDs
+       const report = await runQCAnalysis(apiKey, product.profile, refImages, combinedAnalysisImages, newImageIds, settings);
 
-       // 3. Save NEW QC images to DB (Uploads to Storage)
-       const newImageIds: string[] = [];
-       for (const img of qcImages) {
-         const id = generateUUID();
-         await db.saveImage(id, img);
-         newImageIds.push(id);
-       }
-
-       // 4. Update Product in DB
+       // 4. Update Product in DB with the new batch
        const newBatch = {
          id: generateUUID(),
          timestamp: Date.now(),
@@ -269,7 +268,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
        const updatedProduct = {
          ...product,
-         qcBatches: [...batches, newBatch],
+         qcBatches: [...(product.qcBatches || []), newBatch],
          reports: [...(product.reports || []), report] 
        };
 

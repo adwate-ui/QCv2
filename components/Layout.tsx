@@ -117,10 +117,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-4 w-full md:ml-64">
-        <div className="max-w-5xl mx-auto w-full">
-          {children}
-        </div>
+      <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        {children}
       </main>
 
       {/* Desktop Sidebar (Hidden on Mobile) */}
@@ -147,15 +145,15 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around p-3 pb-safe z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
         <Link to="/inventory" className={`flex flex-col items-center gap-1 ${isActive('/inventory')}`}>
           <Home size={24} />
-          <span className="text-[10px] font-medium">Home</span>
+          <span className="text-xs">Home</span>
         </Link>
         <Link to="/inventory/new" className={`flex flex-col items-center gap-1 ${isActive('/inventory/new')}`}>
           <PlusSquare size={24} />
-          <span className="text-[10px] font-medium">Add</span>
+          <span className="text-xs">Add</span>
         </Link>
         <Link to="/user" className={`flex flex-col items-center gap-1 ${isActive('/user')}`}>
           <UserIcon size={24} />
-          <span className="text-[10px] font-medium">Profile</span>
+          <span className="text-xs">Profile</span>
         </Link>
       </nav>
     </div>

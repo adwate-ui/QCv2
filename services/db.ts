@@ -221,6 +221,49 @@ export class DBService {
     return products.find(p => p.id === id);
   }
 
+  async deleteProduct(productId: string) {
+    if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
+    
+    const product = await this.getProduct(productId);
+    if (!product) {
+      console.warn(`Product with ID ${productId} not found for deletion.`);
+      return;
+    }
+  
+    // Delete all associated images from Supabase Storage
+    const imageIdsToDelete = [
+      ...product.referenceImageIds,
+      ...product.qcBatches.flatMap(batch => batch.imageIds)
+    ];
+  
+    // Use a Set to ensure we don't try to delete the same image ID twice
+    const uniqueImageIds = [...new Set(imageIdsToDelete)];
+  
+    for (const imageId of uniqueImageIds) {
+      try {
+        await this.deleteImage(imageId);
+      } catch (error) {
+        // Log the error but continue trying to delete other images and the product itself
+        console.error(`Failed to delete image with ID ${imageId}:`, error);
+      }
+    }
+  
+    // After deleting associated images, delete the product from the 'products' table.
+    // Supabase is configured with cascading deletes, so associated qc_batches and qc_reports
+    // for this product will be deleted automatically.
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', productId);
+  
+    if (error) {
+      console.error(`Error deleting product with ID ${productId}:`, error);
+      throw new Error(`Database error: ${error.message}`);
+    }
+  
+    console.log(`Product with ID ${productId} and all its associated data has been deleted.`);
+  }
+
   // --- IMAGE METHODS ---
 
   async saveImage(id: string, base64: string) { 

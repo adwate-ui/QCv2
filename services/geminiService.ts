@@ -32,11 +32,7 @@ const getModelConfig = (tier: ModelTier) => {
 
 const getSystemInstruction = (mode: ExpertMode, tier: ModelTier, task: 'ID' | 'QC'): string => {
   if (task === 'ID') {
-    const expertNuance = mode === ExpertMode.EXPERT 
-      ? "You identify products with forensic precision, noticing specific model years, reference numbers, and manufacturing origins."
-      : "You identify products clearly and accurately.";
-
-    return `You are the world's leading expert on luxury goods, consumer electronics, and rare collectibles. ${expertNuance} 
+    return `You are the world's leading expert on luxury goods, consumer electronics, and rare collectibles. You identify products with forensic precision, noticing specific model years, reference numbers, and manufacturing origins.
     
     CRITICAL INSTRUCTION: Your goal is to build a Master Profile for the **AUTHENTIC** version of the product shown. 
     - Always identify the specific luxury or established brand associated with the design (e.g., if it looks like a Rolex Submariner, identify it as a Rolex Submariner).
@@ -61,7 +57,7 @@ const getSystemInstruction = (mode: ExpertMode, tier: ModelTier, task: 'ID' | 'Q
           * Score <= 60: FAIL (Replica / Major Defects)
         
         ${mode === ExpertMode.EXPERT ? 
-          "PERSONA: UNFORGIVING FORENSIC EXPERT. You are looking for microscopic flaws. You assume it is fake until proven real. Take 45-60 seconds to analyze." : 
+          "PERSONA: UNFORGIVING FORENSIC EXPERT. You are looking for microscopic flaws. You assume it is fake until proven real. Use web searches to find official product specifications, known manufacturing flaws, and common tells for replicas to inform your analysis. Take 45-60 seconds to analyze." : 
           "PERSONA: SENIOR BRAND EXPERT. You are thorough and professional. Take 45 seconds to analyze."
         }`;
     } else {
@@ -82,7 +78,8 @@ const getSystemInstruction = (mode: ExpertMode, tier: ModelTier, task: 'ID' | 'Q
   }
 };
 
-export const identifyProduct = async (
+// Core identification logic, now separated for clarity and fallback purposes.
+const _performIdentification = async (
   apiKey: string,
   imageDatas: string[], // base64 strings
   inputUrl: string | undefined,
@@ -100,101 +97,118 @@ export const identifyProduct = async (
 
   // Tier-specific prompting
   if (settings.modelTier === ModelTier.DETAILED) {
-    prompt += `**INSTRUCTION (DETAILED MODE):**
-    - Provide a **comprehensive, deeply researched** analysis.
+    prompt += `**INSTRUCTION (PRO 3.0 MODE):**
+    - Provide a **comprehensive, deeply researched** analysis. This should take approximately 45-60 seconds.
     - **Name**: Include full model name, reference number if applicable.
     - **Material**: Detail specific alloys, fabrics, or leather grades.
     - **Features**: List extensive technical features.
     - **Price**: Provide a precise current market range.
     `;
   } else {
-    prompt += `**INSTRUCTION (FAST MODE):**
-    - Provide a **concise, direct** identification.
-    - **Name**: Best guess for standard commercial name.
-    - **Brand**: Best guess for the brand based on visual cues.
-    - **Price**: Best guess estimated price range.
-    - **IMPORTANT**: Provide your **BEST EXPERT GUESS** for all fields. Do not leave fields empty.
+    prompt += `**INSTRUCTION (FLASH 2.5 MODE):**
+    - Provide a **concise, direct** identification. This should take approximately 30 seconds.
+    - **Name**: Provide brand and model name.
+    - **Material**: Identify primary material.
+    - **Features**: List 2-3 key features.
+    - **Price**: Provide an estimated MSRP or market price.
     `;
   }
   
-  prompt += `\nRequired Fields: Brand, Name, Category, Price Estimate, Material, Features, Description.`;
-  
-  const tools: any[] = [];
-  
   if (inputUrl) {
-    prompt += `\n\nContext provided by user (Product URL): ${inputUrl}`;
-    prompt += `\n\nOUTPUT: Return strictly a valid JSON object matching the requested fields.`;
-  } else {
-    // Enable Grounding
-    tools.push({ googleSearch: {} });
-    prompt += `\n\nUse Google Search to find the official product page. 
-    Set the 'url' field in the JSON response to this specific direct link.
-    OUTPUT: Return strictly a valid JSON object matching the requested fields inside a \`\`\`json code block.`;
+    prompt += `\n**Reference URL (use for context if helpful):** ${inputUrl}\n`;
   }
 
-  parts.push({ text: prompt });
+  prompt += `\nIMPORTANT: ALWAYS return your response as a valid, raw JSON object conforming to the ProductProfile schema. Do NOT wrap it in markdown backticks.`;
+  
+  parts.unshift({ text: prompt });
 
-  const config: any = {
-    systemInstruction: getSystemInstruction(settings.expertMode, settings.modelTier, 'ID'),
-    safetySettings: [
-        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-    ]
+  const schema: Schema = {
+    type: Type.OBJECT,
+    properties: {
+      name: { type: Type.STRING },
+      brand: { type: Type.STRING },
+      category: { type: Type.STRING },
+      priceEstimate: { type: Type.STRING },
+      material: { type: Type.STRING },
+      features: { type: Type.ARRAY, items: { type: Type.STRING } },
+      description: { type: Type.STRING },
+    },
+    required: ["name", "brand", "category", "priceEstimate", "material", "features", "description"]
   };
-
-  if (!inputUrl) {
-    config.tools = tools;
-  } else {
-    config.responseMimeType = "application/json";
-    config.responseSchema = {
-      type: Type.OBJECT,
-      properties: {
-        name: { type: Type.STRING },
-        brand: { type: Type.STRING },
-        category: { type: Type.STRING },
-        priceEstimate: { type: Type.STRING },
-        material: { type: Type.STRING },
-        features: { type: Type.ARRAY, items: { type: Type.STRING } },
-        description: { type: Type.STRING },
-        url: { type: Type.STRING },
-      },
-      required: ['name', 'brand', 'category', 'features']
+  
+  // Configure thinking budget for Flash 2.5
+  let thinkingConfig;
+  if (settings.modelTier === ModelTier.FAST) {
+    thinkingConfig = {
+      thinkingBudget: 12288
     };
   }
 
   const response = await ai.models.generateContent({
     model,
     contents: { parts },
-    config
+    config: {
+      systemInstruction: getSystemInstruction(settings.expertMode, settings.modelTier, 'ID'),
+      responseMimeType: "application/json",
+      responseSchema: schema,
+      thinkingConfig,
+      safetySettings: [
+        {
+          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH
+        }
+      ]
+    }
   });
 
-  const text = response.text || "{}";
+  const responseText = response.text || "{}";
+  
+  // The API now directly returns JSON, so we can parse it.
+  const profile: ProductProfile = JSON.parse(responseText);
+
+  // Add URL to profile if it was provided
+  if (inputUrl) {
+    profile.url = inputUrl;
+  }
+
+  return profile;
+};
+
+// Main exported function with fallback logic
+export const identifyProduct = async (
+  apiKey: string,
+  imageDatas: string[], // base64 strings
+  inputUrl: string | undefined,
+  settings: AppSettings
+): Promise<ProductProfile> => {
   try {
-    const raw = JSON.parse(cleanJson(text));
+    // First attempt with the original settings
+    return await _performIdentification(apiKey, imageDatas, inputUrl, settings);
+  } catch (error) {
+    console.error("Initial identification failed:", error);
+
+    // If the first attempt with the DETAILED model failed, try again with the FAST model.
+    if (settings.modelTier === ModelTier.DETAILED) {
+      console.warn("Detailed model failed. Attempting fallback with Fast model...");
+      try {
+        const fallbackSettings: AppSettings = { ...settings, modelTier: ModelTier.FAST };
+        return await _performIdentification(apiKey, imageDatas, inputUrl, fallbackSettings);
+      } catch (fallbackError) {
+        console.error("Fallback identification also failed:", fallbackError);
+        // If the fallback also fails, return the standard error object.
+      }
+    }
+
+    // Return a standard error object if initial attempt failed (for FAST) or fallback failed (for DETAILED)
     return {
-      name: raw.name || "Unknown Product",
-      brand: raw.brand || "Unknown Brand",
-      category: raw.category || "Uncategorized",
-      priceEstimate: raw.priceEstimate || "N/A",
-      material: raw.material || "N/A",
-      features: Array.isArray(raw.features) ? raw.features : ["Identified from visual analysis"],
-      description: raw.description || "No description available",
-      url: raw.url || inputUrl
-    };
-  } catch (e) {
-    console.error("Failed to parse JSON", text);
-    // Fallback object to prevent UI crash
-    return {
-        name: "Identification Failed",
-        brand: "Unknown",
-        category: "Review Needed",
-        priceEstimate: "N/A",
-        material: "N/A",
-        features: ["Could not parse model response"],
-        description: "Please retry identification.",
-        url: inputUrl
+      name: "Identification Failed",
+      brand: "Unknown",
+      category: "Unknown",
+      priceEstimate: "N/A",
+      material: "N/A",
+      features: ["Error during processing."],
+      description: "Could not identify the product. The model may be unavailable or the request may have timed out. Please try again later.",
+      url: inputUrl,
     };
   }
 };
@@ -204,40 +218,42 @@ export const runQCAnalysis = async (
   profile: ProductProfile,
   refImages: string[],
   qcImages: string[],
+  qcImageIds: string[], // <-- ADD THIS
   settings: AppSettings
 ): Promise<QCReport> => {
-  const ai = new GoogleGenAI({ apiKey });
-  const { model } = getModelConfig(settings.modelTier);
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const { model } = getModelConfig(settings.modelTier);
 
-  const parts: any[] = [];
+    const parts: any[] = [];
 
-  // Add Ref Images
-  refImages.forEach((img, idx) => {
-    parts.push({ 
-      text: `REFERENCE IMAGE ${idx + 1} (Authentic):`
+    // Add Ref Images
+    refImages.forEach((img, idx) => {
+      parts.push({
+        text: `REFERENCE IMAGE ${idx + 1} (Authentic):`
+      });
+      parts.push({
+        inlineData: { mimeType: 'image/jpeg', data: img.split(',')[1] || img }
+      });
     });
+
+    // Add Product Context
     parts.push({
-      inlineData: { mimeType: 'image/jpeg', data: img.split(',')[1] || img }
+      text: `AUTHENTIC PRODUCT PROFILE:\n${JSON.stringify(profile, null, 2)}\n\n`
     });
-  });
 
-  // Add Product Context
-  parts.push({
-    text: `AUTHENTIC PRODUCT PROFILE:\n${JSON.stringify(profile, null, 2)}\n\n`
-  });
-
-  // Add QC Images
-  qcImages.forEach((img, idx) => {
-    parts.push({ 
-      text: `QC INSPECTION IMAGE ${idx + 1} (To be analyzed):`
+    // Add QC Images
+    qcImages.forEach((img, idx) => {
+      parts.push({
+        text: `QC INSPECTION IMAGE ${idx + 1} (To be analyzed):`
+      });
+      parts.push({
+        inlineData: { mimeType: 'image/jpeg', data: img.split(',')[1] || img }
+      });
     });
+
     parts.push({
-      inlineData: { mimeType: 'image/jpeg', data: img.split(',')[1] || img }
-    });
-  });
-
-  parts.push({
-    text: `Perform a QC inspection comparing the CUMULATIVE SET of QC INSPECTION IMAGES (collected over multiple batches) against the REFERENCE IMAGES and PROFILE.
+      text: `Perform a QC inspection comparing the CUMULATIVE SET of QC INSPECTION IMAGES (collected over multiple batches) against the REFERENCE IMAGES and PROFILE.
     
     SCORING RUBRIC:
     - PASS: > 80 (Good condition, authentic, no major defects)
@@ -248,66 +264,74 @@ export const runQCAnalysis = async (
     - Break down analysis by sections (Packaging, Materials, Hardware, Stitching, etc.)
     - Use bullet points in observations.
     - Provide a specific score (0-100) and grade for each section and Overall.`
-  });
+    });
 
-  const schema: Schema = {
-    type: Type.OBJECT,
-    properties: {
-      overallScore: { type: Type.NUMBER },
-      overallGrade: { type: Type.STRING, enum: ["PASS", "FAIL", "CAUTION"] },
-      summary: { type: Type.STRING },
-      sections: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            sectionName: { type: Type.STRING },
-            score: { type: Type.NUMBER },
-            grade: { type: Type.STRING, enum: ["PASS", "FAIL", "CAUTION"] },
-            observations: { type: Type.STRING }
+    const schema: Schema = {
+      type: Type.OBJECT,
+      properties: {
+        overallScore: { type: Type.NUMBER },
+        overallGrade: { type: Type.STRING, enum: ["PASS", "FAIL", "CAUTION"] },
+        summary: { type: Type.STRING },
+        sections: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              sectionName: { type: Type.STRING },
+              score: { type: Type.NUMBER },
+              grade: { type: Type.STRING, enum: ["PASS", "FAIL", "CAUTION"] },
+              observations: { type: Type.STRING }
+            }
           }
         }
       }
-    }
-  };
-
-  // Configure thinking budget for Flash 2.5
-  let thinkingConfig;
-  if (settings.modelTier === ModelTier.FAST) {
-    // Flash 2.5 supports Thinking
-    // To match 30s (Normal) -> ~12k tokens
-    // To match 40s (Expert) -> ~16k tokens
-    thinkingConfig = {
-      thinkingBudget: settings.expertMode === ExpertMode.EXPERT ? 16384 : 12288
     };
-  }
-  // Pro 3.0 relies on prompt complexity and model size for duration (45-60s)
 
-  const response = await ai.models.generateContent({
-    model,
-    contents: { parts },
-    config: {
-      systemInstruction: getSystemInstruction(settings.expertMode, settings.modelTier, 'QC'),
-      responseMimeType: "application/json",
-      responseSchema: schema,
-      thinkingConfig,
-      safetySettings: [
-        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-      ]
+    // Configure thinking budget for Flash 2.5
+    let thinkingConfig;
+    if (settings.modelTier === ModelTier.FAST) {
+      // Flash 2.5 supports Thinking
+      // To match 30s (Normal) -> ~12k tokens
+      // To match 40s (Expert) -> ~16k tokens
+      thinkingConfig = {
+        thinkingBudget: settings.expertMode === ExpertMode.EXPERT ? 16384 : 12288
+      };
     }
-  });
+    // Pro 3.0 relies on prompt complexity and model size for duration (45-60s)
 
-  const result = JSON.parse(cleanJson(response.text || "{}"));
-  
-  return {
-    id: generateUUID(),
-    generatedAt: Date.now(),
-    basedOnBatchIds: [], // To be filled by caller
-    modelTier: settings.modelTier,
-    expertMode: settings.expertMode,
-    ...result
-  };
+    const response = await ai.models.generateContent({
+        model,
+        contents: { parts },
+        config: {
+            systemInstruction: getSystemInstruction(settings.expertMode, settings.modelTier, 'QC'),
+            responseMimeType: "application/json",
+            responseSchema: schema,
+            thinkingConfig,
+            safetySettings: [
+                { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            ],
+            tools: settings.expertMode === ExpertMode.EXPERT ? [{ googleSearch: {} }] : undefined
+        }
+    });    const result = JSON.parse(cleanJson(response.text || "{}"));
+    
+    return {
+      id: generateUUID(),
+      generatedAt: Date.now(),
+      basedOnBatchIds: [],
+      qcImageIds: qcImageIds, // <-- ADD THIS
+      modelTier: settings.modelTier,
+      expertMode: settings.expertMode,
+      ...result
+    };
+  } catch (error) {
+    if (settings.modelTier === ModelTier.DETAILED) {
+      console.warn("Detailed QC failed. Attempting fallback with Fast model...");
+      const fallbackSettings = { ...settings, modelTier: ModelTier.FAST };
+      return runQCAnalysis(apiKey, profile, refImages, qcImages, qcImageIds, fallbackSettings);
+    }
+    throw error; // Re-throw if not detailed or if fallback fails
+  }
 };
