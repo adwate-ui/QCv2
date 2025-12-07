@@ -39,17 +39,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   });
   const [tasks, setTasks] = useState<BackgroundTask[]>([]);
 
-  // Initialize Supabase Auth Listener
   useEffect(() => {
-    setLoading(true);
-    
-    // This listener handles both the initial session check and any subsequent auth changes.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const initializeSession = async () => {
       try {
+        // 1. Explicitly fetch the session on initial load
+        const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const profileUser = await db.getUser(session.user.email!);
-          // If profile doesn't exist yet (first login after signup), create default structure in state
-          // It will be saved to DB when they add an API key
           setUser(profileUser || { email: session.user.email!, passwordHash: '', apiKey: '' });
           await loadProducts();
         } else {
@@ -57,11 +53,26 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           setProducts([]);
         }
       } catch (error) {
-        console.error("Error handling auth state change:", error);
+        console.error("Error during initial session fetch:", error);
         setUser(null);
         setProducts([]);
       } finally {
+        // GUARANTEE that loading is set to false after the initial check completes.
         setLoading(false);
+      }
+    };
+
+    initializeSession();
+
+    // 2. Listen for subsequent auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        const profileUser = await db.getUser(session.user.email!);
+        setUser(profileUser || { email: session.user.email!, passwordHash: '', apiKey: '' });
+        // No need to set loading here, as this handles changes after the initial load
+      } else {
+        setUser(null);
+        setProducts([]);
       }
     });
 
