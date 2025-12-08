@@ -7,7 +7,7 @@ import { Plus, Search, Tag, Filter, CheckCircle, XCircle, AlertTriangle, Clock, 
 
 type FilterType = 'ALL' | 'PASS' | 'FAIL' | 'CAUTION' | 'PENDING';
 
-const GridButton = ({ size, isActive, onClick }: { size: number, isActive: boolean, onClick: () => void }) => {
+const GridButton = ({ key, size, isActive, onClick }: { key: number, size: number, isActive: boolean, onClick: () => void }) => {
     const gridTemplates = {
         2: 'grid-cols-2',
         3: 'grid-cols-3',
@@ -36,9 +36,12 @@ export const InventoryPage = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<FilterType>('ALL');
-  const [groupedProducts, setGroupedProducts] = useState<Record<string, Product[]>>({});
+  const [groupedProducts, setGroupedProducts] = useState<Record<string, Product>>({});
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
-  const [gridSize, setGridSize] = useState(3);
+  const [gridSize, setGridSize] = useState(() => {
+    const savedGridSize = localStorage.getItem('inventoryGridSize');
+    return savedGridSize ? parseInt(savedGridSize, 10) : 3;
+  });
 
   const gridColsClass = gridSize === 2 ? "md:grid-cols-2" : 
                       gridSize === 3 ? "md:grid-cols-3" :
@@ -84,6 +87,10 @@ export const InventoryPage = () => {
       setImageMap(prev => ({...prev, ...map}));
     }
   }, [products, searchTerm, statusFilter, user?.id]);
+
+  useEffect(() => {
+    localStorage.setItem('inventoryGridSize', gridSize.toString());
+  }, [gridSize]);
 
   if (!user?.apiKey) {
     return (
