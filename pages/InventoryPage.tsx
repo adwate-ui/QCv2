@@ -117,22 +117,22 @@ export const InventoryPage = () => {
           <FilterButton type="PENDING" label="Pending" icon={Clock} activeClass="bg-blue-50 text-blue-600 border-blue-200" />
         
           <div className="flex items-center gap-2 ml-auto">
-            <LayoutGrid size={14} className="text-gray-400" />
-            {[2, 3, 4, 5].map((size) => (
-              <button
-                key={size}
-                onClick={() => setGridSize(size)}
-                className={`p-2 rounded-md border ${
-                  gridSize === size ? 'border-blue-500 bg-blue-100' : 'border-gray-200 bg-white'
-                }`}
-              >
-                <div className={`grid grid-cols-${size} gap-0.5 w-4 h-4`}>
-                  {Array.from({ length: size * size }).map((_, i) => (
-                    <div key={i} className="w-1 h-1 bg-gray-600 rounded-sm"></div>
-                  ))}
-                </div>
-              </button>
-            ))}
+            <span className="text-sm text-gray-500">View:</span>
+            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                {[2, 3, 4, 5].map((size) => (
+                    <button
+                        key={size}
+                        onClick={() => setGridSize(size)}
+                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                            gridSize === size
+                                ? 'bg-white text-primary shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                    >
+                        {size}
+                    </button>
+                ))}
+            </div>
           </div>
         </div>
       </div>
@@ -168,7 +168,7 @@ export const InventoryPage = () => {
                 <Tag size={16} /> {category}
               </h3>
               {/* <div className={`grid grid-cols-1 sm:grid-cols-2 ${gridColsClass} gap-4`}> */}
-              <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4`}>
+              <div className={`grid grid-cols-1 sm:grid-cols-2 ${gridColsClass} gap-4`}>
                 {prods.map(product => {
                   const latestReport = product.reports && product.reports.length > 0 ? product.reports[product.reports.length - 1] : null;
                   
