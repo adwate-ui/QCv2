@@ -119,7 +119,7 @@ const _performIdentification = async (
     prompt += `\n**Reference URL (use for context if helpful):** ${inputUrl}\n`;
   }
 
-  prompt += `\nIMPORTANT: ALWAYS return your response as a valid, raw JSON object conforming to the ProductProfile schema. Do NOT wrap it in markdown backticks.`;
+  prompt += `\nCRITICAL: Your final output must be a single, valid, raw JSON object that strictly conforms to the ProductProfile schema. Do not include any extra text, conversational pleasantries, or markdown formatting like \`\`\`json. Just the JSON object.`;
   
   parts.unshift({ text: prompt });
 
@@ -283,7 +283,8 @@ export const runQCAnalysis = async (
     Output requirements:
     - Break down analysis by sections (e.g., for a bag: Packaging, Exterior Leather, Interior Lining, Hardware & Zippers, Stitching, Straps & Handles, Logos & Brand Stamps, Dust Bag, Authenticity Card).
     - Use bullet points in observations.
-    - Provide a specific score (0-100) and grade for each section and Overall.`
+    - Provide a specific score on a scale of 0-100 and a grade for each section and for the overall assessment.
+    - ALWAYS return your response as a valid, raw JSON object conforming to the QCReport schema. Do NOT wrap it in markdown backticks.
     });
 
     const schema: Schema = {
