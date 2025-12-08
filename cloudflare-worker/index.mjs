@@ -2,10 +2,6 @@ import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 import jpeg from 'jpeg-js';
 
-addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request));
-});
-
 async function handleRequest(request) {
   const url = new URL(request.url);
   const pathname = url.pathname.replace(/\/+$/, '');
@@ -131,3 +127,11 @@ function resizeToRGBA(img, width, height) {
   }
   return out;
 }
+
+// Export as an ES Module Worker (module format) so hybrid-nodejs_compat
+// can detect the module worker and bundle node built-ins.
+export default {
+  fetch: (request, env, ctx) => {
+    return handleRequest(request);
+  }
+};
