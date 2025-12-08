@@ -3,8 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { getPublicImageUrl } from '../services/db';
 import { Product, QCReport, ModelTier, ExpertMode } from '../types';
-import { Loader2, CheckCircle, XCircle, Upload, History, ExternalLink, X, ZoomIn, Zap, Brain, Activity, Trash2 } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Upload, History, ExternalLink, X, ZoomIn, Zap, Brain, Activity, Trash2, Info } from 'lucide-react';
 import { parseObservations } from '../services/utils';
+import { Toggle } from '../components/Toggle';
 
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
