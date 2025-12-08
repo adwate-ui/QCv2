@@ -7,6 +7,30 @@ import { Plus, Search, Tag, Filter, CheckCircle, XCircle, AlertTriangle, Clock, 
 
 type FilterType = 'ALL' | 'PASS' | 'FAIL' | 'CAUTION' | 'PENDING';
 
+const GridButton = ({ size, isActive, onClick }: { size: number, isActive: boolean, onClick: () => void }) => {
+    const gridTemplates = {
+        2: 'grid-cols-2',
+        3: 'grid-cols-3',
+        4: 'grid-cols-4',
+        5: 'grid-cols-5',
+    };
+
+    return (
+        <button
+            onClick={onClick}
+            className={`p-2 rounded-lg transition-colors ${
+                isActive ? 'bg-primary text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-500'
+            }`}
+        >
+            <div className={`grid ${gridTemplates[size]} gap-1 w-5 h-5`}>
+                {Array.from({ length: size * size }).map((_, i) => (
+                    <div key={i} className="bg-current rounded-sm"></div>
+                ))}
+            </div>
+        </button>
+    );
+};
+
 export const InventoryPage = () => {
   const { products, user, deleteProduct, bulkDeleteProducts } = useApp();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -118,19 +142,14 @@ export const InventoryPage = () => {
         
           <div className="flex items-center gap-2 ml-auto">
             <span className="text-sm text-gray-500">View:</span>
-            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <div className="flex items-center gap-2">
                 {[2, 3, 4, 5].map((size) => (
-                    <button
+                    <GridButton
                         key={size}
+                        size={size}
+                        isActive={gridSize === size}
                         onClick={() => setGridSize(size)}
-                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                            gridSize === size
-                                ? 'bg-white text-primary shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                    >
-                        {size}
-                    </button>
+                    />
                 ))}
             </div>
           </div>
@@ -167,7 +186,6 @@ export const InventoryPage = () => {
               <h3 className="flex items-center gap-2 text-lg font-bold text-slate-800 mb-4 bg-gray-100 p-2 rounded-lg inline-block px-4">
                 <Tag size={16} /> {category}
               </h3>
-              {/* <div className={`grid grid-cols-1 sm:grid-cols-2 ${gridColsClass} gap-4`}> */}
               <div className={`grid grid-cols-1 sm:grid-cols-2 ${gridColsClass} gap-4`}>
                 {prods.map(product => {
                   const latestReport = product.reports && product.reports.length > 0 ? product.reports[product.reports.length - 1] : null;
