@@ -131,11 +131,10 @@ export const ProductDetailPage: React.FC = () => {
               </button>
               <div className="text-xs text-gray-400">{new Date(report.generatedAt).toLocaleString()}</div>
             </div>
-            <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-              <span>Mode: {report.modelTier}</span>
-              <span>Persona: {report.expertMode}</span>
-            </div>
-          </div>
+            <div className="flex items-center gap-2 mt-1 text-xs">
+                <span className="bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">{report.modelTier === 'FAST' ? 'Flash 2.5' : 'Pro 3.0'}</span>
+                <span className="bg-purple-100 text-purple-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">{report.expertMode}</span>
+            </div>          </div>
           <div className="text-right">
             {(() => {
               const cls = gradeToClasses(report.overallGrade);
@@ -183,7 +182,7 @@ export const ProductDetailPage: React.FC = () => {
                     <div className="font-semibold">{s.sectionName}</div>
                     <div className={`text-sm font-semibold px-2 py-0.5 rounded ${cls.bg} ${cls.text}`}>{s.score} — {s.grade}</div>
                   </div>
-                  <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                  <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
                     {observations.map((o, i) => {
                       const linkedImageId = s.imageIds && s.imageIds[i] ? s.imageIds[i] : undefined;
                       const linkedSrc = linkedImageId ? imgMap[linkedImageId] : undefined;
@@ -361,17 +360,38 @@ export const ProductDetailPage: React.FC = () => {
         <h3 className="font-bold mb-2">Run New Inspection</h3>
         <p className="text-sm text-gray-500 mb-4">Drag, paste, or upload images to run a new inspection.</p>
 
-            <div className="mb-4 flex items-center gap-3">
+<div className="mb-4 flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <button onClick={() => setLocalModelTier(ModelTier.FAST)} className={`px-3 py-1 rounded ${localModelTier === ModelTier.FAST ? 'bg-green-100 text-green-800' : 'bg-white border'}`}>Flash 2.5</button>
-                <button onClick={() => setLocalModelTier(ModelTier.DETAILED)} className={`px-3 py-1 rounded ${localModelTier === ModelTier.DETAILED ? 'bg-purple-100 text-purple-800' : 'bg-white border'}`}>Pro 3.0</button>
-                <span title="Model tier: Pro is more thorough but slower." className="text-xs text-gray-500">?</span>
+                <label className="text-sm font-medium text-gray-700">Model</label>
+                <Toggle
+                  labelLeft="Flash 2.5"
+                  labelRight="Pro 3.0"
+                  value={localModelTier === ModelTier.DETAILED}
+                  onChange={(isDetailed) => setLocalModelTier(isDetailed ? ModelTier.DETAILED : ModelTier.FAST)}
+                />
+                <div className="relative group">
+                  <Info size={16} className="text-gray-400 cursor-pointer" />
+                  <div className="absolute bottom-full mb-2 w-64 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <p><span className="font-semibold">Flash 2.5:</span> Faster, more cost-effective model.</p>
+                    <p className="mt-1"><span className="font-semibold">Pro 3.0:</span> More powerful model for higher accuracy.</p>
+                  </div>
+                </div>
               </div>
-
               <div className="flex items-center gap-2">
-                <button onClick={() => setLocalExpertMode(ExpertMode.NORMAL)} className={`px-2 py-1 rounded ${localExpertMode === ExpertMode.NORMAL ? 'bg-gray-100 text-gray-800' : 'bg-white border'}`}>Normal</button>
-                <button onClick={() => setLocalExpertMode(ExpertMode.EXPERT)} className={`px-2 py-1 rounded ${localExpertMode === ExpertMode.EXPERT ? 'bg-indigo-100 text-indigo-800' : 'bg-white border'}`}>Expert</button>
-                <span title="Expert: enables broader checks that can include web references." className="text-xs text-gray-500">?</span>
+                <label className="text-sm font-medium text-gray-700">Persona</label>
+                <Toggle
+                  labelLeft="Normal"
+                  labelRight="Expert"
+                  value={localExpertMode === ExpertMode.EXPERT}
+                  onChange={(isExpert) => setLocalExpertMode(isExpert ? ExpertMode.EXPERT : ExpertMode.NORMAL)}
+                />
+                <div className="relative group">
+                  <Info size={16} className="text-gray-400 cursor-pointer" />
+                  <div className="absolute bottom-full mb-2 w-64 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                     <p><span className="font-semibold">Normal:</span> Provides a standard analysis.</p>
+                     <p className="mt-1"><span className="font-semibold">Expert:</span> Provides a more detailed, in-depth analysis.</p>
+                  </div>
+                </div>
               </div>
             </div>
 

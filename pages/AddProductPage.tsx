@@ -17,9 +17,9 @@ interface TempData {
 }
 
 export const AddProductPage = () => {
-  const { user, settings, addProduct, startIdentificationTask, tasks } = useApp();
+  const { user, settings, addProduct, startIdentificationTask, tasks, dismissTask } = useApp();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   const [images, setImages] = useState<string[]>([]);
   const [productUrl, setProductUrl] = useState('');
@@ -33,23 +33,27 @@ export const AddProductPage = () => {
   const [localExpertMode, setLocalExpertMode] = useState<ExpertMode>(settings.expertMode);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isEditingUrl, setIsEditingUrl] = useState(false);
+  const [reviewingTaskId, setReviewingTaskId] = useState<string | null>(null);
 
   const idTasks = tasks.filter(t => t.type === 'IDENTIFY');
 
   useEffect(() => {
-    const taskId = searchParams.get('reviewTaskId');
-    if (taskId) {
-        const task = tasks.find(t => t.id === taskId);
+    const taskIdFromUrl = searchParams.get('reviewTaskId');
+    if (taskIdFromUrl) {
+        const task = tasks.find(t => t.id === taskIdFromUrl);
         if (task && task.status === 'COMPLETED' && task.result) {
             setProfile(task.result);
             setImages(task.meta.images || []);
             setProductUrl(task.meta.url || '');
             setGeneratedSettings(task.meta.settings || settings);
             setStep('REVIEW');
-            navigate('/inventory/new', { replace: true });
+            setReviewingTaskId(taskIdFromUrl);
+            // remove the taskId from the URL so it's not processed again on refresh
+            searchParams.delete('reviewTaskId');
+            setSearchParams(searchParams, {replace: true});
         }
     }
-  }, [searchParams, tasks, navigate, settings]);
+  }, [searchParams, tasks, settings, setSearchParams]);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -167,6 +171,7 @@ export const AddProductPage = () => {
           setProductUrl(task.meta.url || '');
           setGeneratedSettings(task.meta.settings || settings);
           setStep('REVIEW');
+          setReviewingTaskId(task.id);
           window.scrollTo({ top: 0, behavior: 'smooth' });
       }
   };
@@ -181,6 +186,9 @@ export const AddProductPage = () => {
   const handleDiscard = (e: React.MouseEvent) => {
     e.preventDefault();
     if (window.confirm("Are you sure you want to discard this draft?")) {
+      if (reviewingTaskId) {
+        dismissTask(reviewingTaskId);
+      }
       setImages([]);
       setProductUrl('');
       setProfile(null);
@@ -189,8 +197,8 @@ export const AddProductPage = () => {
       setSelectedImage(null);
       setIsEditingUrl(false);
       setLoading(false);
+      setReviewingTaskId(null);
       localStorage.removeItem(STORAGE_KEY);
-      navigate('/inventory');
     }
   };
 
@@ -401,21 +409,54 @@ export const AddProductPage = () => {
       
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-6 border-b border-gray-100 bg-gray-50">
-              <h2 className="font-bold text-gray-800">1. Upload Images</h2>
-                  <div className="mt-3 flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => setLocalModelTier(ModelTier.FAST)} className={`px-3 py-1 rounded ${localModelTier === ModelTier.FAST ? 'bg-green-100 text-green-800' : 'bg-white border'}`}>Flash 2.5</button>
-                      <button onClick={() => setLocalModelTier(ModelTier.DETAILED)} className={`px-3 py-1 rounded ${localModelTier === ModelTier.DETAILED ? 'bg-purple-100 text-purple-800' : 'bg-white border'}`}>Pro 3.0</button>
-                      <span title="Model tier controls speed vs depth. Pro 3.0 is slower but more detailed." className="text-xs text-gray-500">?</span>
-                    </div>
+              <h2 className="font-bold text-gray-800">1. Upload Images</h2>import { Toggle } from '../components/Toggle';
+import { Info } from 'lucide-react';
 
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => setLocalExpertMode(ExpertMode.NORMAL)} className={`px-2 py-1 rounded ${localExpertMode === ExpertMode.NORMAL ? 'bg-gray-100 text-gray-800' : 'bg-white border'}`}>Normal</button>
-                      <button onClick={() => setLocalExpertMode(ExpertMode.EXPERT)} className={`px-2 py-1 rounded ${localExpertMode === ExpertMode.EXPERT ? 'bg-indigo-100 text-indigo-800' : 'bg-white border'}`}>Expert</button>
-                      <span title="Expert persona enables web-search and deeper analysis (may take longer)." className="text-xs text-gray-500">?</span>
-                    </div>
-                  </div>
-              <p className="text-sm text-gray-500">Add photos for visual identification.</p>
+// ... inside the component
+  const [localModelTier, setLocalModelTier] = useState<ModelTier>(settings.modelTier);
+
+  // ... other code
+
+  const handleIdentify = () => {
+    if (!user?.apiKey) {
+      alert("Please add your API Key in settings first.");
+      return;
+    }
+    if (images.length === 0 && !productUrl) {
+      alert("Please add at least one image or a Product URL.");
+      return;
+    }
+
+    const useSettings: AppSettings = { modelTier: localModelTier, expertMode: ExpertMode.NORMAL };
+    startIdentificationTask(user.apiKey, images, productUrl || undefined, useSettings);
+    localStorage.removeItem(STORAGE_KEY);
+    setImages([]);
+    setProductUrl('');
+  };
+
+  //... inside the return statement
+  <div className="p-6 border-b border-gray-100 bg-gray-50">
+      <h2 className="font-bold text-gray-800">1. Upload Images</h2>
+      <div className="mt-3 flex items-center gap-3">
+        <label className="text-sm font-medium text-gray-700">Model</label>
+        <Toggle
+          labelLeft="Flash 2.5"
+          labelRight="Pro 3.0"
+          value={localModelTier === ModelTier.DETAILED}
+          onChange={(isDetailed) => setLocalModelTier(isDetailed ? ModelTier.DETAILED : ModelTier.FAST)}
+        />
+        <div className="relative group">
+          <Info size={16} className="text-gray-400 cursor-pointer" />
+          <div className="absolute bottom-full mb-2 w-64 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <p><span className="font-semibold">Flash 2.5:</span> Faster, more cost-effective model, suitable for most identification tasks.</p>
+            <p className="mt-1"><span className="font-semibold">Pro 3.0:</span> More powerful model for higher accuracy, but slower and more expensive.</p>
+          </div>
+        </div>
+      </div>
+      <p className="text-sm text-gray-500">Add photos for visual identification.</p>
+  </div>
+//...
+
           </div>
           <div 
             className={`p-8 text-center space-y-6 transition-all duration-200 ${
@@ -467,7 +508,7 @@ export const AddProductPage = () => {
             <div className="flex items-center gap-3 border border-gray-300 rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-primary transition-all">
                 <Globe className="text-gray-400" />
                 <input 
-                    type="url" 
+                    type="text" 
                     value={productUrl}
                     onChange={(e) => setProductUrl(e.target.value)}
                     placeholder="https://brand.com/product/..." 

@@ -113,11 +113,21 @@ export const InventoryPage = () => {
         
           <div className="flex items-center gap-2 ml-auto">
             <LayoutGrid size={14} className="text-gray-400" />
-            <select value={gridSize} onChange={e => setGridSize(Number(e.target.value))} className="bg-white border-gray-200 border rounded-md text-sm">
-              <option value={2}>2</option>
-              <option value={3}>3</option>
-              <option value={4}>4</option>
-            </select>
+            {[2, 3, 4, 5].map((size) => (
+              <button
+                key={size}
+                onClick={() => setGridSize(size)}
+                className={`p-2 rounded-md border ${
+                  gridSize === size ? 'border-blue-500 bg-blue-100' : 'border-gray-200 bg-white'
+                }`}
+              >
+                <div className={`grid grid-cols-${size} gap-0.5 w-4 h-4`}>
+                  {Array.from({ length: size * size }).map((_, i) => (
+                    <div key={i} className="w-1 h-1 bg-gray-600 rounded-sm"></div>
+                  ))}
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -152,7 +162,14 @@ export const InventoryPage = () => {
               <h3 className="flex items-center gap-2 text-lg font-bold text-slate-800 mb-4 bg-gray-100 p-2 rounded-lg inline-block px-4">
                 <Tag size={16} /> {category}
               </h3>
-              <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-${gridSize} gap-4`}>
+              const gridColsClass = gridSize === 2 ? "md:grid-cols-2" : 
+                      gridSize === 3 ? "md:grid-cols-3" :
+                      gridSize === 4 ? "md:grid-cols-4" :
+                      gridSize === 5 ? "md:grid-cols-5" : "md:grid-cols-3";
+
+//...
+
+<div className={`grid grid-cols-1 sm:grid-cols-2 ${gridColsClass} gap-4`}>
                 {prods.map(product => {
                   const latestReport = product.reports && product.reports.length > 0 ? product.reports[product.reports.length - 1] : null;
                   

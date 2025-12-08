@@ -38,6 +38,7 @@ const getSystemInstruction = (mode: ExpertMode, tier: ModelTier, task: 'ID' | 'Q
     - Always identify the specific luxury or established brand associated with the design (e.g., if it looks like a Rolex Submariner, identify it as a Rolex Submariner).
     - **NEVER** identify a product as "Generic", "Replica", "Knock-off", or "Unbranded" if the design is associated with a known brand.
     - Assume the user wants the specifications for the **genuine** article to use as a reference standard.
+    - If a URL is provided by the user, use it as the product's URL. If only images are provided, identify the product and then perform a web search to find the most likely official product page URL and include it in the response.
     - ALWAYS return a valid JSON object. If you are unsure of a field, provide your BEST EXPERT GUESS based on visual analysis. Do not return nulls or "Unknown".`;
   } else {
     // QC Task
