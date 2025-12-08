@@ -284,7 +284,7 @@ export const runQCAnalysis = async (
     - Break down analysis by sections (e.g., for a bag: Packaging, Exterior Leather, Interior Lining, Hardware & Zippers, Stitching, Straps & Handles, Logos & Brand Stamps, Dust Bag, Authenticity Card).
     - Use bullet points in observations.
     - Provide a specific score on a scale of 0-100 and a grade for each section and for the overall assessment.
-    - ALWAYS return your response as a valid, raw JSON object conforming to the QCReport schema. Do NOT wrap it in markdown backticks.
+    - ALWAYS return your response as a valid, raw JSON object conforming to the QCReport schema. Do NOT wrap it in markdown backticks.`
     });
 
     const schema: Schema = {
