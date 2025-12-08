@@ -16,6 +16,11 @@ export const InventoryPage = () => {
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
   const [gridSize, setGridSize] = useState(3);
 
+  const gridColsClass = gridSize === 2 ? "md:grid-cols-2" : 
+                      gridSize === 3 ? "md:grid-cols-3" :
+                      gridSize === 4 ? "md:grid-cols-4" :
+                      gridSize === 5 ? "md:grid-cols-5" : "md:grid-cols-3";
+
   useEffect(() => {
     // 1. Filter Logic
     let filteredList = products.filter(p => 
@@ -77,6 +82,11 @@ export const InventoryPage = () => {
       {label}
     </button>
   );
+
+  const gridColsClass = gridSize === 2 ? "md:grid-cols-2" : 
+                      gridSize === 3 ? "md:grid-cols-3" :
+                      gridSize === 4 ? "md:grid-cols-4" :
+                      gridSize === 5 ? "md:grid-cols-5" : "md:grid-cols-3";
 
   return (
     <div className="space-y-6">
@@ -162,14 +172,8 @@ export const InventoryPage = () => {
               <h3 className="flex items-center gap-2 text-lg font-bold text-slate-800 mb-4 bg-gray-100 p-2 rounded-lg inline-block px-4">
                 <Tag size={16} /> {category}
               </h3>
-              const gridColsClass = gridSize === 2 ? "md:grid-cols-2" : 
-                      gridSize === 3 ? "md:grid-cols-3" :
-                      gridSize === 4 ? "md:grid-cols-4" :
-                      gridSize === 5 ? "md:grid-cols-5" : "md:grid-cols-3";
-
-//...
-
-<div className={`grid grid-cols-1 sm:grid-cols-2 ${gridColsClass} gap-4`}>
+              {/* <div className={`grid grid-cols-1 sm:grid-cols-2 ${gridColsClass} gap-4`}> */}
+              <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4`}>
                 {prods.map(product => {
                   const latestReport = product.reports && product.reports.length > 0 ? product.reports[product.reports.length - 1] : null;
                   
