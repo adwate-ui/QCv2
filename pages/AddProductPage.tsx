@@ -5,6 +5,7 @@ import { db } from '../services/db';
 import { generateUUID } from '../services/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Upload, Loader2, Sparkles, X, ImagePlus, Globe, RotateCcw, Save, Trash2, ExternalLink, ZoomIn, Edit2, CheckCircle, AlertTriangle, Info } from 'lucide-react';
+import { Toggle } from '../components/Toggle';
 
 const STORAGE_KEY = 'authentiqc_temp_product';
 
@@ -469,6 +470,31 @@ export const AddProductPage = () => {
                     className="flex-1 outline-none text-gray-700 bg-transparent"
                 />
             </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="p-6 border-b border-gray-100 bg-gray-50">
+            <h2 className="font-bold text-gray-800">3. Model Selection</h2>
+            <p className="text-sm text-gray-500">Choose a model for product identification.</p>
+        </div>
+        <div className="p-6">
+            <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700">Model</label>
+                <Toggle
+                  labelLeft="Flash 2.5"
+                  labelRight="Pro 3.0"
+                  value={localModelTier === ModelTier.DETAILED}
+                  onChange={(isDetailed) => setLocalModelTier(isDetailed ? ModelTier.DETAILED : ModelTier.FAST)}
+                />
+                <div className="relative group">
+                  <Info size={16} className="text-gray-400 cursor-pointer" />
+                  <div className="absolute bottom-full mb-2 w-64 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <p><span className="font-semibold">Flash 2.5:</span> Faster, more cost-effective model, suitable for most identification tasks.</p>
+                    <p className="mt-1"><span className="font-semibold">Pro 3.0:</span> More powerful model for higher accuracy, but slower and more expensive.</p>
+                  </div>
+                </div>
+              </div>
         </div>
       </div>
 
