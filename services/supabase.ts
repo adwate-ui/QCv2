@@ -24,7 +24,7 @@ const envUrl = getEnv('VITE_SUPABASE_URL');
 const envKey = getEnv('VITE_SUPABASE_ANON_KEY');
 
 // 3. Use Provided Credentials as Default
-const supabaseUrl = storedUrl || envUrl || 'https://gbsgkvmjtsjpmjrpupma.supabase.co';
+export const supabaseUrl = storedUrl || envUrl || 'https://gbsgkvmjtsjpmjrpupma.supabase.co';
 const supabaseKey = storedKey || envKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdic2drdm1qdHNqcG1qcnB1cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwOTQ4MjQsImV4cCI6MjA4MDY3MDgyNH0.GYsoEO8qJXOsiOjK2QHYMOOI0OFAdc9KqX1SA-Z-3ac';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);

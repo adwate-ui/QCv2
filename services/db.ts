@@ -1,5 +1,9 @@
-import { supabase, isSupabaseConfigured } from './supabase';
+import { supabase, isSupabaseConfigured, supabaseUrl } from './supabase';
 import { User, Product } from '../types';
+
+export const getPublicImageUrl = (userId: string, imageId: string): string => {
+  return `${supabaseUrl}/storage/v1/object/public/images/${userId}/${imageId}`;
+};
 
 // Robust Base64 to Blob converter (Pure JS, no fetch)
 const base64ToBlob = (base64: string): Blob => {
@@ -76,6 +80,7 @@ export class DBService {
     }
 
     return {
+      id: authUser.id,
       email: authUser.email || email,
       passwordHash: 'supbase-managed', 
       apiKey: data?.gemini_api_key

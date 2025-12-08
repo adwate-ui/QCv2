@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { db } from '../services/db';
+import { getPublicImageUrl } from '../services/db';
 import { Product } from '../types';
 import { Link } from 'react-router-dom';
-import { Plus, Search, Tag, Filter, CheckCircle, XCircle, AlertTriangle, Clock, Trash2 } from 'lucide-react';
+import { Plus, Search, Tag, Filter, CheckCircle, XCircle, AlertTriangle, Clock, Trash2, LayoutGrid } from 'lucide-react';
 
 type FilterType = 'ALL' | 'PASS' | 'FAIL' | 'CAUTION' | 'PENDING';
 
@@ -14,6 +14,7 @@ export const InventoryPage = () => {
   const [statusFilter, setStatusFilter] = useState<FilterType>('ALL');
   const [groupedProducts, setGroupedProducts] = useState<Record<string, Product[]>>({});
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
+  const [gridSize, setGridSize] = useState(3);
 
   useEffect(() => {
     // 1. Filter Logic
@@ -40,22 +41,20 @@ export const InventoryPage = () => {
     setGroupedProducts(grouped);
 
     // 3. Load thumbnails
-    const loadImages = async () => {
+    if (user?.id) {
       const map: Record<string, string> = {};
       for (const p of filteredList) {
         if (p.referenceImageIds.length > 0) {
           if (!imageMap[p.id]) {
-             const img = await db.getImage(p.referenceImageIds[0]);
-             if (img) map[p.id] = img;
+            map[p.id] = getPublicImageUrl(user.id, p.referenceImageIds[0]);
           } else {
-             map[p.id] = imageMap[p.id];
+            map[p.id] = imageMap[p.id];
           }
         }
       }
       setImageMap(prev => ({...prev, ...map}));
-    };
-    loadImages();
-  }, [products, searchTerm, statusFilter]);
+    }
+  }, [products, searchTerm, statusFilter, user?.id]);
 
   if (!user?.apiKey) {
     return (
@@ -111,6 +110,15 @@ export const InventoryPage = () => {
           <FilterButton type="FAIL" label="Failed" icon={XCircle} activeClass="bg-red-100 text-red-800 border-red-200" />
           <FilterButton type="CAUTION" label="Caution" icon={AlertTriangle} activeClass="bg-yellow-100 text-yellow-800 border-yellow-200" />
           <FilterButton type="PENDING" label="Pending" icon={Clock} activeClass="bg-blue-50 text-blue-600 border-blue-200" />
+        
+          <div className="flex items-center gap-2 ml-auto">
+            <LayoutGrid size={14} className="text-gray-400" />
+            <select value={gridSize} onChange={e => setGridSize(Number(e.target.value))} className="bg-white border-gray-200 border rounded-md text-sm">
+              <option value={2}>2</option>
+              <option value={3}>3</option>
+              <option value={4}>4</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -144,7 +152,7 @@ export const InventoryPage = () => {
               <h3 className="flex items-center gap-2 text-lg font-bold text-slate-800 mb-4 bg-gray-100 p-2 rounded-lg inline-block px-4">
                 <Tag size={16} /> {category}
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-${gridSize} gap-4`}>
                 {prods.map(product => {
                   const latestReport = product.reports && product.reports.length > 0 ? product.reports[product.reports.length - 1] : null;
                   

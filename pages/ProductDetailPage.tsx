@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { db } from '../services/db';
+import { getPublicImageUrl } from '../services/db';
 import { Product, QCReport, ModelTier, ExpertMode } from '../types';
 import { Loader2, CheckCircle, XCircle, Upload, History, ExternalLink, X, ZoomIn, Zap, Brain, Activity, Trash2 } from 'lucide-react';
 import { parseObservations } from '../services/utils';
@@ -27,16 +27,16 @@ export const ProductDetailPage: React.FC = () => {
   const isRunningQC = !!activeQCTask;
 
   useEffect(() => {
-    if (!product) return;
-    Promise.all(product.referenceImageIds.map(imgId => db.getImage(imgId))).then(imgs =>
-      setRefImages(imgs.filter(Boolean) as string[])
+    if (!product || !user?.id) return;
+    setRefImages(
+      product.referenceImageIds.map(imgId => getPublicImageUrl(user.id!, imgId))
     );
 
     if (product.reports && product.reports.length > 0) {
       // default to latest
       setSelectedReportId(product.reports[product.reports.length - 1].id);
     }
-  }, [product]);
+  }, [product, user?.id]);
 
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
@@ -107,12 +107,13 @@ export const ProductDetailPage: React.FC = () => {
 
   const ReportCard: React.FC<{ report: QCReport; previous?: QCReport; refImages: string[]; expanded?: boolean; onToggle?: (id: string) => void }> = ({ report, previous, refImages, expanded = false, onToggle }) => {
     const [imgs, setImgs] = useState<string[]>([]);
+    const { user } = useApp();
+
     useEffect(() => {
-      if (!report.qcImageIds || report.qcImageIds.length === 0) return;
-      Promise.all(report.qcImageIds.map(id => db.getImage(id))).then(results =>
-        setImgs(results.filter(Boolean) as string[])
-      );
-    }, [report]);
+      if (!report.qcImageIds || report.qcImageIds.length === 0 || !user?.id) return;
+      const imageUrls = report.qcImageIds.map(id => getPublicImageUrl(user.id!, id));
+      setImgs(imageUrls);
+    }, [report, user?.id]);
 
     const gradeToClasses = (grade: string) => {
       if (grade === 'PASS') return { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-100' };
@@ -129,6 +130,10 @@ export const ProductDetailPage: React.FC = () => {
                 QC Analysis Report
               </button>
               <div className="text-xs text-gray-400">{new Date(report.generatedAt).toLocaleString()}</div>
+            </div>
+            <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+              <span>Mode: {report.modelTier}</span>
+              <span>Persona: {report.expertMode}</span>
             </div>
           </div>
           <div className="text-right">
