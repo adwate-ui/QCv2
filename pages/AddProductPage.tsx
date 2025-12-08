@@ -413,12 +413,12 @@ export const AddProductPage = () => {
               <h2 className="font-bold text-gray-800">1. Upload Images</h2>
               <div className="mt-3 flex items-center gap-3">
                 <label className="text-sm font-medium text-gray-700">Model</label>
-                {/* <Toggle
-                  labelLeft="Fast"
-                  labelRight="Detailed"
-                  value={modelTier === 'DETAILED'}
-                  onChange={(isDetailed) => setModelTier(isDetailed ? 'DETAILED' : 'FAST')}
-                /> */}
+                <Toggle
+                  labelLeft="Flash 2.5"
+                  labelRight="Pro 3.0"
+                  value={localModelTier === ModelTier.DETAILED}
+                  onChange={(isDetailed) => setLocalModelTier(isDetailed ? ModelTier.DETAILED : ModelTier.FAST)}
+                />
                 <div className="relative group">
                   <Info size={16} className="text-gray-400 cursor-pointer" />
                   <div className="absolute bottom-full mb-2 w-64 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
