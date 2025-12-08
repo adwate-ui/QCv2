@@ -261,17 +261,38 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
        const previousBatchIds = batches.flatMap(b => b.imageIds);
        const previousImages = await Promise.all(previousBatchIds.map(id => db.getImage(id)));
        const validPrevImages = previousImages.filter(Boolean) as string[];
-       const combinedAnalysisImages = [...validPrevImages, ...qcImages];
+       const allQCImageIds = [...previousBatchIds, ...newImageIds];
+       const allQCRawImages = [...validPrevImages, ...qcImages];
 
-      // 3. Run Analysis — include ALL QC image IDs (previous + new) so the report references every image used
-      const combinedQcImageIds = [...previousBatchIds, ...newImageIds];
-      const report = await runQCAnalysis(apiKey, product.profile, refImages, combinedAnalysisImages, combinedQcImageIds, settings, qcUserComments);
+       // 3. Convert reference image URLs to base64 for the API
+       const refImagesAsBase64 = await Promise.all(
+         refImages.map(async (url) => {
+           try {
+             const response = await fetch(url);
+             if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
+             const blob = await response.blob();
+             return new Promise<string>((resolve, reject) => {
+               const reader = new FileReader();
+               reader.onloadend = () => resolve(reader.result as string);
+               reader.onerror = reject;
+               reader.readAsDataURL(blob);
+             });
+           } catch (error) {
+             console.error(`Could not convert image URL ${url} to base64:`, error);
+             return ''; 
+           }
+         })
+       );
+       const validRefImages = refImagesAsBase64.filter(Boolean);
+
+       // 4. Run the analysis
+       const report = await runQCAnalysis(apiKey, product.profile, validRefImages, allQCRawImages, allQCImageIds, settings, qcUserComments);
 
       // 3b. Post-process: for specific sections (tag/label/logo) attempt to fetch authoritative images via Cloudflare Worker
       try {
         const workerUrl = (import.meta as any).env?.VITE_CF_WORKER_URL;
         if (workerUrl && product.profile.url) {
-          const sectionsNeedingAuth = (report.sections || []).filter(s => /tag|label|logo/i.test(s.sectionName) || /tag|label|logo/i.test(s.observations));
+          const sectionsNeedingAuth = (report.sections || []).filter(s => /tag|label|logo/i.test(s.sectionName) || /tag|label|logo/i.test((s.observations || []).join(' ')));
           for (const sec of sectionsNeedingAuth) {
             // Choose the first QC image for this section when available
             const qcImgId = sec.imageIds && sec.imageIds.length > 0 ? sec.imageIds[0] : (newImageIds[0] || null);
