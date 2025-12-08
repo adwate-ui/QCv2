@@ -3,12 +3,13 @@ import { useApp } from '../context/AppContext';
 import { db } from '../services/db';
 import { Product } from '../types';
 import { Link } from 'react-router-dom';
-import { Plus, Search, Tag, Filter, CheckCircle, XCircle, AlertTriangle, Clock } from 'lucide-react';
+import { Plus, Search, Tag, Filter, CheckCircle, XCircle, AlertTriangle, Clock, Trash2 } from 'lucide-react';
 
 type FilterType = 'ALL' | 'PASS' | 'FAIL' | 'CAUTION' | 'PENDING';
 
 export const InventoryPage = () => {
-  const { products, user } = useApp();
+  const { products, user, deleteProduct, bulkDeleteProducts } = useApp();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<FilterType>('ALL');
   const [groupedProducts, setGroupedProducts] = useState<Record<string, Product[]>>({});
@@ -113,6 +114,25 @@ export const InventoryPage = () => {
         </div>
       </div>
 
+      {selectedIds.length > 0 && (
+        <div className="flex items-center justify-between gap-4 bg-white border rounded-xl p-3">
+          <div className="flex items-center gap-3">
+            <div className="text-sm font-semibold">{selectedIds.length} selected</div>
+            <button
+              onClick={async () => {
+                if (!confirm(`Delete ${selectedIds.length} selected products? This cannot be undone.`)) return;
+                  await bulkDeleteProducts(selectedIds);
+                setSelectedIds([]);
+              }}
+              className="flex items-center gap-2 bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm"
+            >
+              <Trash2 size={14} /> Delete selected
+            </button>
+            <button onClick={() => setSelectedIds([])} className="text-sm text-gray-600 px-2">Clear</button>
+          </div>
+        </div>
+      )}
+
       {Object.keys(groupedProducts).length === 0 ? (
         <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-300">
           <p className="text-slate-400">No products found matching your criteria.</p>
@@ -128,22 +148,27 @@ export const InventoryPage = () => {
                 {prods.map(product => {
                   const latestReport = product.reports && product.reports.length > 0 ? product.reports[product.reports.length - 1] : null;
                   
+                  const isSelected = selectedIds.includes(product.id);
+                  let statusClass = 'bg-yellow-400 text-slate-900';
+                  if (latestReport) {
+                    if (latestReport.overallGrade === 'PASS') statusClass = 'bg-green-500 text-white';
+                    else if (latestReport.overallGrade === 'FAIL') statusClass = 'bg-red-500 text-white';
+                    else statusClass = 'bg-yellow-400 text-slate-900';
+                  }
+
                   return (
-                    <Link to={`/inventory/${product.id}`} key={product.id} className="group bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden relative">
+                    <div key={product.id} className={`group bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden relative ${isSelected ? 'ring-2 ring-primary/40' : ''}`}>
                       <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
                         {imageMap[product.id] ? (
                           <img src={imageMap[product.id]} alt={product.profile.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         ) : (
                           <div className="flex items-center justify-center h-full text-gray-400 text-sm">No Image</div>
                         )}
-                        
+
                         {/* Status Badge */}
                         <div className="absolute top-2 right-2 shadow-sm">
                           {latestReport ? (
-                            <div className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
-                              latestReport.overallGrade === 'PASS' ? 'bg-green-500 text-white' : 
-                              latestReport.overallGrade === 'FAIL' ? 'bg-red-500 text-white' : 'bg-yellow-400 text-slate-900'
-                            }`}>
+                            <div className={"px-2 py-1 rounded text-[10px] font-bold uppercase " + statusClass}>
                               {latestReport.overallGrade}
                             </div>
                           ) : (
@@ -153,12 +178,44 @@ export const InventoryPage = () => {
                           )}
                         </div>
                       </div>
-                      <div className="p-4">
-                        <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">{product.profile.brand}</p>
-                        <h4 className="font-bold text-slate-900 truncate">{product.profile.name}</h4>
-                        <p className="text-sm text-slate-600 mt-1">{product.profile.priceEstimate}</p>
+                      <Link to={'/inventory/' + product.id} className="block">
+                        <div className="p-4">
+                          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">{product.profile.brand}</p>
+                          <h4 className="font-bold text-slate-900 truncate">{product.profile.name}</h4>
+                          <p className="text-sm text-slate-600 mt-1">{product.profile.priceEstimate}</p>
+                        </div>
+                      </Link>
+
+                      {/* Controls overlay: checkbox & delete (stop propagation/prevent navigation) */}
+                      <div className="absolute top-3 left-3 z-20">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            if (e.target.checked) setSelectedIds(prev => [...prev, product.id]);
+                            else setSelectedIds(prev => prev.filter(id => id !== product.id));
+                          }}
+                          onClick={e => e.stopPropagation()}
+                          className="w-4 h-4 cursor-pointer"
+                        />
                       </div>
-                    </Link>
+
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          // prevent Link navigation
+                          e.preventDefault?.();
+                          if (!confirm('Delete product "' + product.profile.name + '"? This cannot be undone.')) return;
+                          await deleteProduct(product.id);
+                          setSelectedIds(prev => prev.filter(id => id !== product.id));
+                        }}
+                        className="absolute top-3 right-3 z-20 bg-white rounded-full p-1 shadow-sm hover:bg-red-50"
+                        title="Delete product"
+                      >
+                        <Trash2 size={16} className="text-red-600" />
+                      </button>
+                    </div>
                   );
                 })}
               </div>

@@ -25,6 +25,7 @@ interface AppContextType {
   startIdentificationTask: (apiKey: string, images: string[], url: string | undefined, settings: AppSettings) => void;
   startQCTask: (apiKey: string, product: Product, refImages: string[], qcImages: string[], settings: AppSettings) => void;
   dismissTask: (taskId: string) => void;
+  bulkDeleteProducts: (ids: string[]) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -142,6 +143,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const deleteProduct = async (productId: string) => {
     await db.deleteProduct(productId);
     setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
+  };
+
+  const bulkDeleteProducts = async (ids: string[]) => {
+    if (!ids || ids.length === 0) return;
+    await db.bulkDeleteProducts(ids);
+    setProducts(prev => prev.filter(p => !ids.includes(p.id)));
   };
 
   const logout = async () => {
@@ -294,7 +301,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       user, loading, products, settings, tasks,
       login, register, updateApiKey, addProduct, updateProduct, deleteProduct, logout, deleteAccount,
       toggleModelTier, toggleExpertMode, refreshProducts: loadProducts,
-      startIdentificationTask, startQCTask, dismissTask
+      startIdentificationTask, startQCTask, dismissTask, bulkDeleteProducts
     }}>
       {children}
     </AppContext.Provider>

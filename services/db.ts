@@ -264,6 +264,60 @@ export class DBService {
     console.log(`Product with ID ${productId} and all its associated data has been deleted.`);
   }
 
+  async deleteImage(imageId: string) {
+    if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
+    // Lookup storage path
+    const { data, error } = await supabase.from('images').select('storage_path').eq('id', imageId).single();
+    if (error || !data) {
+      console.warn(`Image metadata not found for ${imageId}`, error);
+      return;
+    }
+
+    // Remove from storage
+    try {
+      const { error: removeError } = await supabase.storage.from('images').remove([data.storage_path]);
+      if (removeError) console.warn('Storage remove error for', imageId, removeError.message);
+    } catch (e) {
+      console.error('Error removing storage object', e);
+    }
+
+    // Delete DB record
+    const { error: dbError } = await supabase.from('images').delete().eq('id', imageId);
+    if (dbError) console.warn('Failed to delete image row', dbError.message);
+  }
+
+  async bulkDeleteProducts(productIds: string[]) {
+    if (!isSupabaseConfigured()) throw new Error('Supabase not configured');
+    if (!productIds || productIds.length === 0) return;
+
+    // Gather image IDs across all products
+    const products = await this.getProducts();
+    const targets = products.filter(p => productIds.includes(p.id));
+    const imageIds = targets.flatMap(p => [
+      ...(p.referenceImageIds || []),
+      ...(p.qcBatches ? p.qcBatches.flatMap(b => b.imageIds) : [])
+    ]);
+    const uniqueImageIds = [...new Set(imageIds)];
+
+    // Delete images
+    for (const imgId of uniqueImageIds) {
+      try {
+        await this.deleteImage(imgId);
+      } catch (e) {
+        console.error('Failed to delete image', imgId, e);
+      }
+    }
+
+    // Delete products (this should cascade to batches/reports if configured)
+    const { error } = await supabase.from('products').delete().in('id', productIds);
+    if (error) {
+      console.error('Failed to bulk delete products', error);
+      throw new Error('Database error: ' + error.message);
+    }
+
+    console.log(`Bulk deleted products: ${productIds.join(',')}`);
+  }
+
   // --- IMAGE METHODS ---
 
   async saveImage(id: string, base64: string) { 

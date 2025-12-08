@@ -18,6 +18,7 @@ export const ProductDetailPage: React.FC = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
 
   const activeQCTask = tasks.find(t => t.type === 'QC' && t.meta.targetId === id && t.status === 'PROCESSING');
   const isRunningQC = !!activeQCTask;
@@ -100,7 +101,7 @@ export const ProductDetailPage: React.FC = () => {
   const currentReport = sortedReports.find(r => r.id === selectedReportId) || sortedReports[0];
   const previousReport = currentReport ? sortedReports[sortedReports.indexOf(currentReport) + 1] : undefined;
 
-  const ReportCard: React.FC<{ report: QCReport; previous?: QCReport }> = ({ report, previous }) => {
+  const ReportCard: React.FC<{ report: QCReport; previous?: QCReport; refImages: string[]; expanded?: boolean; onToggle?: (id: string) => void }> = ({ report, previous, refImages, expanded = false, onToggle }) => {
     const [imgs, setImgs] = useState<string[]>([]);
     useEffect(() => {
       if (!report.qcImageIds || report.qcImageIds.length === 0) return;
@@ -109,49 +110,111 @@ export const ProductDetailPage: React.FC = () => {
       );
     }, [report]);
 
+    const gradeToClasses = (grade: string) => {
+      if (grade === 'PASS') return { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-100' };
+      if (grade === 'FAIL') return { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-100' };
+      return { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-100' };
+    };
+
     return (
-      <div className="bg-white rounded-2xl shadow-sm border p-6 mb-6">
+      <div className={`bg-white rounded-2xl shadow-sm border p-6 mb-6 ${expanded ? 'ring-2 ring-primary/30' : ''}`}>
         <div className="flex justify-between items-start mb-4">
           <div>
-            <h3 className="font-bold">QC Analysis Report</h3>
-            <div className="text-sm text-gray-500">{new Date(report.generatedAt).toLocaleString()}</div>
+            <div className="flex items-center gap-3">
+              <button onClick={() => onToggle?.(report.id)} className="font-bold text-left">
+                QC Analysis Report
+              </button>
+              <div className="text-xs text-gray-400">{new Date(report.generatedAt).toLocaleString()}</div>
+            </div>
           </div>
           <div className="text-right">
-            <div className="text-xl font-bold">{report.overallScore}/100</div>
-            <div className="text-sm text-gray-500">{report.overallGrade}</div>
+            {(() => {
+              const cls = gradeToClasses(report.overallGrade);
+              return (
+                <div className={`inline-flex items-center gap-3 px-3 py-2 rounded ${cls.bg} ${cls.text} font-bold`}>
+                  <div className="text-xl">{report.overallScore}/100</div>
+                  <div className="text-sm">{report.overallGrade}</div>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
-        {imgs.length > 0 && (
-          <div className="mb-4">
-            <div className="flex gap-2 flex-wrap">
-              {imgs.map((src, i) => (
-                <div key={i} className="h-16 w-16 cursor-pointer" onClick={() => setSelectedImage(src)}>
-                  <img src={src} className="h-full w-full object-cover rounded-lg" />
-                </div>
-              ))}
+        {/* Collapsible body */}
+        <div className="overflow-hidden transition-[max-height,opacity]" style={{ maxHeight: expanded ? '2000px' : '0px', opacity: expanded ? 1 : 0, transition: 'max-height 350ms ease, opacity 300ms ease' }}>
+          {imgs.length > 0 && (
+            <div className="mb-4">
+              <div className="flex gap-2 flex-wrap">
+                {imgs.map((src, i) => (
+                  <div key={i} className={`h-16 w-16 cursor-pointer ${selectedImage === src ? 'ring-2 ring-primary/50 rounded-lg' : ''}`} onClick={() => setSelectedImage(src)}>
+                    <img src={src} className="h-full w-full object-cover rounded-lg" />
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         <div className="mb-4">
           <div className="text-sm text-gray-700 whitespace-pre-line">{report.summary}</div>
         </div>
 
-        <div className="grid gap-3">
-          {report.sections.map((s, idx) => (
-            <div key={idx} className="p-3 border rounded-lg bg-gray-50">
-              <div className="flex justify-between items-center mb-2">
-                <div className="font-semibold">{s.sectionName}</div>
-                <div className="text-sm">{s.score} — {s.grade}</div>
-              </div>
-              <div className="text-sm text-gray-600">{s.observations}</div>
-            </div>
-          ))}
+          <div className="grid gap-3">
+            {report.sections.map((s, idx) => {
+              const cls = gradeToClasses(s.grade);
+              const observations = s.observations ? s.observations.split(/\n|\.\s+/).map(o => o.trim()).filter(Boolean) : [];
+              // Map optional imageIds to loaded imgs
+              const imgMap: Record<string,string> = {};
+              if (report.qcImageIds && report.qcImageIds.length === imgs.length) {
+                report.qcImageIds.forEach((id, i) => { if (imgs[i]) imgMap[id] = imgs[i]; });
+              }
+
+              return (
+                <div key={idx} className="p-3 border rounded-lg bg-gray-50">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="font-semibold">{s.sectionName}</div>
+                    <div className={`text-sm font-semibold px-2 py-0.5 rounded ${cls.bg} ${cls.text}`}>{s.score} — {s.grade}</div>
+                  </div>
+                  <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                    {observations.map((o, i) => {
+                      const linkedImageId = s.imageIds && s.imageIds[i] ? s.imageIds[i] : undefined;
+                      const linkedSrc = linkedImageId ? imgMap[linkedImageId] : undefined;
+                      return (
+                        <li key={i} className={`${linkedSrc ? 'cursor-pointer text-blue-700 hover:underline' : ''}`} onClick={() => linkedSrc && setSelectedImage(linkedSrc)}>
+                          {o}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
         </div>
+
+        {/* Highlight differences with images for caution/fail */}
+        {(report.overallGrade === 'FAIL' || report.overallGrade === 'CAUTION') && (
+          <div className="mt-4 p-3 border rounded bg-white">
+            <h4 className="text-sm font-bold mb-2">Comparison Images</h4>
+            <div className="flex gap-3 overflow-auto">
+              {imgs.map((qc, i) => (
+                <div key={i} className="flex flex-col items-center gap-2">
+                  <div className="text-xs text-gray-500">QC Image</div>
+                  <img src={qc} className="h-28 w-28 object-cover rounded border" />
+                  <div className="text-xs text-gray-500">Reference</div>
+                  <img src={refImages[i] || refImages[0] || qc} className="h-28 w-28 object-cover rounded border" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
+
+  // Expand behavior: default expand latest
+  useEffect(() => {
+    if (currentReport) setExpandedReportId(currentReport.id);
+  }, [currentReport]);
 
   return (
     <div className="pb-20 relative">
@@ -252,7 +315,9 @@ export const ProductDetailPage: React.FC = () => {
         </div>
       )}
 
-      {currentReport ? <ReportCard report={currentReport} previous={previousReport} /> : (
+      {currentReport ? (
+        <ReportCard report={currentReport} previous={previousReport} refImages={refImages} expanded={expandedReportId === currentReport.id} onToggle={(id) => setExpandedReportId(prev => prev === id ? null : id)} />
+      ) : (
         <div className="text-center py-10 bg-white rounded border-dashed border">
           <div className="text-gray-500">No QC reports generated yet.</div>
         </div>
@@ -275,14 +340,8 @@ export const ProductDetailPage: React.FC = () => {
           <h3 className="text-sm font-semibold text-gray-600 mb-2">Previous Inspections</h3>
           <div className="space-y-3">
             {sortedReports.filter(r => r.id !== currentReport?.id).map(r => (
-              <div key={r.id} className="p-4 border rounded bg-white">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="text-xs text-gray-500">{new Date(r.generatedAt).toLocaleString()}</div>
-                    <div className="font-semibold">Score: {r.overallScore}/100</div>
-                  </div>
-                  <div className="text-sm text-gray-600">{r.overallGrade}</div>
-                </div>
+              <div key={r.id} onClick={() => setExpandedReportId(r.id)}>
+                <ReportCard report={r} previous={undefined} refImages={refImages} expanded={expandedReportId === r.id} onToggle={(id) => setExpandedReportId(prev => prev === id ? null : id)} />
               </div>
             ))}
           </div>
