@@ -83,11 +83,6 @@ export const InventoryPage = () => {
     </button>
   );
 
-  const gridColsClass = gridSize === 2 ? "md:grid-cols-2" : 
-                      gridSize === 3 ? "md:grid-cols-3" :
-                      gridSize === 4 ? "md:grid-cols-4" :
-                      gridSize === 5 ? "md:grid-cols-5" : "md:grid-cols-3";
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
