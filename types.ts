@@ -50,6 +50,8 @@ export interface QCReport {
   qcImageIds: string[]; // <-- ADD THIS LINE
   modelTier: ModelTier; // Track which model generated this report
   expertMode: ExpertMode; // Track which persona generated this report
+  // Optional mapping of sectionName -> comparison results (auth image + diff)
+  sectionComparisons?: Record<string, { authImageId?: string; diffImageId?: string; diffScore?: number }>;
 }
 
 export interface QCBatch {

@@ -28,6 +28,9 @@ export const AddProductPage = () => {
   const [profile, setProfile] = useState<ProductProfile | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [generatedSettings, setGeneratedSettings] = useState<AppSettings | null>(null);
+  // Local toggles for identification flow (per-request)
+  const [localModelTier, setLocalModelTier] = useState<ModelTier>(settings.modelTier);
+  const [localExpertMode, setLocalExpertMode] = useState<ExpertMode>(settings.expertMode);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isEditingUrl, setIsEditingUrl] = useState(false);
 
@@ -150,7 +153,8 @@ export const AddProductPage = () => {
       return;
     }
 
-    startIdentificationTask(user.apiKey, images, productUrl || undefined, settings);
+    const useSettings: AppSettings = { modelTier: localModelTier, expertMode: localExpertMode };
+    startIdentificationTask(user.apiKey, images, productUrl || undefined, useSettings);
     localStorage.removeItem(STORAGE_KEY);
     setImages([]);
     setProductUrl('');
@@ -398,6 +402,19 @@ export const AddProductPage = () => {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-6 border-b border-gray-100 bg-gray-50">
               <h2 className="font-bold text-gray-800">1. Upload Images</h2>
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setLocalModelTier(ModelTier.FAST)} className={`px-3 py-1 rounded ${localModelTier === ModelTier.FAST ? 'bg-green-100 text-green-800' : 'bg-white border'}`}>Flash 2.5</button>
+                      <button onClick={() => setLocalModelTier(ModelTier.DETAILED)} className={`px-3 py-1 rounded ${localModelTier === ModelTier.DETAILED ? 'bg-purple-100 text-purple-800' : 'bg-white border'}`}>Pro 3.0</button>
+                      <span title="Model tier controls speed vs depth. Pro 3.0 is slower but more detailed." className="text-xs text-gray-500">?</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setLocalExpertMode(ExpertMode.NORMAL)} className={`px-2 py-1 rounded ${localExpertMode === ExpertMode.NORMAL ? 'bg-gray-100 text-gray-800' : 'bg-white border'}`}>Normal</button>
+                      <button onClick={() => setLocalExpertMode(ExpertMode.EXPERT)} className={`px-2 py-1 rounded ${localExpertMode === ExpertMode.EXPERT ? 'bg-indigo-100 text-indigo-800' : 'bg-white border'}`}>Expert</button>
+                      <span title="Expert persona enables web-search and deeper analysis (may take longer)." className="text-xs text-gray-500">?</span>
+                    </div>
+                  </div>
               <p className="text-sm text-gray-500">Add photos for visual identification.</p>
           </div>
           <div 

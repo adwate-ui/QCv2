@@ -20,6 +20,8 @@ export const ProductDetailPage: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
+  const [localModelTier, setLocalModelTier] = useState<ModelTier>(settings.modelTier);
+  const [localExpertMode, setLocalExpertMode] = useState<ExpertMode>(settings.expertMode);
 
   const activeQCTask = tasks.find(t => t.type === 'QC' && t.meta.targetId === id && t.status === 'PROCESSING');
   const isRunningQC = !!activeQCTask;
@@ -85,7 +87,8 @@ export const ProductDetailPage: React.FC = () => {
 
   const executeQC = () => {
     if (!product || !user?.apiKey) return;
-    startQCTask(user.apiKey, product, refImages, qcImages, settings);
+    const useSettings = { modelTier: localModelTier, expertMode: localExpertMode };
+    startQCTask(user.apiKey, product, refImages, qcImages, useSettings);
     setQcImages([]);
   };
 
@@ -353,7 +356,21 @@ export const ProductDetailPage: React.FC = () => {
         <h3 className="font-bold mb-2">Run New Inspection</h3>
         <p className="text-sm text-gray-500 mb-4">Drag, paste, or upload images to run a new inspection.</p>
 
-        <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop} className={`p-3 rounded border-2 border-dashed ${isDragging ? 'bg-indigo-50' : ''}`}>
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <button onClick={() => setLocalModelTier(ModelTier.FAST)} className={`px-3 py-1 rounded ${localModelTier === ModelTier.FAST ? 'bg-green-100 text-green-800' : 'bg-white border'}`}>Flash 2.5</button>
+                <button onClick={() => setLocalModelTier(ModelTier.DETAILED)} className={`px-3 py-1 rounded ${localModelTier === ModelTier.DETAILED ? 'bg-purple-100 text-purple-800' : 'bg-white border'}`}>Pro 3.0</button>
+                <span title="Model tier: Pro is more thorough but slower." className="text-xs text-gray-500">?</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button onClick={() => setLocalExpertMode(ExpertMode.NORMAL)} className={`px-2 py-1 rounded ${localExpertMode === ExpertMode.NORMAL ? 'bg-gray-100 text-gray-800' : 'bg-white border'}`}>Normal</button>
+                <button onClick={() => setLocalExpertMode(ExpertMode.EXPERT)} className={`px-2 py-1 rounded ${localExpertMode === ExpertMode.EXPERT ? 'bg-indigo-100 text-indigo-800' : 'bg-white border'}`}>Expert</button>
+                <span title="Expert: enables broader checks that can include web references." className="text-xs text-gray-500">?</span>
+              </div>
+            </div>
+
+            <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop} className={`p-3 rounded border-2 border-dashed ${isDragging ? 'bg-indigo-50' : ''}`}>
           <div className="flex gap-2 flex-wrap">
             {qcImages.map((q, i) => (
               <div key={i} onClick={() => setSelectedImage(q)} className="h-16 w-16 rounded overflow-hidden">

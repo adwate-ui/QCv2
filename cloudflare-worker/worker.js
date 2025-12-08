@@ -1,0 +1,129 @@
+addEventListener('fetch', event => {
+  event.respondWith(handleRequest(event.request));
+});
+
+async function handleRequest(request) {
+  const url = new URL(request.url);
+  const pathname = url.pathname.replace(/\/+$/, '');
+
+  if (pathname.endsWith('/fetch-metadata')) {
+    const target = url.searchParams.get('url');
+    if (!target) return new Response(JSON.stringify({ error: 'missing url' }), { status: 400 });
+    try {
+      const resp = await fetch(target, { redirect: 'follow' });
+      const text = await resp.text();
+      const doc = new DOMParser().parseFromString(text, 'text/html');
+
+      // OG images
+      const ogImgs = Array.from(doc.querySelectorAll('meta[property="og:image"]')).map(m => m.getAttribute('content')).filter(Boolean);
+
+      // JSON-LD images
+      const jsonld = Array.from(doc.querySelectorAll('script[type="application/ld+json"]')).map(s => s.textContent).filter(Boolean);
+      const ldImgs = [];
+      for (const block of jsonld) {
+        try {
+          const parsed = JSON.parse(block);
+          const images = extractImagesFromLd(parsed);
+          ldImgs.push(...images);
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      // img tags
+      const imgTags = Array.from(doc.querySelectorAll('img')).map(i => i.getAttribute('src')).filter(Boolean);
+
+      const images = Array.from(new Set([...(ogImgs || []), ...(ldImgs || []), ...(imgTags || [])])).slice(0, 12);
+
+      return new Response(JSON.stringify({ images }), { headers: { 'content-type': 'application/json' } });
+    } catch (e) {
+      return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+    }
+  }
+
+  if (pathname.endsWith('/diff')) {
+    // Query params: imageA, imageB (URLs)
+    const imageA = url.searchParams.get('imageA');
+    const imageB = url.searchParams.get('imageB');
+    if (!imageA || !imageB) return new Response(JSON.stringify({ error: 'missing images' }), { status: 400 });
+
+    try {
+      const [ra, rb] = await Promise.all([fetch(imageA), fetch(imageB)]);
+      const [ab, bb] = await Promise.all([ra.arrayBuffer(), rb.arrayBuffer()]);
+
+      // Simple byte-diff sampling to create a small SVG heatmap as a visual diff
+      const aBytes = new Uint8Array(ab);
+      const bBytes = new Uint8Array(bb);
+      const len = Math.min(aBytes.length, bBytes.length);
+
+      const gridSize = 32; // 32x32 heatmap
+      const totalSamples = gridSize * gridSize;
+      const step = Math.max(1, Math.floor(len / totalSamples));
+      const diffs = [];
+      let diffSum = 0;
+      for (let i = 0, s = 0; i < totalSamples && s < len; i++, s += step) {
+        const va = aBytes[s] || 0;
+        const vb = bBytes[s] || 0;
+        const d = Math.abs(va - vb);
+        diffs.push(d);
+        diffSum += d;
+      }
+      const avgDiff = diffSum / totalSamples;
+      const maxPossible = 255;
+      const diffScore = Math.round((avgDiff / maxPossible) * 100);
+
+      // Build SVG heatmap
+      const cellSize = 8;
+      let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${gridSize * cellSize}" height="${gridSize * cellSize}">`;
+      for (let y = 0; y < gridSize; y++) {
+        for (let x = 0; x < gridSize; x++) {
+          const idx = y * gridSize + x;
+          const d = diffs[idx] || 0;
+          const gray = 255 - Math.round((d / 255) * 255);
+          svg += `<rect x="${x * cellSize}" y="${y * cellSize}" width="${cellSize}" height="${cellSize}" fill="rgb(${gray},${gray},${gray})"/>`;
+        }
+      }
+      svg += `</svg>`;
+
+      const svgBase64 = `data:image/svg+xml;base64,${btoa(svg)}`;
+
+      // Also return base64 of the authoritative image B and the uploaded image A (useful for client display)
+      const aBase64 = `data:${ra.headers.get('content-type') || 'image/jpeg'};base64,${arrayBufferToBase64(ab)}`;
+      const bBase64 = `data:${rb.headers.get('content-type') || 'image/jpeg'};base64,${arrayBufferToBase64(bb)}`;
+
+      return new Response(JSON.stringify({ diffScore, diffImage: svgBase64, imageA: aBase64, imageB: bBase64 }), { headers: { 'content-type': 'application/json' } });
+    } catch (e) {
+      return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+    }
+  }
+
+  return new Response('Not found', { status: 404 });
+}
+
+function extractImagesFromLd(obj) {
+  const results = [];
+  if (!obj) return results;
+  if (Array.isArray(obj)) {
+    for (const v of obj) results.push(...extractImagesFromLd(v));
+    return results;
+  }
+  if (typeof obj === 'object') {
+    if (obj.image) {
+      if (typeof obj.image === 'string') results.push(obj.image);
+      else if (Array.isArray(obj.image)) results.push(...obj.image.filter(Boolean));
+      else if (obj.image['@type'] && obj.image['@type'] === 'ImageObject' && obj.image.url) results.push(obj.image.url);
+    }
+    for (const k of Object.keys(obj)) results.push(...extractImagesFromLd(obj[k]));
+  }
+  return results.filter(Boolean);
+}
+
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}

@@ -210,7 +210,7 @@ export const InventoryPage = () => {
                           await deleteProduct(product.id);
                           setSelectedIds(prev => prev.filter(id => id !== product.id));
                         }}
-                        className="absolute top-3 right-3 z-20 bg-white rounded-full p-1 shadow-sm hover:bg-red-50"
+                        className="absolute bottom-3 right-3 z-20 bg-white rounded-full p-1 shadow-sm hover:bg-red-50"
                         title="Delete product"
                       >
                         <Trash2 size={16} className="text-red-600" />

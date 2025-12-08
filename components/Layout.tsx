@@ -98,21 +98,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
           <div className="h-6 w-px bg-gray-200 mx-1"></div>
 
-          <button 
-            onClick={toggleModelTier}
-            className={`p-2 rounded-lg text-xs font-semibold border flex items-center gap-1 transition-all ${settings.modelTier === ModelTier.DETAILED ? 'bg-purple-100 text-purple-700 border-purple-300' : 'bg-green-100 text-green-700 border-green-300'}`}
-          >
-            <Zap size={14} />
-            {settings.modelTier === ModelTier.DETAILED ? 'Pro 3.0' : 'Flash 2.5'}
-          </button>
-          
-          <button 
-            onClick={toggleExpertMode}
-            className={`p-2 rounded-lg text-xs font-semibold border flex items-center gap-1 transition-all ${settings.expertMode === ExpertMode.EXPERT ? 'bg-indigo-100 text-indigo-700 border-indigo-300' : 'bg-gray-100 text-gray-600 border-gray-300'}`}
-          >
-            <Brain size={14} />
-            {settings.expertMode === ExpertMode.EXPERT ? 'Expert' : 'Normal'}
-          </button>
+          {/* Model & Persona toggles moved to identification/QC flows per UX request */}
         </div>
       </header>
 

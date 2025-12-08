@@ -267,6 +267,47 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const combinedQcImageIds = [...previousBatchIds, ...newImageIds];
       const report = await runQCAnalysis(apiKey, product.profile, refImages, combinedAnalysisImages, combinedQcImageIds, settings);
 
+      // 3b. Post-process: for specific sections (tag/label/logo) attempt to fetch authoritative images via Cloudflare Worker
+      try {
+        const workerUrl = (import.meta as any).env?.VITE_CF_WORKER_URL;
+        if (workerUrl && product.profile.url) {
+          const sectionsNeedingAuth = (report.sections || []).filter(s => /tag|label|logo/i.test(s.sectionName) || /tag|label|logo/i.test(s.observations));
+          for (const sec of sectionsNeedingAuth) {
+            // Choose the first QC image for this section when available
+            const qcImgId = sec.imageIds && sec.imageIds.length > 0 ? sec.imageIds[0] : (newImageIds[0] || null);
+            const qcImgSrc = qcImgId ? await db.getImage(qcImgId) : (qcImages[0] || null);
+            if (!qcImgSrc) continue;
+
+            // Fetch authoritative images for the product page
+            const metaResp = await fetch(`${workerUrl.replace(/\/+$/, '')}/fetch-metadata?url=${encodeURIComponent(product.profile.url)}`);
+            if (!metaResp.ok) continue;
+            const metaJson = await metaResp.json();
+            const authImgs = metaJson.images || [];
+            if (authImgs.length === 0) continue;
+
+            // Compare with the first authoritative image
+            const authUrl = authImgs[0];
+            const diffResp = await fetch(`${workerUrl.replace(/\/+$/, '')}/diff?imageA=${encodeURIComponent(qcImgSrc)}&imageB=${encodeURIComponent(authUrl)}`);
+            if (!diffResp.ok) continue;
+            const diffJson = await diffResp.json();
+
+            // Save authoritative + diff images to storage (if provided as base64)
+            const savedAuthId = diffJson.imageB ? (await (async () => { const id = generateUUID(); await db.saveImage(id, diffJson.imageB); return id; })()) : null;
+            const savedDiffId = diffJson.diffImage ? (await (async () => { const id = generateUUID(); await db.saveImage(id, diffJson.diffImage); return id; })()) : null;
+
+            // Attach comparisons to report (simple mapping)
+            report.sectionComparisons = report.sectionComparisons || {};
+            report.sectionComparisons[sec.sectionName] = {
+              authImageId: savedAuthId || undefined,
+              diffImageId: savedDiffId || undefined,
+              diffScore: diffJson.diffScore
+            };
+          }
+        }
+      } catch (e) {
+        console.warn('Post-QC worker processing failed', e);
+      }
+
        // 4. Update Product in DB with the new batch
        const newBatch = {
          id: generateUUID(),
