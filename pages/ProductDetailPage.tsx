@@ -165,7 +165,7 @@ export const ProductDetailPage: React.FC = () => {
           <div className="grid gap-3">
             {report.sections.map((s, idx) => {
               const cls = gradeToClasses(s.grade);
-              const observations = parseObservations(s.observations);
+              const observations = Array.isArray(s.observations) ? s.observations : parseObservations(s.observations as any);
               // Map optional imageIds to loaded imgs
               const imgMap: Record<string,string> = {};
               if (report.qcImageIds && report.qcImageIds.length === imgs.length) {

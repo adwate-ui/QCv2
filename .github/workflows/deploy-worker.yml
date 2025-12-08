@@ -16,6 +16,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Install dependencies
+        run: npm ci
+
       - name: Install wrangler
         run: npm install -g wrangler@3
 
@@ -23,4 +26,4 @@ jobs:
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
         run: |
-          npx wrangler@3 publish cloudflare-worker/worker.js --name authentiqc-worker
+          npx wrangler@3 publish cloudflare-worker/index.mjs --name authentiqc-worker

@@ -34,7 +34,7 @@ export interface QCSection {
   sectionName: string;
   score: number; // 0-100
   grade: 'PASS' | 'FAIL' | 'CAUTION';
-  observations: string;
+  observations: string[];
   // Optional image references related to this section's observations (references into report.qcImageIds)
   imageIds?: string[];
 }

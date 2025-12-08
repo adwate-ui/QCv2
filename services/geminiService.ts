@@ -290,7 +290,7 @@ export const runQCAnalysis = async (
               sectionName: { type: Type.STRING },
               score: { type: Type.NUMBER },
               grade: { type: Type.STRING, enum: ["PASS", "FAIL", "CAUTION"] },
-              observations: { type: Type.STRING }
+              observations: { type: Type.ARRAY, items: { type: Type.STRING } }
             }
           }
         }
