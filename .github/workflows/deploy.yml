@@ -34,6 +34,6 @@ jobs:
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
-          projectName: "poker-settle" # REPLACE this with your actual Cloudflare Pages project name
+          projectName: "qcv2" # Cloudflare Pages project name
           directory: "dist" # The folder Vite generates (default is 'dist')
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
