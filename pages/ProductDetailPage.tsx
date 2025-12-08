@@ -219,6 +219,7 @@ export const ProductDetailPage: React.FC = () => {
         )}
       </div>
     );
+  };
 
   // Expand behavior: default expand latest
   useEffect(() => {
