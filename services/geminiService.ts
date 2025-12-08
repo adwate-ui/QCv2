@@ -132,6 +132,8 @@ const _performIdentification = async (
       material: { type: Type.STRING },
       features: { type: Type.ARRAY, items: { type: Type.STRING } },
       description: { type: Type.STRING },
+      url: { type: Type.STRING },
+      imageUrls: { type: Type.ARRAY, items: { type: Type.STRING } }
     },
     required: ["name", "brand", "category", "priceEstimate", "material", "features", "description"]
   };
@@ -167,8 +169,16 @@ const _performIdentification = async (
   const profile: ProductProfile = JSON.parse(responseText);
 
   // Add URL to profile if it was provided
-  if (inputUrl) {
+  // If model provided a URL, prefer it; otherwise attach inputUrl when present
+  if ((profile as any).url) {
+    profile.url = (profile as any).url;
+  } else if (inputUrl) {
     profile.url = inputUrl;
+  }
+
+  // If model returned imageUrls, attach them (frontend can fetch thumbnails)
+  if ((profile as any).imageUrls && Array.isArray((profile as any).imageUrls)) {
+    (profile as any).imageUrls = (profile as any).imageUrls;
   }
 
   return profile;

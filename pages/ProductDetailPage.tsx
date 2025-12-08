@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { db } from '../services/db';
 import { Product, QCReport, ModelTier, ExpertMode } from '../types';
 import { Loader2, CheckCircle, XCircle, Upload, History, ExternalLink, X, ZoomIn, Zap, Brain, Activity, Trash2 } from 'lucide-react';
+import { parseObservations } from '../services/utils';
 
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -161,7 +162,7 @@ export const ProductDetailPage: React.FC = () => {
           <div className="grid gap-3">
             {report.sections.map((s, idx) => {
               const cls = gradeToClasses(s.grade);
-              const observations = s.observations ? s.observations.split(/\n|\.\s+/).map(o => o.trim()).filter(Boolean) : [];
+              const observations = parseObservations(s.observations);
               // Map optional imageIds to loaded imgs
               const imgMap: Record<string,string> = {};
               if (report.qcImageIds && report.qcImageIds.length === imgs.length) {
