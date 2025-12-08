@@ -30,10 +30,10 @@ jobs:
         # This usually creates a 'dist' folder. If your app outputs to 'build', update the 'directory' below.
 
       - name: Publish to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/pages-action@v1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: "poker-settle" # REPLACE this with your actual Cloudflare project name
-          directory: "dist" # The folder Vite generates (Lovable uses 'dist')
+          projectName: "poker-settle" # REPLACE this with your actual Cloudflare Pages project name
+          directory: "dist" # The folder Vite generates (default is 'dist')
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
