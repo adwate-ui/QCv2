@@ -23,6 +23,7 @@ export const ProductDetailPage: React.FC = () => {
   const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
   const [localModelTier, setLocalModelTier] = useState<ModelTier>(settings.modelTier);
   const [localExpertMode, setLocalExpertMode] = useState<ExpertMode>(settings.expertMode);
+  const [qcUserComments, setQcUserComments] = useState<string>('');
 
   const activeQCTask = tasks.find(t => t.type === 'QC' && t.meta.targetId === id && t.status === 'PROCESSING');
   const isRunningQC = !!activeQCTask;
@@ -89,7 +90,7 @@ export const ProductDetailPage: React.FC = () => {
   const executeQC = () => {
     if (!product || !user?.apiKey) return;
     const useSettings = { modelTier: localModelTier, expertMode: localExpertMode };
-    startQCTask(user.apiKey, product, refImages, qcImages, useSettings);
+    startQCTask(user.apiKey, product, refImages, qcImages, useSettings, qcUserComments);
     setQcImages([]);
   };
 
@@ -218,7 +219,6 @@ export const ProductDetailPage: React.FC = () => {
         )}
       </div>
     );
-  };
 
   // Expand behavior: default expand latest
   useEffect(() => {
@@ -361,7 +361,18 @@ export const ProductDetailPage: React.FC = () => {
         <h3 className="font-bold mb-2">Run New Inspection</h3>
         <p className="text-sm text-gray-500 mb-4">Drag, paste, or upload images to run a new inspection.</p>
 
-<div className="mb-4 flex items-center gap-4">
+        <div className="mb-4">
+              <label className="text-sm font-medium text-gray-700">User Comments</label>
+              <textarea
+                value={qcUserComments}
+                onChange={(e) => setQcUserComments(e.target.value)}
+                rows={3}
+                className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                placeholder="Enter any specific comments or instructions for the QC inspection..."
+              />
+            </div>
+
+            <div className="mb-4 flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium text-gray-700">Model</label>
                 <Toggle
@@ -389,8 +400,8 @@ export const ProductDetailPage: React.FC = () => {
                 <div className="relative group">
                   <Info size={16} className="text-gray-400 cursor-pointer" />
                   <div className="absolute bottom-full mb-2 w-64 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                     <p><span className="font-semibold">Normal:</span> Provides a standard analysis.</p>
-                     <p className="mt-1"><span className="font-semibold">Expert:</span> Provides a more detailed, in-depth analysis.</p>
+                    <p><span className="font-semibold">Normal:</span> A knowledgeable enthusiast's perspective.</p>
+                    <p className="mt-1"><span className="font-semibold">Expert:</span> A forensic analysis for microscopic flaws.</p>
                   </div>
                 </div>
               </div>

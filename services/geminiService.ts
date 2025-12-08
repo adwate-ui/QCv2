@@ -134,7 +134,8 @@ const _performIdentification = async (
       features: { type: Type.ARRAY, items: { type: Type.STRING } },
       description: { type: Type.STRING },
       url: { type: Type.STRING },
-      imageUrls: { type: Type.ARRAY, items: { type: Type.STRING } }
+      imageUrls: { type: Type.ARRAY, items: { type: Type.STRING } },
+      qcUserComments: { type: Type.STRING }
     },
     required: ["name", "brand", "category", "priceEstimate", "material", "features", "description"]
   };
@@ -230,7 +231,8 @@ export const runQCAnalysis = async (
   refImages: string[],
   qcImages: string[],
   qcImageIds: string[], // <-- ADD THIS
-  settings: AppSettings
+  settings: AppSettings,
+  qcUserComments: string
 ): Promise<QCReport> => {
   try {
     const ai = new GoogleGenAI({ apiKey });
@@ -263,6 +265,13 @@ export const runQCAnalysis = async (
       });
     });
 
+    // Add user comments if provided
+    if (qcUserComments) {
+      parts.push({
+        text: `\n**USER COMMENTS TO CONSIDER:**\n${qcUserComments}\n`
+      });
+    }
+
     parts.push({
       text: `Perform a QC inspection comparing the CUMULATIVE SET of QC INSPECTION IMAGES (collected over multiple batches) against the REFERENCE IMAGES and PROFILE.
     
@@ -272,7 +281,7 @@ export const runQCAnalysis = async (
     - FAIL: <= 60 (Definite replica, damaged, or major defects)
     
     Output requirements:
-    - Break down analysis by sections (Packaging, Materials, Hardware, Stitching, etc.)
+    - Break down analysis by sections (e.g., for a bag: Packaging, Exterior Leather, Interior Lining, Hardware & Zippers, Stitching, Straps & Handles, Logos & Brand Stamps, Dust Bag, Authenticity Card).
     - Use bullet points in observations.
     - Provide a specific score (0-100) and grade for each section and Overall.`
     });
@@ -376,7 +385,7 @@ export const runQCAnalysis = async (
     if (settings.modelTier === ModelTier.DETAILED) {
       console.warn("Detailed QC failed. Attempting fallback with Fast model...");
       const fallbackSettings = { ...settings, modelTier: ModelTier.FAST };
-      return runQCAnalysis(apiKey, profile, refImages, qcImages, qcImageIds, fallbackSettings);
+      return runQCAnalysis(apiKey, profile, refImages, qcImages, qcImageIds, fallbackSettings, qcUserComments);
     }
     throw error; // Re-throw if not detailed or if fallback fails
   }

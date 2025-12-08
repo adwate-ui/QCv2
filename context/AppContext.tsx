@@ -23,7 +23,7 @@ interface AppContextType {
   toggleExpertMode: () => void;
   refreshProducts: () => Promise<void>;
   startIdentificationTask: (apiKey: string, images: string[], url: string | undefined, settings: AppSettings) => void;
-  startQCTask: (apiKey: string, product: Product, refImages: string[], qcImages: string[], settings: AppSettings) => void;
+  startQCTask: (apiKey: string, product: Product, refImages: string[], qcImages: string[], settings: AppSettings, qcUserComments: string) => void;
   dismissTask: (taskId: string) => void;
   bulkDeleteProducts: (ids: string[]) => Promise<void>;
 }
@@ -230,7 +230,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         });
   };
 
-  const startQCTask = async (apiKey: string, product: Product, refImages: string[], qcImages: string[], settings: AppSettings) => {
+  const startQCTask = async (apiKey: string, product: Product, refImages: string[], qcImages: string[], settings: AppSettings, qcUserComments: string) => {
     const taskId = generateUUID();
     const task: BackgroundTask = {
        id: taskId,
@@ -265,7 +265,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
       // 3. Run Analysis — include ALL QC image IDs (previous + new) so the report references every image used
       const combinedQcImageIds = [...previousBatchIds, ...newImageIds];
-      const report = await runQCAnalysis(apiKey, product.profile, refImages, combinedAnalysisImages, combinedQcImageIds, settings);
+      const report = await runQCAnalysis(apiKey, product.profile, refImages, combinedAnalysisImages, combinedQcImageIds, settings, qcUserComments);
 
       // 3b. Post-process: for specific sections (tag/label/logo) attempt to fetch authoritative images via Cloudflare Worker
       try {
