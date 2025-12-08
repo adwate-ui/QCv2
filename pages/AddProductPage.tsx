@@ -4,7 +4,8 @@ import { Product, ProductProfile, AppSettings, ModelTier, ExpertMode, Background
 import { db } from '../services/db';
 import { generateUUID } from '../services/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Upload, Loader2, Sparkles, X, ImagePlus, Globe, RotateCcw, Save, Trash2, ExternalLink, ZoomIn, Edit2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Upload, Loader2, Sparkles, X, ImagePlus, Globe, RotateCcw, Save, Trash2, ExternalLink, ZoomIn, Edit2, CheckCircle, AlertTriangle, Info } from 'lucide-react';
+import { Toggle } from '../components/Toggle';
 
 const STORAGE_KEY = 'authentiqc_temp_product';
 
@@ -409,54 +410,24 @@ export const AddProductPage = () => {
       
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-6 border-b border-gray-100 bg-gray-50">
-              <h2 className="font-bold text-gray-800">1. Upload Images</h2>import { Toggle } from '../components/Toggle';
-import { Info } from 'lucide-react';
-
-// ... inside the component
-  const [localModelTier, setLocalModelTier] = useState<ModelTier>(settings.modelTier);
-
-  // ... other code
-
-  const handleIdentify = () => {
-    if (!user?.apiKey) {
-      alert("Please add your API Key in settings first.");
-      return;
-    }
-    if (images.length === 0 && !productUrl) {
-      alert("Please add at least one image or a Product URL.");
-      return;
-    }
-
-    const useSettings: AppSettings = { modelTier: localModelTier, expertMode: ExpertMode.NORMAL };
-    startIdentificationTask(user.apiKey, images, productUrl || undefined, useSettings);
-    localStorage.removeItem(STORAGE_KEY);
-    setImages([]);
-    setProductUrl('');
-  };
-
-  //... inside the return statement
-  <div className="p-6 border-b border-gray-100 bg-gray-50">
-      <h2 className="font-bold text-gray-800">1. Upload Images</h2>
-      <div className="mt-3 flex items-center gap-3">
-        <label className="text-sm font-medium text-gray-700">Model</label>
-        <Toggle
-          labelLeft="Flash 2.5"
-          labelRight="Pro 3.0"
-          value={localModelTier === ModelTier.DETAILED}
-          onChange={(isDetailed) => setLocalModelTier(isDetailed ? ModelTier.DETAILED : ModelTier.FAST)}
-        />
-        <div className="relative group">
-          <Info size={16} className="text-gray-400 cursor-pointer" />
-          <div className="absolute bottom-full mb-2 w-64 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-            <p><span className="font-semibold">Flash 2.5:</span> Faster, more cost-effective model, suitable for most identification tasks.</p>
-            <p className="mt-1"><span className="font-semibold">Pro 3.0:</span> More powerful model for higher accuracy, but slower and more expensive.</p>
-          </div>
-        </div>
-      </div>
-      <p className="text-sm text-gray-500">Add photos for visual identification.</p>
-  </div>
-//...
-
+              <h2 className="font-bold text-gray-800">1. Upload Images</h2>
+              <div className="mt-3 flex items-center gap-3">
+                <label className="text-sm font-medium text-gray-700">Model</label>
+                <Toggle
+                  labelLeft="Flash 2.5"
+                  labelRight="Pro 3.0"
+                  value={localModelTier === ModelTier.DETAILED}
+                  onChange={(isDetailed) => setLocalModelTier(isDetailed ? ModelTier.DETAILED : ModelTier.FAST)}
+                />
+                <div className="relative group">
+                  <Info size={16} className="text-gray-400 cursor-pointer" />
+                  <div className="absolute bottom-full mb-2 w-64 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <p><span className="font-semibold">Flash 2.5:</span> Faster, more cost-effective model, suitable for most identification tasks.</p>
+                    <p className="mt-1"><span className="font-semibold">Pro 3.0:</span> More powerful model for higher accuracy, but slower and more expensive.</p>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-500">Add photos for visual identification.</p>
           </div>
           <div 
             className={`p-8 text-center space-y-6 transition-all duration-200 ${
