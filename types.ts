@@ -99,10 +99,10 @@ export interface BackgroundTask {
 }
 
 export interface BoundingBox {
-  ymin: number;
-  xmin: number;
-  ymax: number;
-  xmax: number;
+  ymin: number; // 0-1000 scale
+  xmin: number; // 0-1000 scale
+  ymax: number; // 0-1000 scale
+  xmax: number; // 0-1000 scale
 }
 
 export interface Discrepancy {
@@ -111,7 +111,7 @@ export interface Discrepancy {
 }
 
 export interface QCAnalysisResult {
-  score: number; // 0-100
-  summary: string;
   discrepancies: Discrepancy[];
+  summary: string;
+  qualityScore: number; // 0-100
 }
