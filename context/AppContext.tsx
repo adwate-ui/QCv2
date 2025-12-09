@@ -367,19 +367,29 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     try {
       // First, fetch metadata to get image URLs from the page
       const metadataUrl = `${proxyBase.replace(/\/$/, '')}/fetch-metadata?url=${encodeURIComponent(url)}`;
+      console.log('Fetching metadata from:', metadataUrl);
+      
       const metadataResponse = await fetch(metadataUrl);
       
       if (!metadataResponse.ok) {
-        console.error('Failed to fetch metadata from URL', url);
+        const errorData = await metadataResponse.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Failed to fetch metadata from URL', url, 'Status:', metadataResponse.status, 'Error:', errorData);
         return [];
       }
       
       const metadata = await metadataResponse.json();
       
+      if (metadata.error) {
+        console.error('Metadata endpoint returned error:', metadata.error);
+        return [];
+      }
+      
       if (!metadata.images || metadata.images.length === 0) {
         console.warn('No images found on the page', url);
         return [];
       }
+
+      console.log(`Found ${metadata.images.length} images on page, fetching up to ${MAX_IMAGES_FROM_URL}`);
 
       // Fetch up to MAX_IMAGES_FROM_URL images from the page through the proxy
       const imageUrls = metadata.images.slice(0, MAX_IMAGES_FROM_URL);
@@ -390,13 +400,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             const proxyUrl = new URL('/proxy-image', proxyBase.replace(/\/$/, ''));
             proxyUrl.searchParams.set('url', imageUrl);
             
+            console.log('Fetching image through proxy:', imageUrl);
             const response = await fetch(proxyUrl.toString());
             if (!response.ok) {
-              console.debug('Image fetch failed', imageUrl, response.status);
+              console.debug('Image fetch failed', imageUrl, 'Status:', response.status);
               return null;
             }
             
             const blob = await response.blob();
+            console.log('Successfully fetched image:', imageUrl, 'Size:', blob.size);
+            
             return new Promise<string>((resolve, reject) => {
               const reader = new FileReader();
               reader.onloadend = () => resolve(reader.result as string);
@@ -410,7 +423,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         })
       );
       
-      return fetchedImages.filter(Boolean) as string[];
+      const validImages = fetchedImages.filter(Boolean) as string[];
+      console.log(`Successfully fetched ${validImages.length} out of ${imageUrls.length} images`);
+      return validImages;
     } catch (error) {
       console.error('Error fetching images from URL:', error);
       return [];
