@@ -94,9 +94,9 @@ async function handleRequest(request) {
       return new Response(JSON.stringify({ error: 'method not allowed' }), {
         status: 405,
         headers: { 
-          'content-type': 'application/json', 
-          'access-control-allow-origin': '*',
-          'allow': 'GET, OPTIONS'
+          'Content-Type': 'application/json', 
+          'Access-Control-Allow-Origin': '*',
+          'Allow': 'GET, OPTIONS'
         }
       });
     }
@@ -104,13 +104,13 @@ async function handleRequest(request) {
     const target = url.searchParams.get('url');
     if (!target) return new Response(JSON.stringify({ error: 'missing url parameter' }), { 
       status: 400,
-      headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
     
     if (isInternalUrl(target)) {
       return new Response(JSON.stringify({ error: 'access to internal resources not allowed' }), {
         status: 403,
-        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
     
@@ -124,7 +124,7 @@ async function handleRequest(request) {
         if (!location) {
           return new Response(JSON.stringify({ error: 'redirect without location header' }), {
             status: 502,
-            headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
         
@@ -136,7 +136,7 @@ async function handleRequest(request) {
         if (isInternalUrl(redirectUrlString)) {
           return new Response(JSON.stringify({ error: 'redirect to internal resources not allowed' }), {
             status: 403,
-            headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
         
@@ -147,14 +147,14 @@ async function handleRequest(request) {
         if (redirectResp.status >= 300 && redirectResp.status < 400) {
           return new Response(JSON.stringify({ error: 'multiple redirects not supported' }), {
             status: 502,
-            headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
         
         if (!redirectResp.ok) {
           return new Response(JSON.stringify({ error: 'fetch failed', status: redirectResp.status, statusText: redirectResp.statusText }), {
             status: 502,
-            headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
         
@@ -163,9 +163,9 @@ async function handleRequest(request) {
 
         return new Response(body, {
           headers: {
-            'content-type': contentType,
-            'access-control-allow-origin': '*',
-            'cache-control': 'public, max-age=3600'
+            'Content-Type': contentType,
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'public, max-age=3600'
           }
         });
       }
@@ -173,7 +173,7 @@ async function handleRequest(request) {
       if (!resp.ok) {
         return new Response(JSON.stringify({ error: 'fetch failed', status: resp.status, statusText: resp.statusText }), {
           status: 502,
-          headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
 
@@ -182,15 +182,15 @@ async function handleRequest(request) {
 
       return new Response(body, {
         headers: {
-          'content-type': contentType,
-          'access-control-allow-origin': '*',
-          'cache-control': 'public, max-age=3600'
+          'Content-Type': contentType,
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=3600'
         }
       });
     } catch (e) {
       return new Response(JSON.stringify({ error: String(e) }), {
         status: 500,
-        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
   }
@@ -211,14 +211,14 @@ async function handleRequest(request) {
     const target = url.searchParams.get('url');
     if (!target) return new Response(JSON.stringify({ error: 'missing url' }), { 
       status: 400,
-      headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
     
     // Validate URL to prevent SSRF
     if (isInternalUrl(target)) {
       return new Response(JSON.stringify({ error: 'access to internal resources not allowed' }), {
         status: 403,
-        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
     
@@ -238,7 +238,7 @@ async function handleRequest(request) {
           message: `Failed to fetch URL (${resp.status} ${resp.statusText})`
         }), { 
           status: 502,
-          headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
       
@@ -358,15 +358,15 @@ async function handleRequest(request) {
 
       return new Response(JSON.stringify({ images }), { 
         headers: { 
-          'content-type': 'application/json',
-          'access-control-allow-origin': '*',
-          'cache-control': 'public, max-age=300'
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=300'
         } 
       });
     } catch (e) {
       return new Response(JSON.stringify({ error: String(e), message: 'Failed to fetch or parse metadata' }), { 
         status: 500,
-        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
   }
@@ -388,7 +388,7 @@ async function handleRequest(request) {
     if (!target) {
       return new Response(JSON.stringify({ error: 'missing url' }), { 
         status: 400,
-        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
     
@@ -396,7 +396,7 @@ async function handleRequest(request) {
     if (isInternalUrl(target)) {
       return new Response(JSON.stringify({ error: 'access to internal resources not allowed' }), {
         status: 403,
-        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
     
@@ -422,7 +422,7 @@ async function handleRequest(request) {
       if (!resp.ok) {
         return new Response(JSON.stringify({ error: 'fetch failed', status: resp.status, statusText: resp.statusText }), { 
           status: 502,
-          headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
 
@@ -431,9 +431,9 @@ async function handleRequest(request) {
 
       const out = new Response(body, {
         headers: {
-          'content-type': contentType,
-          'access-control-allow-origin': '*',
-          'cache-control': 'public, max-age=3600'
+          'Content-Type': contentType,
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=3600'
         }
       });
 
@@ -441,7 +441,7 @@ async function handleRequest(request) {
     } catch (e) {
       return new Response(JSON.stringify({ error: String(e), message: 'Failed to fetch image' }), { 
         status: 500,
-        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
   }
@@ -491,7 +491,7 @@ async function handleRequest(request) {
       results.push(await tryStrategy(mode, strat));
     }
 
-    return new Response(JSON.stringify({ url: target, results }), { headers: { 'content-type': 'application/json' } });
+    return new Response(JSON.stringify({ url: target, results }), { headers: { 'Content-Type': 'application/json' } });
   }
 
   if (pathname.endsWith('/search-image')) {
@@ -515,7 +515,7 @@ async function handleRequest(request) {
         placeholder: true
       }), { 
         status: 501,
-        headers: { 'content-type': 'application/json' } 
+        headers: { 'Content-Type': 'application/json' } 
       });
     } catch (e) {
       return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
@@ -572,7 +572,7 @@ async function handleRequest(request) {
       const aBase64 = `data:${ra.headers.get('content-type') || 'image/jpeg'};base64,${arrayBufferToBase64(ab)}`;
       const bBase64 = `data:${rb.headers.get('content-type') || 'image/jpeg'};base64,${arrayBufferToBase64(bb)}`;
 
-      return new Response(JSON.stringify({ diffScore, diffImage: svgBase64, imageA: aBase64, imageB: bBase64 }), { headers: { 'content-type': 'application/json' } });
+      return new Response(JSON.stringify({ diffScore, diffImage: svgBase64, imageA: aBase64, imageB: bBase64 }), { headers: { 'Content-Type': 'application/json' } });
     } catch (e) {
       return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
     }
