@@ -26,7 +26,12 @@ export const DiagnosticsPage = () => {
 
   const runDiagnostics = async () => {
     if (!testUrl) {
-      alert('Please enter a test URL');
+      setResults([{
+        name: 'validation',
+        status: 'error',
+        message: 'Please enter a test URL',
+        details: 'Enter a valid product URL to begin diagnostics'
+      }]);
       return;
     }
 
