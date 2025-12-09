@@ -199,7 +199,7 @@ export const ProductDetailPage: React.FC = () => {
             </div>
           </div>
           <div className="text-right">
-            {(() => {
+            {report.overallScore !== undefined && report.overallGrade ? (() => {
               const cls = gradeToClasses(report.overallGrade);
               return (
                 <div className={`inline-flex items-center gap-3 px-3 py-2 rounded ${cls.bg} ${cls.text} font-bold`}>
@@ -207,7 +207,9 @@ export const ProductDetailPage: React.FC = () => {
                   <div className="text-sm">{report.overallGrade}</div>
                 </div>
               );
-            })()}
+            })() : (
+              <div className="text-sm text-gray-500">Score pending...</div>
+            )}
           </div>
         </div>
 
@@ -233,11 +235,11 @@ export const ProductDetailPage: React.FC = () => {
           )}
 
           <div className="mb-4">
-            <div className="text-sm text-gray-700 whitespace-pre-line">{report.summary}</div>
+            <div className="text-sm text-gray-700 whitespace-pre-line">{report.summary || 'No summary available.'}</div>
           </div>
 
           <div className="grid gap-3">
-            {report.sections.map((s, idx) => {
+            {report.sections && report.sections.length > 0 ? report.sections.map((s, idx) => {
               const cls = gradeToClasses(s.grade);
               const observations = Array.isArray(s.observations) ? s.observations : parseObservations(s.observations as any);
               
@@ -266,7 +268,9 @@ export const ProductDetailPage: React.FC = () => {
                   )}
                 </div>
               );
-            })}
+            }) : (
+              <div className="text-sm text-gray-500 text-center py-4">No sections available in the report.</div>
+            )}
           </div>
 
           {report.requestForMoreInfo && report.requestForMoreInfo.length > 0 && (
