@@ -6,10 +6,8 @@
 // Helper to safely get env vars in different environments (Vite vs others)
 const getEnv = (key: string) => {
   // Check import.meta.env (Vite)
-  // @ts-ignore
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
-    // @ts-ignore
-    return import.meta.env[key];
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env[key]) {
+    return (import.meta as any).env[key];
   }
   // Check process.env (Node/Webpack)
   if (typeof process !== 'undefined' && process.env && process.env[key]) {
@@ -19,15 +17,21 @@ const getEnv = (key: string) => {
 };
 
 /**
- * Determines if a URL points to an image based on file extension or content-type.
+ * Determines if a URL points to an image based on file extension.
  * @param url The URL to check
  * @returns true if the URL appears to be an image
  */
 const isImageUrl = (url: string): boolean => {
-  // Check file extension
-  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
-  const urlLower = url.toLowerCase();
-  return imageExtensions.some(ext => urlLower.includes(ext));
+  try {
+    // Check file extension from URL pathname
+    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'];
+    const pathname = new URL(url).pathname.toLowerCase();
+    const extension = pathname.split('.').pop() || '';
+    return imageExtensions.includes(extension);
+  } catch {
+    // If URL parsing fails, assume it's not an image URL
+    return false;
+  }
 };
 
 /**
@@ -107,6 +111,13 @@ const blobToFile = (blob: Blob, filename: string): File => {
  * ```
  */
 export const processProductUrl = async (url: string): Promise<File> => {
+  // Validate the input URL
+  try {
+    new URL(url);
+  } catch {
+    throw new Error(`Invalid URL provided: ${url}`);
+  }
+  
   // Get the Cloudflare worker URL from environment
   const workerUrl = getEnv('VITE_IMAGE_PROXY_URL');
   if (!workerUrl) {
