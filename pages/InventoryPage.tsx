@@ -211,7 +211,9 @@ export const InventoryPage = () => {
                         {imageMap[product.id] ? (
                           <img src={imageMap[product.id]} alt={product.profile.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         ) : (
-                          <div className="flex items-center justify-center h-full text-gray-400 text-sm">No Image</div>
+                          <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+                            <Tag size={24} />
+                          </div>
                         )}
 
                         {/* Status Badge */}

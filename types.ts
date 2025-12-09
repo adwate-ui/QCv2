@@ -29,6 +29,7 @@ export interface ProductProfile {
   features: string[];
   description: string;
   url?: string;
+  imageUrls?: string[]; // <-- ADDING THIS LINE
 }
 
 export interface QCSection {

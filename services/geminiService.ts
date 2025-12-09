@@ -133,6 +133,9 @@ const _performIdentification = async (
   
   if (inputUrl) {
     prompt += `\n**Reference URL (use for context if helpful):** ${inputUrl}\n`;
+    if (imageDatas.length === 0) {
+      prompt += `\n**Action Required**: No images were provided. Analyze the content of the Reference URL to identify the product. Then, perform a web search to find and return at least 3-5 high-quality image URLs for this product in the 'imageUrls' field of your response.`;
+    }
   }
 
   prompt += `\nCRITICAL: Your final output must be a single, valid, raw JSON object that strictly conforms to the ProductProfile schema. Do not include any extra text, conversational pleasantries, or markdown formatting like \`\`\`json. Just the JSON object.`;
