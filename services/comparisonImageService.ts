@@ -4,6 +4,15 @@
 
 import { BoundingBox } from '../types';
 
+// Constants for image comparison layout
+const MAX_IMAGE_HEIGHT = 800;
+const IMAGE_PADDING = 40;
+const OBSERVATIONS_MAX_HEIGHT = 200;
+const OBSERVATIONS_LINE_HEIGHT = 25;
+const OBSERVATIONS_PADDING = 40;
+const MAX_OBSERVATIONS_DISPLAY = 6;
+const TEXT_TRUNCATE_MIN_LENGTH = 10;
+
 /**
  * Converts a data URL or blob URL to an Image element
  */
@@ -94,14 +103,13 @@ export const generateComparisonImage = async (
     ]);
 
     // Determine dimensions - use the larger height and scale proportionally
-    const maxHeight = 800; // Max height for each image
     const refAspect = refImg.width / refImg.height;
     const qcAspect = qcImg.width / qcImg.height;
 
-    const refScaledHeight = Math.min(refImg.height, maxHeight);
+    const refScaledHeight = Math.min(refImg.height, MAX_IMAGE_HEIGHT);
     const refScaledWidth = refScaledHeight * refAspect;
     
-    const qcScaledHeight = Math.min(qcImg.height, maxHeight);
+    const qcScaledHeight = Math.min(qcImg.height, MAX_IMAGE_HEIGHT);
     const qcScaledWidth = qcScaledHeight * qcAspect;
 
     // Make both images the same height for better comparison
@@ -110,13 +118,14 @@ export const generateComparisonImage = async (
     const finalQcWidth = finalHeight * qcAspect;
 
     // Calculate space needed for observations
-    const observationsHeight = observations && observations.length > 0 ? Math.min(200, observations.length * 25 + 40) : 0;
+    const observationsHeight = observations && observations.length > 0 
+      ? Math.min(OBSERVATIONS_MAX_HEIGHT, observations.length * OBSERVATIONS_LINE_HEIGHT + OBSERVATIONS_PADDING) 
+      : 0;
 
     // Create canvas with padding between images
-    const padding = 40;
     const canvas = document.createElement('canvas');
-    canvas.width = finalRefWidth + finalQcWidth + padding * 3;
-    canvas.height = finalHeight + padding * 2 + observationsHeight;
+    canvas.width = finalRefWidth + finalQcWidth + IMAGE_PADDING * 3;
+    canvas.height = finalHeight + IMAGE_PADDING * 2 + observationsHeight;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) {
@@ -131,15 +140,15 @@ export const generateComparisonImage = async (
     ctx.fillStyle = '#1F2937';
     ctx.font = 'bold 16px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Reference (Authentic)', padding + finalRefWidth / 2, 25);
-    ctx.fillText('QC Image', padding * 2 + finalRefWidth + finalQcWidth / 2, 25);
+    ctx.fillText('Reference (Authentic)', IMAGE_PADDING + finalRefWidth / 2, 25);
+    ctx.fillText('QC Image', IMAGE_PADDING * 2 + finalRefWidth + finalQcWidth / 2, 25);
 
     // Draw reference image
-    ctx.drawImage(refImg, padding, padding, finalRefWidth, finalHeight);
+    ctx.drawImage(refImg, IMAGE_PADDING, IMAGE_PADDING, finalRefWidth, finalHeight);
 
     // Draw QC image
-    const qcOffsetX = padding * 2 + finalRefWidth;
-    ctx.drawImage(qcImg, qcOffsetX, padding, finalQcWidth, finalHeight);
+    const qcOffsetX = IMAGE_PADDING * 2 + finalRefWidth;
+    ctx.drawImage(qcImg, qcOffsetX, IMAGE_PADDING, finalQcWidth, finalHeight);
 
     // Draw highlights on QC image if discrepancies are provided
     if (discrepancies && discrepancies.length > 0) {
@@ -150,48 +159,48 @@ export const generateComparisonImage = async (
 
     // Draw observations text below images if provided
     if (observations && observations.length > 0) {
-      const observationsY = finalHeight + padding * 2 + 10;
+      const observationsY = finalHeight + IMAGE_PADDING * 2 + 10;
       
       // Draw observations box background
       ctx.fillStyle = '#FEF3C7'; // Light yellow background
-      ctx.fillRect(padding, observationsY, canvas.width - padding * 2, observationsHeight - 10);
+      ctx.fillRect(IMAGE_PADDING, observationsY, canvas.width - IMAGE_PADDING * 2, observationsHeight - 10);
       
       // Draw observations border
       ctx.strokeStyle = '#F59E0B'; // Orange border
       ctx.lineWidth = 2;
-      ctx.strokeRect(padding, observationsY, canvas.width - padding * 2, observationsHeight - 10);
+      ctx.strokeRect(IMAGE_PADDING, observationsY, canvas.width - IMAGE_PADDING * 2, observationsHeight - 10);
       
       // Draw title
       ctx.fillStyle = '#B45309'; // Dark orange
       ctx.font = 'bold 14px Arial';
       ctx.textAlign = 'left';
-      ctx.fillText('⚠ Discrepancies Detected:', padding + 10, observationsY + 20);
+      ctx.fillText('⚠ Discrepancies Detected:', IMAGE_PADDING + 10, observationsY + 20);
       
       // Draw observations
       ctx.fillStyle = '#78350F'; // Brown text
       ctx.font = '12px Arial';
-      observations.slice(0, 6).forEach((obs, i) => {
+      observations.slice(0, MAX_OBSERVATIONS_DISPLAY).forEach((obs, i) => {
         const text = `• ${obs}`;
-        const maxWidth = canvas.width - padding * 2 - 20;
+        const maxWidth = canvas.width - IMAGE_PADDING * 2 - 20;
         
         // Truncate text if too long
         let displayText = text;
         const metrics = ctx.measureText(text);
         if (metrics.width > maxWidth) {
           let truncated = text;
-          while (ctx.measureText(truncated + '...').width > maxWidth && truncated.length > 10) {
+          while (ctx.measureText(truncated + '...').width > maxWidth && truncated.length > TEXT_TRUNCATE_MIN_LENGTH) {
             truncated = truncated.slice(0, -1);
           }
           displayText = truncated + '...';
         }
         
-        ctx.fillText(displayText, padding + 15, observationsY + 40 + i * 20);
+        ctx.fillText(displayText, IMAGE_PADDING + 15, observationsY + 40 + i * 20);
       });
       
-      if (observations.length > 6) {
+      if (observations.length > MAX_OBSERVATIONS_DISPLAY) {
         ctx.fillStyle = '#92400E';
         ctx.font = 'italic 11px Arial';
-        ctx.fillText(`... and ${observations.length - 6} more`, padding + 15, observationsY + 40 + 6 * 20);
+        ctx.fillText(`... and ${observations.length - MAX_OBSERVATIONS_DISPLAY} more`, IMAGE_PADDING + 15, observationsY + 40 + MAX_OBSERVATIONS_DISPLAY * 20);
       }
     }
 
