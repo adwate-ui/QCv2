@@ -155,6 +155,7 @@ const getSystemInstruction = (mode: ExpertMode, tier: ModelTier, task: 'ID' | 'Q
     - **NEVER** identify a product as "Generic", "Replica", "Knock-off", or "Unbranded" if the design is associated with a known brand.
     - Assume the user wants the specifications for the **genuine** article to use as a reference standard.
     - If a URL is provided by the user, use it as the product's URL. If only images are provided, identify the product and then perform a web search to find the most likely official product page URL and include it in the response.
+    - **IMAGE SEARCH**: When you identify a product, perform a Google Image Search for the product (using brand + model name). Extract 3-5 high-quality product image URLs from official sources, e-commerce sites, or reputable retailers. Include these URLs in the 'imageUrls' field of your response.
     - ALWAYS return a valid JSON object. If you are unsure of a field, provide your BEST EXPERT GUESS based on visual analysis. Do not return nulls or "Unknown".`;
   } else {
     // QC Task
@@ -274,10 +275,41 @@ const _performIdentification = async (
     };
   }
 
-  const response = await ai.models.generateContent({
-    model,
-    contents: { parts },
-    config: {
+  // Enable Google Search when we have a URL but no images, or when we need to find image URLs
+  const needsImageSearch = imageDatas.length === 0 || inputUrl;
+  
+  let responseText = "{}";
+  
+  if (needsImageSearch) {
+    // Two-pass approach: First pass with Google Search (no JSON schema), then synthesize JSON
+    const firstConfig: any = {
+      systemInstruction: getSystemInstruction(settings.expertMode, settings.modelTier, 'ID'),
+      thinkingConfig,
+      safetySettings: [
+        {
+          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH
+        }
+      ],
+      tools: [{ googleSearch: {} }]
+    };
+
+    const firstResponse = await ai.models.generateContent({
+      model,
+      contents: { parts },
+      config: firstConfig
+    });
+    
+    const firstText = firstResponse.text || "";
+    
+    // Second pass: request structured JSON using the prior analysis as context
+    const partsForJson = [
+      ...parts,
+      { text: `\n\nBased on the above analysis and web search results, generate a JSON response conforming to the ProductProfile schema. Include the 'imageUrls' field with 3-5 high-quality product image URLs found from your web search. Respond ONLY with valid JSON matching the schema.` },
+      { text: firstText }
+    ];
+
+    const secondConfig: any = {
       systemInstruction: getSystemInstruction(settings.expertMode, settings.modelTier, 'ID'),
       responseMimeType: "application/json",
       responseSchema: schema,
@@ -288,10 +320,38 @@ const _performIdentification = async (
           threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH
         }
       ]
-    }
-  });
+    };
 
-  const responseText = response.text || "{}";
+    const secondResponse = await ai.models.generateContent({
+      model,
+      contents: { parts: partsForJson },
+      config: secondConfig
+    });
+    
+    responseText = secondResponse.text || "{}";
+  } else {
+    // Single pass when we have images
+    const configOptions: any = {
+      systemInstruction: getSystemInstruction(settings.expertMode, settings.modelTier, 'ID'),
+      responseMimeType: "application/json",
+      responseSchema: schema,
+      thinkingConfig,
+      safetySettings: [
+        {
+          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH
+        }
+      ]
+    };
+
+    const response = await ai.models.generateContent({
+      model,
+      contents: { parts },
+      config: configOptions
+    });
+
+    responseText = response.text || "{}";
+  }
   
   // The API now directly returns JSON, so we can parse it.
   const profile: ProductProfile = JSON.parse(responseText);
