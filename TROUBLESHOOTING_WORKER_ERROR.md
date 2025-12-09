@@ -10,6 +10,42 @@ If you see this error in your browser console:
 
 This means the application is trying to fetch images from a product URL, but the Cloudflare Worker is not responding correctly.
 
+## CORS Policy Errors
+
+If you see a CORS error like:
+
+```
+Access to fetch at 'https://authentiqc-worker.adwate.workers.dev/fetch-metadata?url=...' 
+from origin 'https://qcv2.pages.dev' has been blocked by CORS policy: 
+No 'Access-Control-Allow-Origin' header is present on the requested resource.
+```
+
+### Possible Causes:
+
+1. **Worker not deployed with latest code**: The worker code must include CORS headers on ALL responses
+2. **Wrong endpoint**: Make sure you're using the correct endpoint path (e.g., `/fetch-metadata`, not `/metadata`)
+3. **Network issue**: The response may be timing out or failing before completing
+
+### Solution:
+
+Redeploy the worker to ensure it has the latest CORS fixes:
+
+```bash
+cd cloudflare-worker
+npx wrangler@4 deploy
+```
+
+The worker should include `Access-Control-Allow-Origin: *` on all responses, including:
+- Success responses (200)
+- Error responses (400, 403, 500, 502)
+- Not found responses (404)
+- OPTIONS preflight responses
+
+If the error persists after redeployment, check:
+1. The worker URL in VITE_IMAGE_PROXY_URL is correct
+2. The worker is actually deployed (check Cloudflare Dashboard)
+3. Network connectivity between your app and the worker
+
 ## Root Causes
 
 ### 1. VITE_IMAGE_PROXY_URL is Not Set

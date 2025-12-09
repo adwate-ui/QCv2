@@ -449,7 +449,10 @@ async function handleRequest(request) {
   // Test endpoint: tries different header strategies and reports back status/headers
   if (pathname.endsWith('/proxy-test')) {
     const target = url.searchParams.get('url');
-    if (!target) return new Response(JSON.stringify({ error: 'missing url' }), { status: 400 });
+    if (!target) return new Response(JSON.stringify({ error: 'missing url' }), { 
+      status: 400,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
 
     const mode = url.searchParams.get('mode') || 'referer_origin';
     const results = [];
@@ -491,12 +494,20 @@ async function handleRequest(request) {
       results.push(await tryStrategy(mode, strat));
     }
 
-    return new Response(JSON.stringify({ url: target, results }), { headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ url: target, results }), { 
+      headers: { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      } 
+    });
   }
 
   if (pathname.endsWith('/search-image')) {
     const query = url.searchParams.get('query');
-    if (!query) return new Response(JSON.stringify({ error: 'missing query' }), { status: 400 });
+    if (!query) return new Response(JSON.stringify({ error: 'missing query' }), { 
+      status: 400,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
     
     try {
       // Use Google Custom Search API or similar service to search for images
@@ -515,10 +526,16 @@ async function handleRequest(request) {
         placeholder: true
       }), { 
         status: 501,
-        headers: { 'Content-Type': 'application/json' } 
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        } 
       });
     } catch (e) {
-      return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+      return new Response(JSON.stringify({ error: String(e) }), { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
     }
   }
 
@@ -526,7 +543,10 @@ async function handleRequest(request) {
     // Query params: imageA, imageB (URLs)
     const imageA = url.searchParams.get('imageA');
     const imageB = url.searchParams.get('imageB');
-    if (!imageA || !imageB) return new Response(JSON.stringify({ error: 'missing images' }), { status: 400 });
+    if (!imageA || !imageB) return new Response(JSON.stringify({ error: 'missing images' }), { 
+      status: 400,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
 
     try {
       const [ra, rb] = await Promise.all([fetch(imageA), fetch(imageB)]);
@@ -572,13 +592,27 @@ async function handleRequest(request) {
       const aBase64 = `data:${ra.headers.get('content-type') || 'image/jpeg'};base64,${arrayBufferToBase64(ab)}`;
       const bBase64 = `data:${rb.headers.get('content-type') || 'image/jpeg'};base64,${arrayBufferToBase64(bb)}`;
 
-      return new Response(JSON.stringify({ diffScore, diffImage: svgBase64, imageA: aBase64, imageB: bBase64 }), { headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ diffScore, diffImage: svgBase64, imageA: aBase64, imageB: bBase64 }), { 
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        } 
+      });
     } catch (e) {
-      return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+      return new Response(JSON.stringify({ error: String(e) }), { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
     }
   }
 
-  return new Response('Not found', { status: 404 });
+  return new Response(JSON.stringify({ error: 'Not found' }), { 
+    status: 404,
+    headers: { 
+      'Content-Type': 'application/json', 
+      'Access-Control-Allow-Origin': '*' 
+    }
+  });
 }
 
 function extractImagesFromLd(obj) {
