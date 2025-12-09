@@ -83,7 +83,7 @@ async function handleRequest(request) {
     if (!target) {
       return new Response(JSON.stringify({ error: 'missing url' }), { 
         status: 400,
-        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
     
@@ -91,7 +91,7 @@ async function handleRequest(request) {
     if (isInternalUrl(target)) {
       return new Response(JSON.stringify({ error: 'access to internal resources not allowed' }), {
         status: 403,
-        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
     
@@ -127,7 +127,7 @@ async function handleRequest(request) {
             message: `Failed to fetch page metadata. Server returned ${resp.status}.`
           }), { 
             status: 502,
-            headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
         
@@ -208,9 +208,9 @@ async function handleRequest(request) {
         
         return new Response(JSON.stringify({ images }), { 
           headers: { 
-            'content-type': 'application/json',
-            'access-control-allow-origin': '*',
-            'cache-control': 'public, max-age=300'
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'public, max-age=300'
           } 
         });
       } catch (e) {
@@ -227,7 +227,7 @@ async function handleRequest(request) {
           message: `Failed to fetch or parse metadata after ${attempt + 1} attempts: ${e.message || String(e)}`
         }), { 
           status: 500,
-          headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
     }
@@ -239,7 +239,7 @@ async function handleRequest(request) {
       lastError: lastError ? String(lastError) : 'unknown'
     }), { 
       status: 502,
-      headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   }
 
@@ -248,7 +248,7 @@ async function handleRequest(request) {
     if (!target) {
       return new Response(JSON.stringify({ error: 'missing url' }), { 
         status: 400,
-        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
     
@@ -256,7 +256,7 @@ async function handleRequest(request) {
     if (isInternalUrl(target)) {
       return new Response(JSON.stringify({ error: 'access to internal resources not allowed' }), {
         status: 403,
-        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
     
@@ -301,7 +301,7 @@ async function handleRequest(request) {
             message: `Failed to fetch image from ${targetUrl.hostname}. The server returned ${resp.status} ${resp.statusText}. This may be due to rate limiting, authentication requirements, or the image being unavailable.`
           }), { 
             status: 502,
-            headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
 
@@ -315,16 +315,16 @@ async function handleRequest(request) {
             message: `Expected image data but received ${contentType} with ${body.byteLength} bytes`
           }), { 
             status: 502,
-            headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
 
         return new Response(body, {
           headers: {
-            'content-type': contentType,
-            'access-control-allow-origin': '*',
-            'cache-control': 'public, max-age=3600',
-            'x-proxy-status': 'success'
+            'Content-Type': contentType,
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'public, max-age=3600',
+            'X-Proxy-Status': 'success'
           }
         });
       } catch (e) {
@@ -343,7 +343,7 @@ async function handleRequest(request) {
           target: target
         }), { 
           status: 500,
-          headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
     }
@@ -355,7 +355,7 @@ async function handleRequest(request) {
       lastError: lastError ? String(lastError) : 'unknown'
     }), { 
       status: 502,
-      headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   }
 
