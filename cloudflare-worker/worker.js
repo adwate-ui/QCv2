@@ -2,9 +2,198 @@ addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request));
 });
 
+// Validate URL to prevent SSRF attacks (moved to module scope for performance)
+function isInternalUrl(urlString) {
+  try {
+    const parsedUrl = new URL(urlString);
+    // Only allow http and https protocols
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return true;
+    }
+    // Block access to localhost and private/reserved IP ranges
+    let hostname = parsedUrl.hostname.toLowerCase();
+    
+    // Remove brackets from IPv6 addresses
+    if (hostname.startsWith('[') && hostname.endsWith(']')) {
+      hostname = hostname.slice(1, -1);
+    }
+    
+    // Check for localhost
+    if (hostname === 'localhost' || hostname === '::1') {
+      return true;
+    }
+    
+    // Check for IPv4 patterns
+    const ipv4Pattern = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+    const ipv4Match = hostname.match(ipv4Pattern);
+    
+    if (ipv4Match) {
+      // Validate octets are in valid range
+      const octets = [1, 2, 3, 4].map(i => parseInt(ipv4Match[i], 10));
+      if (octets.some(o => o > 255)) {
+        return true; // Invalid IP
+      }
+      
+      const [a, b, c, d] = octets;
+      
+      // Block loopback (127.0.0.0/8)
+      if (a === 127) return true;
+      
+      // Block private networks
+      if (a === 10) return true; // 10.0.0.0/8
+      if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
+      if (a === 192 && b === 168) return true; // 192.168.0.0/16
+      
+      // Block link-local (169.254.0.0/16)
+      if (a === 169 && b === 254) return true;
+      
+      // Block multicast (224.0.0.0/4)
+      if (a >= 224 && a <= 239) return true;
+      
+      // Block reserved/special use
+      if (a === 0) return true; // 0.0.0.0/8
+      if (a === 255) return true; // 255.x.x.x range (includes broadcast)
+    }
+    
+    // Check for IPv6 private/reserved ranges
+    if (hostname.includes(':')) {
+      // Block IPv6 private networks (fc00::/7 - ULA)
+      if (hostname.startsWith('fc') || hostname.startsWith('fd')) return true;
+      // Block IPv6 link-local (fe80::/10)
+      if (hostname.startsWith('fe80:')) return true;
+      // Block IPv6 multicast (ff00::/8)
+      if (hostname.startsWith('ff')) return true;
+    }
+    
+    return false;
+  } catch (e) {
+    return true; // Treat invalid URLs as internal
+  }
+}
+
 async function handleRequest(request) {
   const url = new URL(request.url);
   const pathname = url.pathname.replace(/\/+$/, '');
+
+  // Handle /proxy endpoint - proxy external resources with CORS (exact path match)
+  if (pathname === '/proxy') {
+    // Handle CORS preflight requests for this endpoint
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Max-Age': '86400'
+        }
+      });
+    }
+
+    // Only allow GET requests
+    if (request.method !== 'GET') {
+      return new Response(JSON.stringify({ error: 'method not allowed' }), {
+        status: 405,
+        headers: { 
+          'content-type': 'application/json', 
+          'access-control-allow-origin': '*',
+          'allow': 'GET, OPTIONS'
+        }
+      });
+    }
+
+    const target = url.searchParams.get('url');
+    if (!target) return new Response(JSON.stringify({ error: 'missing url parameter' }), { 
+      status: 400,
+      headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+    });
+    
+    if (isInternalUrl(target)) {
+      return new Response(JSON.stringify({ error: 'access to internal resources not allowed' }), {
+        status: 403,
+        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+      });
+    }
+    
+    try {
+      // Use manual redirect to validate each redirect destination
+      const resp = await fetch(target, { redirect: 'manual' });
+      
+      // Handle redirects manually to prevent SSRF
+      if (resp.status >= 300 && resp.status < 400) {
+        const location = resp.headers.get('location');
+        if (!location) {
+          return new Response(JSON.stringify({ error: 'redirect without location header' }), {
+            status: 502,
+            headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+          });
+        }
+        
+        // Resolve relative redirects and validate the redirect URL
+        const redirectUrl = new URL(location, target);
+        const redirectUrlString = redirectUrl.toString();
+        
+        // Validate redirect destination
+        if (isInternalUrl(redirectUrlString)) {
+          return new Response(JSON.stringify({ error: 'redirect to internal resources not allowed' }), {
+            status: 403,
+            headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+          });
+        }
+        
+        // Follow the redirect (limited to one redirect for simplicity and security)
+        const redirectResp = await fetch(redirectUrlString, { redirect: 'manual' });
+        
+        // If there's another redirect, don't follow it
+        if (redirectResp.status >= 300 && redirectResp.status < 400) {
+          return new Response(JSON.stringify({ error: 'multiple redirects not supported' }), {
+            status: 502,
+            headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+          });
+        }
+        
+        if (!redirectResp.ok) {
+          return new Response(JSON.stringify({ error: 'fetch failed', status: redirectResp.status, statusText: redirectResp.statusText }), {
+            status: 502,
+            headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+          });
+        }
+        
+        const contentType = redirectResp.headers.get('content-type') || 'application/octet-stream';
+        const body = await redirectResp.arrayBuffer();
+
+        return new Response(body, {
+          headers: {
+            'content-type': contentType,
+            'access-control-allow-origin': '*',
+            'cache-control': 'public, max-age=3600'
+          }
+        });
+      }
+      
+      if (!resp.ok) {
+        return new Response(JSON.stringify({ error: 'fetch failed', status: resp.status, statusText: resp.statusText }), {
+          status: 502,
+          headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+        });
+      }
+
+      const contentType = resp.headers.get('content-type') || 'application/octet-stream';
+      const body = await resp.arrayBuffer();
+
+      return new Response(body, {
+        headers: {
+          'content-type': contentType,
+          'access-control-allow-origin': '*',
+          'cache-control': 'public, max-age=3600'
+        }
+      });
+    } catch (e) {
+      return new Response(JSON.stringify({ error: String(e) }), {
+        status: 500,
+        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+      });
+    }
+  }
 
   if (pathname.endsWith('/fetch-metadata')) {
     const target = url.searchParams.get('url');
@@ -128,6 +317,34 @@ async function handleRequest(request) {
     }
 
     return new Response(JSON.stringify({ url: target, results }), { headers: { 'content-type': 'application/json' } });
+  }
+
+  if (pathname.endsWith('/search-image')) {
+    const query = url.searchParams.get('query');
+    if (!query) return new Response(JSON.stringify({ error: 'missing query' }), { status: 400 });
+    
+    try {
+      // Use Google Custom Search API or similar service to search for images
+      // For this implementation, we'll use a simplified approach
+      // In production, you'd integrate with Google Custom Search API, Bing Image Search API, etc.
+      
+      // This is a placeholder implementation that returns a mock response
+      // In production, replace this with actual image search API integration
+      const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch`;
+      
+      // Return a placeholder response indicating search should be implemented
+      return new Response(JSON.stringify({ 
+        error: 'Image search API not yet configured',
+        query: query,
+        suggestion: 'Please configure Google Custom Search API or Bing Image Search API',
+        placeholder: true
+      }), { 
+        status: 501,
+        headers: { 'content-type': 'application/json' } 
+      });
+    } catch (e) {
+      return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+    }
   }
 
   if (pathname.endsWith('/diff')) {
