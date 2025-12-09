@@ -137,11 +137,24 @@ export const InventoryPage = () => {
       });
     }
 
-    // 2. Group products by category
+    // 2. Group products by category (normalize to avoid similar categories creating separate sections)
+    const normalizeCategory = (category: string | undefined): string => {
+      if (!category) return 'Uncategorized';
+      // Normalize: trim, lowercase, remove extra spaces, remove special chars
+      return category
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/\s+/g, ' ')
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    };
+
     const grouped = filteredList.reduce((acc, product) => {
-      const cat = product.profile.category || 'Uncategorized';
-      if (!acc[cat]) acc[cat] = [];
-      acc[cat].push(product);
+      const normalizedCat = normalizeCategory(product.profile.category);
+      if (!acc[normalizedCat]) acc[normalizedCat] = [];
+      acc[normalizedCat].push(product);
       return acc;
     }, {} as Record<string, Product[]>);
     setGroupedProducts(grouped);

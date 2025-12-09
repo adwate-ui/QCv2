@@ -244,14 +244,15 @@ export class DBService {
     // Use a Set to ensure we don't try to delete the same image ID twice
     const uniqueImageIds = [...new Set(imageIdsToDelete)];
   
-    for (const imageId of uniqueImageIds) {
-      try {
-        await this.deleteImage(imageId);
-      } catch (error) {
-        // Log the error but continue trying to delete other images and the product itself
-        console.error(`Failed to delete image with ID ${imageId}:`, error);
-      }
-    }
+    // Delete images in parallel instead of sequentially for better performance
+    await Promise.allSettled(
+      uniqueImageIds.map(imageId => 
+        this.deleteImage(imageId).catch(error => {
+          // Log the error but don't fail the entire operation
+          console.error(`Failed to delete image with ID ${imageId}:`, error);
+        })
+      )
+    );
   
     // After deleting associated images, delete the product from the 'products' table.
     // Supabase is configured with cascading deletes, so associated qc_batches and qc_reports
@@ -304,14 +305,14 @@ export class DBService {
     ]);
     const uniqueImageIds = [...new Set(imageIds)];
 
-    // Delete images
-    for (const imgId of uniqueImageIds) {
-      try {
-        await this.deleteImage(imgId);
-      } catch (e) {
-        console.error('Failed to delete image', imgId, e);
-      }
-    }
+    // Delete images in parallel for better performance
+    await Promise.allSettled(
+      uniqueImageIds.map(imgId =>
+        this.deleteImage(imgId).catch(e => {
+          console.error('Failed to delete image', imgId, e);
+        })
+      )
+    );
 
     // Delete products (this should cascade to batches/reports if configured)
     const { error } = await supabase.from('products').delete().in('id', productIds);
