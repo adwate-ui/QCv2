@@ -23,7 +23,7 @@ interface AppContextType {
   toggleModelTier: () => void;
   toggleExpertMode: () => void;
   refreshProducts: () => Promise<void>;
-  startIdentificationTask: (apiKey: string, images: string[], url: string | undefined, settings: AppSettings) => void;
+  startIdentificationTask: (apiKey: string, images: string[], url: string | undefined, settings: AppSettings) => Promise<void>;
   startQCTask: (apiKey: string, product: Product, qcImages: string[], settings: AppSettings, qcUserComments: string) => void;
   finalizeQCTask: (apiKey: string, task: BackgroundTask, userComments: string) => void;
   dismissTask: (taskId: string) => void;
@@ -345,7 +345,79 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return sectionComparisons;
   };
 
-  const startIdentificationTask = (apiKey: string, images: string[], url: string | undefined, settings: AppSettings) => {
+  // Maximum number of images to fetch from a product URL
+  const MAX_IMAGES_FROM_URL = 5;
+
+  // Helper function to fetch images from a product URL
+  const fetchImagesFromUrl = async (url: string): Promise<string[]> => {
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch {
+      console.error('Invalid URL format:', url);
+      return [];
+    }
+
+    const proxyBase = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
+    if (!proxyBase) {
+      console.warn('VITE_IMAGE_PROXY_URL not configured, cannot fetch images from URL');
+      return [];
+    }
+
+    try {
+      // First, fetch metadata to get image URLs from the page
+      const metadataUrl = `${proxyBase.replace(/\/$/, '')}/fetch-metadata?url=${encodeURIComponent(url)}`;
+      const metadataResponse = await fetch(metadataUrl);
+      
+      if (!metadataResponse.ok) {
+        console.error('Failed to fetch metadata from URL', url);
+        return [];
+      }
+      
+      const metadata = await metadataResponse.json();
+      
+      if (!metadata.images || metadata.images.length === 0) {
+        console.warn('No images found on the page', url);
+        return [];
+      }
+
+      // Fetch up to MAX_IMAGES_FROM_URL images from the page through the proxy
+      const imageUrls = metadata.images.slice(0, MAX_IMAGES_FROM_URL);
+      const fetchedImages = await Promise.all(
+        imageUrls.map(async (imageUrl: string) => {
+          try {
+            // Build proxy URL
+            const proxyUrl = new URL('/proxy-image', proxyBase.replace(/\/$/, ''));
+            proxyUrl.searchParams.set('url', imageUrl);
+            
+            const response = await fetch(proxyUrl.toString());
+            if (!response.ok) {
+              console.debug('Image fetch failed', imageUrl, response.status);
+              return null;
+            }
+            
+            const blob = await response.blob();
+            return new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          } catch (error) {
+            console.error(`Failed to fetch image ${imageUrl}:`, error);
+            return null;
+          }
+        })
+      );
+      
+      return fetchedImages.filter(Boolean) as string[];
+    } catch (error) {
+      console.error('Error fetching images from URL:', error);
+      return [];
+    }
+  };
+
+  const startIdentificationTask = async (apiKey: string, images: string[], url: string | undefined, settings: AppSettings) => {
     const taskId = generateUUID();
     const task: BackgroundTask = {
         id: taskId,
@@ -362,14 +434,33 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     };
     setTasks(prev => [task, ...prev]);
 
-    identifyProduct(apiKey, images, url, settings)
+    // If URL is provided and no images, try to fetch images from the URL first
+    let imagesToUse = images;
+    if (url && images.length === 0) {
+      try {
+        const scrapedImages = await fetchImagesFromUrl(url);
+        if (scrapedImages.length > 0) {
+          imagesToUse = scrapedImages;
+          // Update task meta with scraped images
+          setTasks(prev => prev.map(t => t.id === taskId ? { ...t, meta: { ...t.meta, images: imagesToUse } } : t));
+        }
+      } catch (error) {
+        console.error('Failed to fetch images from URL:', error);
+        // Continue with identification even if scraping fails
+      }
+    }
+
+    identifyProduct(apiKey, imagesToUse, url, settings)
         .then(async (profile) => {
-            let finalImages = images;
-            if (images.length === 0 && profile.imageUrls && profile.imageUrls.length > 0) {
-                // If no images were provided, but the model returned some, fetch and save them.
+            // Use imagesToUse which may contain scraped images
+            let finalImages = imagesToUse;
+            
+            // Fallback: If we still have no images but the model returned imageUrls, fetch them
+            // This handles the case where URL scraping failed but the AI provides imageUrls
+            if (finalImages.length === 0 && profile.imageUrls && profile.imageUrls.length > 0) {
                 const proxyBase = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
                 const fetchedImages = await Promise.all(
-                    profile.imageUrls.slice(0, 5).map(async (imageUrl) => {
+                    profile.imageUrls.slice(0, MAX_IMAGES_FROM_URL).map(async (imageUrl) => {
                       try {
                         let fetchUrl: string;
                         if (proxyBase) {
