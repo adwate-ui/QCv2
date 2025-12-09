@@ -16,6 +16,25 @@ const getEnv = (key: string) => {
   return '';
 };
 
+// Helper function to normalize the worker URL by removing endpoint paths if they exist
+const normalizeWorkerUrl = (workerUrl: string): string => {
+  if (!workerUrl) return workerUrl;
+  
+  // Remove trailing slash
+  let normalized = workerUrl.replace(/\/$/, '');
+  
+  // Remove common endpoint paths if they exist
+  const endpointPaths = ['/fetch-metadata', '/proxy-image', '/proxy'];
+  for (const path of endpointPaths) {
+    if (normalized.endsWith(path)) {
+      normalized = normalized.slice(0, -path.length);
+      break;
+    }
+  }
+  
+  return normalized;
+};
+
 /**
  * Determines if a URL points to an image based on file extension.
  * @param url The URL to check
@@ -37,12 +56,13 @@ const isImageUrl = (url: string): boolean => {
 /**
  * Extracts the og:image URL from a webpage using the Cloudflare worker's fetch-metadata endpoint.
  * @param pageUrl The webpage URL to extract og:image from
- * @param workerUrl The Cloudflare worker base URL
+ * @param workerUrl The Cloudflare worker base URL (will be normalized)
  * @returns The og:image URL if found, or the first image URL from the page
  * @throws Error if no images are found or if the fetch fails
  */
 const extractOgImage = async (pageUrl: string, workerUrl: string): Promise<string> => {
-  const metadataUrl = `${workerUrl.replace(/\/$/, '')}/fetch-metadata?url=${encodeURIComponent(pageUrl)}`;
+  const normalizedUrl = normalizeWorkerUrl(workerUrl);
+  const metadataUrl = `${normalizedUrl}/fetch-metadata?url=${encodeURIComponent(pageUrl)}`;
   
   const response = await fetch(metadataUrl);
   if (!response.ok) {
@@ -62,12 +82,13 @@ const extractOgImage = async (pageUrl: string, workerUrl: string): Promise<strin
 /**
  * Fetches an image through the Cloudflare worker proxy endpoint.
  * @param imageUrl The image URL to fetch
- * @param workerUrl The Cloudflare worker base URL
+ * @param workerUrl The Cloudflare worker base URL (will be normalized)
  * @returns A Blob containing the image data
  * @throws Error if the fetch fails
  */
 const fetchImageViaProxy = async (imageUrl: string, workerUrl: string): Promise<Blob> => {
-  const proxyUrl = `${workerUrl.replace(/\/$/, '')}/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+  const normalizedUrl = normalizeWorkerUrl(workerUrl);
+  const proxyUrl = `${normalizedUrl}/proxy-image?url=${encodeURIComponent(imageUrl)}`;
   
   const response = await fetch(proxyUrl);
   if (!response.ok) {
