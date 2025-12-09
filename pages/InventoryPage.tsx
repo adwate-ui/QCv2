@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { getPublicImageUrl } from '../services/db';
+import { getPublicImageUrl, db } from '../services/db';
 import { Product } from '../types';
 import { Link } from 'react-router-dom';
 import { Plus, Search, Tag, Filter, CheckCircle, XCircle, AlertTriangle, Clock, Trash2, LayoutGrid } from 'lucide-react';
@@ -36,7 +36,7 @@ export const InventoryPage = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<FilterType>('ALL');
-  const [groupedProducts, setGroupedProducts] = useState<Record<string, Product>>({});
+  const [groupedProducts, setGroupedProducts] = useState<Record<string, Product[]>>({});
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
   const [gridSize, setGridSize] = useState(() => {
     const savedGridSize = localStorage.getItem('inventoryGridSize');
@@ -72,20 +72,29 @@ export const InventoryPage = () => {
     }, {} as Record<string, Product[]>);
     setGroupedProducts(grouped);
 
-    // 3. Load thumbnails
-    if (user?.id) {
-      const map: Record<string, string> = {};
-      for (const p of filteredList) {
-        if (p.referenceImageIds.length > 0) {
-          if (!imageMap[p.id]) {
-            map[p.id] = getPublicImageUrl(user.id, p.referenceImageIds[0]);
-          } else {
-            map[p.id] = imageMap[p.id];
+      // 3. Load thumbnails (prefer base64 via DB.getImage to avoid public-bucket/CORS issues)
+      if (user?.id) {
+        (async () => {
+          const map: Record<string, string> = {};
+          for (const p of filteredList) {
+            try {
+              if (p.referenceImageIds && p.referenceImageIds.length > 0) {
+                // If we already have a cached image URL, reuse it
+                if (imageMap[p.id]) {
+                  map[p.id] = imageMap[p.id];
+                } else {
+                  const imgBase64 = await db.getImage(p.referenceImageIds[0]).catch(() => undefined);
+                  if (imgBase64) map[p.id] = imgBase64;
+                  else map[p.id] = getPublicImageUrl(user.id, p.referenceImageIds[0]);
+                }
+              }
+            } catch (e) {
+              console.error('Failed to load thumbnail for', p.id, e);
+            }
           }
-        }
+          setImageMap(prev => ({...prev, ...map}));
+        })();
       }
-      setImageMap(prev => ({...prev, ...map}));
-    }
   }, [products, searchTerm, statusFilter, user?.id]);
 
   useEffect(() => {
@@ -231,9 +240,9 @@ export const InventoryPage = () => {
                       </div>
                       <Link to={'/inventory/' + product.id} className="block">
                         <div className="p-4">
-                          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">{product.profile.brand}</p>
-                          <h4 className="font-bold text-slate-900 truncate">{product.profile.name}</h4>
-                          <p className="text-sm text-slate-600 mt-1">{product.profile.priceEstimate}</p>
+                          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">{product.profile.brand || 'Unknown'}</p>
+                          <h4 className="font-bold text-slate-900 truncate">{product.profile.name || product.profile.url || 'Untitled Product'}</h4>
+                          <p className="text-sm text-slate-600 mt-1">{product.profile.priceEstimate || ''}</p>
                         </div>
                       </Link>
 
