@@ -1004,13 +1004,52 @@ To fix:
   const finalizeQCTask = async (apiKey: string, task: BackgroundTask, userComments: string) => {
     if (!task || !task.preliminaryReport) return;
 
+    const product = products.find(p => p.id === task.meta.targetId);
+    if (!product) return;
+
+    // Check if user provided additional comments at the preliminary report stage
+    const hasAdditionalComments = userComments && userComments.trim().length > 0;
+
+    if (!hasAdditionalComments) {
+      // No additional comments: save preliminary report directly as final report
+      console.log('[QC Finalize] No additional comments provided. Saving preliminary report as final report.');
+      
+      setTasks(prev => prev.map(t => t.id === task.id ? { 
+        ...t, 
+        status: 'PROCESSING', 
+        meta: {...task.meta, subtitle: "Saving report..."} 
+      } : t));
+
+      try {
+        // Directly save the preliminary report as the final report
+        const updatedProduct = {
+          ...product,
+          reports: [...(product.reports || []), task.preliminaryReport],
+        };
+        await updateProduct(updatedProduct);
+
+        setTasks(prev => prev.map(t => t.id === task.id ? { 
+          ...t, 
+          status: 'COMPLETED', 
+          result: task.preliminaryReport,
+          meta: { ...t.meta, subtitle: 'Report saved' }
+        } : t));
+      } catch (err: any) {
+        console.error("Failed to save preliminary report as final:", err);
+        setTasks(prev => prev.map(t => t.id === task.id ? { 
+          ...t, 
+          status: 'FAILED', 
+          error: err.message || "Failed to save report" 
+        } : t));
+      }
+      return;
+    }
+
+    // User provided additional comments: generate a new final report with their feedback
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'PROCESSING', meta: {...task.meta, subtitle: "Generating Final Report..."} } : t));
     
     (async () => {
       try {
-        const product = products.find(p => p.id === task.meta.targetId);
-        if (!product) throw new Error("Product not found for task");
-
         const allQCRawImages = task.meta.allQCRawImages || [];
         const allQCImageIds = task.meta.allQCImageIds || [];
 
