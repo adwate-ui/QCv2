@@ -50,6 +50,74 @@ const normalizePriceEstimate = (raw?: string): string => {
   return s;
 };
 
+// Normalize an entire ProductProfile object to have consistent field formats
+const normalizeProfile = (profile: ProductProfile): ProductProfile => {
+  const out: Partial<ProductProfile> = { ...profile };
+
+  // Helper: safe trim
+  const safeTrim = (v?: string) => (v && typeof v === 'string') ? v.trim() : v || '';
+
+  // Name & Brand: trim
+  out.name = safeTrim(profile.name);
+  out.brand = safeTrim(profile.brand);
+
+  // Category: title-case first letter
+  const cat = safeTrim(profile.category);
+  out.category = cat ? (cat.charAt(0).toUpperCase() + cat.slice(1)) : 'Uncategorized';
+
+  // Price: normalize and format in accounting style with no decimals and thousand separators
+  if (profile.priceEstimate) {
+    const raw = normalizePriceEstimate(profile.priceEstimate as string);
+    // If normalizePriceEstimate returned a string like "$1234" or original fallback
+    const digits = raw.match(/-?\d+/g);
+    if (digits) {
+      // parse first matched number
+      const num = parseInt(digits.join(''), 10);
+      // Format with commas and no decimals
+      const formatted = `$${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(num)}`;
+      out.priceEstimate = formatted;
+    } else {
+      out.priceEstimate = safeTrim(raw as string);
+    }
+  } else {
+    out.priceEstimate = '';
+  }
+
+  // Material: trim
+  out.material = safeTrim(profile.material);
+
+  // Features: ensure array of trimmed strings
+  if (Array.isArray(profile.features)) {
+    out.features = profile.features.map(f => (typeof f === 'string' ? f.trim() : String(f))).filter(Boolean);
+  } else if (typeof (profile.features as any) === 'string') {
+    out.features = (profile.features as any).split(',').map((s: string) => s.trim()).filter(Boolean);
+  } else {
+    out.features = [];
+  }
+
+  // Description: single-line trimmed
+  out.description = safeTrim((profile.description || '').replace(/\s+/g, ' '));
+
+  // URL: validate
+  if (profile.url && isURL(profile.url)) {
+    out.url = profile.url;
+  } else {
+    out.url = profile.url || '';
+  }
+
+  // imageUrls: ensure array of valid URLs
+  if (Array.isArray(profile.imageUrls)) {
+    out.imageUrls = profile.imageUrls.filter(u => typeof u === 'string' && isURL(u));
+  } else {
+    out.imageUrls = [];
+  }
+
+  // qcUserComments: trim
+  (out as any).qcUserComments = safeTrim((profile as any).qcUserComments || '');
+
+  return out as ProductProfile;
+};
+
 // Helper to clean JSON string if md block is present
 const cleanJson = (text: string) => {
   // Catch ```json ... ``` with potential spaces/newlines
@@ -241,13 +309,11 @@ const _performIdentification = async (
     (profile as any).imageUrls = (profile as any).imageUrls;
   }
 
-  // Normalize price field to a consistent $<amount> format
-  if (profile.priceEstimate) {
-    try {
-      profile.priceEstimate = normalizePriceEstimate(profile.priceEstimate as string);
-    } catch (e) {
-      console.warn('Price normalization failed for', profile.priceEstimate, e);
-    }
+  // Normalize entire profile to consistent formats
+  try {
+    return normalizeProfile(profile);
+  } catch (e) {
+    console.warn('Profile normalization failed', e);
   }
 
   return profile;
