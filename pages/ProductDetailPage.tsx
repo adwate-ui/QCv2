@@ -126,12 +126,38 @@ export const ProductDetailPage: React.FC = () => {
   
   const ReportCard: React.FC<{ report: QCReport; previous?: QCReport; refImages: string[]; expanded?: boolean; onToggle?: (id: string) => void }> = ({ report, previous, refImages, expanded = false, onToggle }) => {
     const [imgs, setImgs] = useState<string[]>([]);
+    const [comparisonImgs, setComparisonImgs] = useState<string[]>([]);
     const { user } = useApp();
 
     useEffect(() => {
       if (!report.qcImageIds || report.qcImageIds.length === 0 || !user?.id) return;
       const imageUrls = report.qcImageIds.map(id => getPublicImageUrl(user.id!, id));
       setImgs(imageUrls);
+    }, [report, user?.id]);
+
+    useEffect(() => {
+      // Load comparison images if they exist
+      if (!report.sectionComparisons || !user?.id) {
+        setComparisonImgs([]);
+        return;
+      }
+      
+      const loadComparisonImages = async () => {
+        const compImgs: string[] = [];
+        const keys = Object.keys(report.sectionComparisons || {}).sort();
+        
+        for (const key of keys) {
+          const comparison = report.sectionComparisons![key];
+          if (comparison.diffImageId) {
+            const imgUrl = getPublicImageUrl(user.id!, comparison.diffImageId);
+            compImgs.push(imgUrl);
+          }
+        }
+        
+        setComparisonImgs(compImgs);
+      };
+      
+      loadComparisonImages();
     }, [report, user?.id]);
 
     const gradeToClasses = (grade: string) => {
@@ -178,10 +204,25 @@ export const ProductDetailPage: React.FC = () => {
 
           {imgs.length > 0 && (
             <div className="mb-4">
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">QC Images</h4>
               <div className="flex gap-2 flex-wrap">
                 {imgs.map((src, i) => (
                   <div key={i} className={`h-16 w-16 cursor-pointer ${selectedImage === src ? 'ring-2 ring-primary/50 rounded-lg' : ''}`} onClick={() => setSelectedImage(src)}>
                     <img src={src} className="h-full w-full object-cover rounded-lg" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {comparisonImgs.length > 0 && (
+            <div className="mb-4">
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">Side-by-Side Comparisons</h4>
+              <p className="text-xs text-gray-500 mb-2">Reference image (left) vs QC image (right) - Defects highlighted with red markers</p>
+              <div className="grid gap-3">
+                {comparisonImgs.map((src, i) => (
+                  <div key={i} className="cursor-pointer border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary/30" onClick={() => setSelectedImage(src)}>
+                    <img src={src} className="w-full h-auto" alt={`Comparison ${i + 1}`} />
                   </div>
                 ))}
               </div>
