@@ -34,21 +34,66 @@ async function handleRequest(request) {
         if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
           return true;
         }
-        // Block access to localhost and private IP ranges
-        const hostname = parsedUrl.hostname.toLowerCase();
-        if (hostname === 'localhost' || hostname === '127.0.0.1' || 
-            hostname.startsWith('192.168.') || hostname.startsWith('10.') || 
-            hostname === '[::1]' || hostname === '0.0.0.0') {
+        // Block access to localhost and private/reserved IP ranges
+        let hostname = parsedUrl.hostname.toLowerCase();
+        
+        // Remove brackets from IPv6 addresses
+        if (hostname.startsWith('[') && hostname.endsWith(']')) {
+          hostname = hostname.slice(1, -1);
+        }
+        
+        // Check for localhost
+        if (hostname === 'localhost' || hostname === '::1') {
           return true;
         }
-        // Check for 172.16.0.0/12 range (172.16.0.0 - 172.31.255.255)
-        const ip172Match = hostname.match(/^172\.(\d+)\./);
-        if (ip172Match) {
-          const secondOctet = parseInt(ip172Match[1], 10);
-          if (secondOctet >= 16 && secondOctet <= 31) {
-            return true;
+        
+        // Check for IPv4 patterns
+        const ipv4Pattern = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+        const ipv4Match = hostname.match(ipv4Pattern);
+        
+        if (ipv4Match) {
+          // Validate octets are in valid range
+          const octets = [1, 2, 3, 4].map(i => parseInt(ipv4Match[i], 10));
+          if (octets.some(o => o > 255)) {
+            return true; // Invalid IP
           }
+          
+          const [a, b, c, d] = octets;
+          
+          // Block loopback (127.0.0.0/8)
+          if (a === 127) return true;
+          
+          // Block private networks
+          if (a === 10) return true; // 10.0.0.0/8
+          if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
+          if (a === 192 && b === 168) return true; // 192.168.0.0/16
+          
+          // Block link-local (169.254.0.0/16)
+          if (a === 169 && b === 254) return true;
+          
+          // Block multicast (224.0.0.0/4)
+          if (a >= 224 && a <= 239) return true;
+          
+          // Block reserved/special use
+          if (a === 0) return true; // 0.0.0.0/8
+          if (a === 255) return true; // Reserved
+          
+          // Block broadcast
+          if (a === 255 && b === 255 && c === 255 && d === 255) return true;
         }
+        
+        // Check for IPv6 private/reserved ranges
+        if (hostname.includes(':')) {
+          // Block IPv6 loopback
+          if (hostname === '::1') return true;
+          // Block IPv6 private networks (fc00::/7 - ULA)
+          if (hostname.startsWith('fc') || hostname.startsWith('fd')) return true;
+          // Block IPv6 link-local (fe80::/10)
+          if (hostname.startsWith('fe80:')) return true;
+          // Block IPv6 multicast (ff00::/8)
+          if (hostname.startsWith('ff')) return true;
+        }
+        
         return false;
       } catch (e) {
         return true; // Treat invalid URLs as internal
