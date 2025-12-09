@@ -345,8 +345,19 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return sectionComparisons;
   };
 
+  // Maximum number of images to fetch from a product URL
+  const MAX_IMAGES_FROM_URL = 5;
+
   // Helper function to fetch images from a product URL
   const fetchImagesFromUrl = async (url: string): Promise<string[]> => {
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch {
+      console.error('Invalid URL format:', url);
+      return [];
+    }
+
     const proxyBase = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
     if (!proxyBase) {
       console.warn('VITE_IMAGE_PROXY_URL not configured, cannot fetch images from URL');
@@ -370,8 +381,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         return [];
       }
 
-      // Fetch up to 5 images from the page through the proxy
-      const imageUrls = metadata.images.slice(0, 5);
+      // Fetch up to MAX_IMAGES_FROM_URL images from the page through the proxy
+      const imageUrls = metadata.images.slice(0, MAX_IMAGES_FROM_URL);
       const fetchedImages = await Promise.all(
         imageUrls.map(async (imageUrl: string) => {
           try {
@@ -441,12 +452,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     identifyProduct(apiKey, imagesToUse, url, settings)
         .then(async (profile) => {
-            let finalImages = images;
-            if (images.length === 0 && profile.imageUrls && profile.imageUrls.length > 0) {
-                // If no images were provided, but the model returned some, fetch and save them.
+            // Use imagesToUse which may contain scraped images
+            let finalImages = imagesToUse;
+            
+            // Fallback: If we still have no images but the model returned imageUrls, fetch them
+            // This handles the case where URL scraping failed but the AI provides imageUrls
+            if (finalImages.length === 0 && profile.imageUrls && profile.imageUrls.length > 0) {
                 const proxyBase = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
                 const fetchedImages = await Promise.all(
-                    profile.imageUrls.slice(0, 5).map(async (imageUrl) => {
+                    profile.imageUrls.slice(0, MAX_IMAGES_FROM_URL).map(async (imageUrl) => {
                       try {
                         let fetchUrl: string;
                         if (proxyBase) {
