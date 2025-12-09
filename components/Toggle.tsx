@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 
 interface ToggleProps {
   labelLeft: string;
@@ -7,10 +7,10 @@ interface ToggleProps {
   onChange: (value: boolean) => void;
 }
 
-export const Toggle: React.FC<ToggleProps> = ({ labelLeft, labelRight, value, onChange }) => {
-  const handleToggle = () => {
+export const Toggle = memo<ToggleProps>(({ labelLeft, labelRight, value, onChange }) => {
+  const handleToggle = useCallback(() => {
     onChange(!value);
-  };
+  }, [value, onChange]);
 
   return (
     <div className="flex items-center space-x-2">
@@ -34,4 +34,6 @@ export const Toggle: React.FC<ToggleProps> = ({ labelLeft, labelRight, value, on
       <span className={`text-sm font-medium ${value ? 'text-gray-900' : 'text-gray-500'}`}>{labelRight}</span>
     </div>
   );
-};
+});
+
+Toggle.displayName = 'Toggle';

@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { memo } from 'react';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
 }
 
-export const Input: React.FC<InputProps> = ({ label, className, ...props }) => {
+export const Input = memo<InputProps>(({ label, className = '', ...props }) => {
   return (
     <div className="mb-4">
       <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
@@ -14,4 +14,6 @@ export const Input: React.FC<InputProps> = ({ label, className, ...props }) => {
       />
     </div>
   );
-};
+});
+
+Input.displayName = 'Input';
