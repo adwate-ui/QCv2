@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { getPublicImageUrl } from '../services/db';
-import { Product, QCReport, ModelTier, ExpertMode } from '../types';
+import { Product, QCReport, ModelTier, ExpertMode, BackgroundTask } from '../types';
 import { Loader2, CheckCircle, XCircle, Upload, History, ExternalLink, X, ZoomIn, Zap, Brain, Activity, Trash2, Info } from 'lucide-react';
 import { parseObservations } from '../services/utils';
 import { Toggle } from '../components/Toggle';
@@ -10,7 +10,7 @@ import { Toggle } from '../components/Toggle';
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, products, settings, startQCTask, tasks, deleteProduct } = useApp();
+  const { user, products, settings, startQCTask, tasks, deleteProduct, finalizeQCTask } = useApp();
 
   const product = useMemo(() => products.find(p => p.id === id), [products, id]);
   const [refImages, setRefImages] = useState<string[]>([]);
@@ -24,6 +24,9 @@ export const ProductDetailPage: React.FC = () => {
   const [localModelTier, setLocalModelTier] = useState<ModelTier>(settings.modelTier);
   const [localExpertMode, setLocalExpertMode] = useState<ExpertMode>(settings.expertMode);
   const [qcUserComments, setQcUserComments] = useState<string>('');
+
+  const [feedbackTask, setFeedbackTask] = useState<BackgroundTask | null>(null);
+  const [additionalComments, setAdditionalComments] = useState('');
 
   const activeQCTask = tasks.find(t => t.type === 'QC' && t.meta.targetId === id && t.status === 'PROCESSING');
   const isRunningQC = !!activeQCTask;
@@ -99,6 +102,22 @@ export const ProductDetailPage: React.FC = () => {
     if (!confirm('Delete this product and all related data?')) return;
     await deleteProduct(product.id);
     navigate('/inventory');
+  };
+
+  useEffect(() => {
+    const awaitingFeedback = tasks.find(t => t.type === 'QC' && t.meta.targetId === id && t.status === 'AWAITING_FEEDBACK');
+    if (awaitingFeedback) {
+      setFeedbackTask(awaitingFeedback);
+    } else {
+      setFeedbackTask(null);
+    }
+  }, [tasks, id]);
+
+  const handleFinalizeQC = () => {
+    if (!feedbackTask || !user?.apiKey) return;
+    finalizeQCTask(user.apiKey, feedbackTask, additionalComments);
+    setAdditionalComments('');
+    setFeedbackTask(null);
   };
 
   if (!product) return <div>Loading...</div>;
@@ -219,7 +238,6 @@ export const ProductDetailPage: React.FC = () => {
         )}
       </div>
     );
-  };
 
   // Expand behavior: default expand latest
   useEffect(() => {
@@ -441,6 +459,31 @@ export const ProductDetailPage: React.FC = () => {
           )}
         </button>
       </div>
+
+      {feedbackTask && feedbackTask.preliminaryReport && (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
+        <h2 className="text-xl font-bold mb-4">Preliminary Report - Provide Feedback</h2>
+        <div className="max-h-[60vh] overflow-y-auto p-4 bg-gray-50 rounded">
+          <ReportCard report={feedbackTask.preliminaryReport} refImages={refImages} expanded={true} />
+        </div>
+        <div className="mt-4">
+          <label className="text-sm font-medium text-gray-700">Additional Comments</label>
+          <textarea
+            value={additionalComments}
+            onChange={(e) => setAdditionalComments(e.target.value)}
+            rows={3}
+            className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+            placeholder="e.g., The lighting was poor in the photos, please focus on the stitching."
+          />
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={() => setFeedbackTask(null)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+          <button onClick={handleFinalizeQC} className="px-4 py-2 bg-primary text-white rounded">Submit for Final Report</button>
+        </div>
+      </div>
+    </div>
+  )}
     </div>
   );
 };

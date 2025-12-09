@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { User, Product, AppSettings, ModelTier, ExpertMode, BackgroundTask, QCBatch } from '../types';
 import { db } from '../services/db';
 import { supabase } from '../services/supabase';
-import { identifyProduct, runQCAnalysis } from '../services/geminiService';
+import { identifyProduct, runQCAnalysis, runFinalQCAnalysis } from '../services/geminiService';
 import { generateUUID } from '../services/utils';
 
 interface AppContextType {
@@ -26,6 +26,7 @@ interface AppContextType {
   startQCTask: (apiKey: string, product: Product, refImages: string[], qcImages: string[], settings: AppSettings, qcUserComments: string) => void;
   dismissTask: (taskId: string) => void;
   bulkDeleteProducts: (ids: string[]) => Promise<void>;
+  finalizeQCTask: (apiKey: string, task: BackgroundTask, userComments: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -239,15 +240,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
        createdAt: Date.now(),
        meta: {
            title: `QC Inspection: ${product.profile.name}`,
+           subtitle: 'Generating Preliminary Report...',
            targetId: product.id,
-           images: qcImages // Pass images for UI
+           images: qcImages, // Pass images for UI
+           settings: settings
        }
    };
    setTasks(prev => [task, ...prev]);
 
    (async () => {
      try {
-       // 1. Save NEW QC images to DB and get their IDs
        const newImageIds = await Promise.all(
          qcImages.map(async (img) => {
            const id = generateUUID();
@@ -256,7 +258,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
          })
        );
 
-       // 2. Fetch ALL previous batch images (Cumulative Analysis)
        const batches = product.qcBatches || [];
        const previousBatchIds = batches.flatMap(b => b.imageIds);
        const previousImages = await Promise.all(previousBatchIds.map(id => db.getImage(id)));
@@ -264,12 +265,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
        const allQCRawImages = [...validPrevImages, ...qcImages];
        const allQCImageIds = [...previousBatchIds, ...newImageIds];
 
-       // Fetch reference images from Supabase
        const refImageIds = product.referenceImageIds || [];
        const refImages = await Promise.all(refImageIds.map(id => db.getImage(id)));
        const validRefImages = refImages.filter(Boolean) as string[];
 
-       // Convert reference image URLs to base64 for the API
        const refImagesAsBase64 = await Promise.all(
          validRefImages.map(async (url) => {
            try {
@@ -284,79 +283,75 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
              });
            } catch (error) {
              console.error(`Could not convert image URL ${url} to base64:`, error);
-             // Return a placeholder or skip this image if fetching fails
              return ''; 
            }
          })
        );
        const validRefImagesAsBase64 = refImagesAsBase64.filter(Boolean);
 
+       const preliminaryReport = await runQCAnalysis(apiKey, product.profile, validRefImagesAsBase64, allQCRawImages, allQCImageIds, settings, qcUserComments);
 
-       // 4. Run the analysis
-       const report = await runQCAnalysis(apiKey, product.profile, validRefImagesAsBase64, allQCRawImages, allQCImageIds, settings, qcUserComments);
-
-      // 3b. Post-process: for specific sections (tag/label/logo) attempt to fetch authoritative images via Cloudflare Worker
-      try {
-        const workerUrl = (import.meta as any).env?.VITE_CF_WORKER_URL;
-        if (workerUrl && product.profile.url) {
-          const sectionsNeedingAuth = (report.sections || []).filter(s => /tag|label|logo/i.test(s.sectionName) || /tag|label|logo/i.test((s.observations || []).join(' ')));
-          for (const sec of sectionsNeedingAuth) {
-            // Choose the first QC image for this section when available
-            const qcImgId = sec.imageIds && sec.imageIds.length > 0 ? sec.imageIds[0] : (newImageIds[0] || null);
-            const qcImgSrc = qcImgId ? await db.getImage(qcImgId) : (qcImages[0] || null);
-            if (!qcImgSrc) continue;
-
-            // 1. Fetch metadata to find the best auth image
-            const metaResp = await fetch(`${workerUrl.replace(/\/+$/, "")}/fetch-metadata?url=${encodeURIComponent(product.profile.url)}`);
-            if (!metaResp.ok) continue;
-            const meta = await metaResp.json();
-            const authImgUrl = meta.images?.[0];
-            if (!authImgUrl) continue;
-            
-            // 2. Run diff
-            const diffResp = await fetch(`${workerUrl.replace(/\/+$/, "")}/diff`, {
-              method: 'POST',
-              headers: {'Content-Type': 'application/json'},
-              body: JSON.stringify({ imageA: authImgUrl, imageB: qcImgSrc })
-            });
-            if (!diffResp.ok) continue;
-            const diffResult = await diffResp.json();
-
-            // 3. Save auth and diff images
-            const authImageId = generateUUID();
-            const diffImageId = generateUUID();
-            await Promise.all([
-              db.saveImage(authImageId, diffResult.imageA),
-              db.saveImage(diffImageId, diffResult.diffImage)
-            ]);
-
-            if (!report.sectionComparisons) report.sectionComparisons = {};
-            report.sectionComparisons[sec.sectionName] = {
-              authImageId,
-              diffImageId,
-              diffScore: diffResult.diffScore,
-            };
-          }
-        }
-      } catch(e) {
-        console.error("Worker/diff process failed:", e);
-      }
-      
-       // 5. Update Product with new batch and full report
        const newBatch: QCBatch = { id: generateUUID(), timestamp: Date.now(), imageIds: newImageIds };
        const updatedProduct = {
          ...product,
          qcBatches: [...(product.qcBatches || []), newBatch],
-         reports: [...(product.reports || []), report],
        };
        await updateProduct(updatedProduct);
 
-       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'COMPLETED', result: report } : t));
+       setTasks(prev => prev.map(t => t.id === taskId ? { 
+         ...t, 
+         status: 'AWAITING_FEEDBACK', 
+         preliminaryReport: preliminaryReport,
+         meta: { ...t.meta, allQCImageIds: allQCImageIds, allQCRawImages: allQCRawImages, subtitle: 'Ready for your feedback' }
+        } : t));
+
      } catch (err: any) {
        console.error("QC Task failed:", err);
-       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'FAILED', error: err.message || "QC analysis failed" } : t));
+       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'FAILED', error: err.message || "Preliminary QC analysis failed" } : t));
      }
    })();
+  };
+  
+  const finalizeQCTask = async (apiKey: string, task: BackgroundTask, userComments: string) => {
+    if (!task || !task.preliminaryReport) return;
+
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'PROCESSING', meta: {...task.meta, subtitle: "Generating Final Report..."} } : t));
+    
+    (async () => {
+      try {
+        const product = products.find(p => p.id === task.meta.targetId);
+        if (!product) throw new Error("Product not found for task");
+
+        const refImageIds = product.referenceImageIds || [];
+        const refImages = await Promise.all(refImageIds.map(id => db.getImage(id)));
+        const validRefImages = refImages.filter(Boolean) as string[];
+
+        const allQCRawImages = task.meta.images || [];
+        const allQCImageIds = task.meta.allQCImageIds || [];
+
+        const finalReport = await runFinalQCAnalysis(
+          apiKey,
+          product.profile,
+          validRefImages,
+          allQCRawImages,
+          allQCImageIds,
+          task.meta.settings,
+          task.preliminaryReport,
+          userComments
+        );
+        
+        const updatedProduct = {
+          ...product,
+          reports: [...(product.reports || []), finalReport],
+        };
+        await updateProduct(updatedProduct);
+
+        setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'COMPLETED', result: finalReport } : t));
+      } catch (err: any) {
+        console.error("Final QC Task failed:", err);
+        setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'FAILED', error: err.message || "Final QC analysis failed" } : t));
+      }
+    })();
   };
   
   const dismissTask = (taskId: string) => {
@@ -370,7 +365,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         deleteProduct, logout, deleteAccount, toggleModelTier, 
         toggleExpertMode, refreshProducts: loadProducts, 
         startIdentificationTask, startQCTask, dismissTask,
-        bulkDeleteProducts
+        bulkDeleteProducts, finalizeQCTask
     }}>
       {children}
     </AppContext.Provider>

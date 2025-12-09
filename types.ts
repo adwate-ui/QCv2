@@ -54,6 +54,8 @@ export interface QCReport {
   expertMode: ExpertMode; // Track which persona generated this report
   // Optional mapping of sectionName -> comparison results (auth image + diff)
   sectionComparisons?: Record<string, { authImageId?: string; diffImageId?: string; diffScore?: number }>;
+  requestForMoreInfo?: string[];
+  userComments?: string;
 }
 
 export interface QCBatch {
@@ -73,7 +75,7 @@ export interface Product {
 }
 
 export type TaskType = 'IDENTIFY' | 'QC';
-export type TaskStatus = 'PROCESSING' | 'COMPLETED' | 'FAILED';
+export type TaskStatus = 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'AWAITING_FEEDBACK';
 
 export interface BackgroundTask {
   id: string;
@@ -89,5 +91,8 @@ export interface BackgroundTask {
     images?: string[]; // For ID task hydration
     url?: string;      // For ID task hydration
     settings?: AppSettings; // For ID task hydration
+    allQCImageIds?: string[];
+    allQCRawImages?: string[];
   };
+  preliminaryReport?: QCReport;
 }

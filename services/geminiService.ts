@@ -312,6 +312,7 @@ export const runQCAnalysis = async (
     - Break down analysis by sections (e.g., for a bag: Packaging, Exterior Leather, Interior Lining, Hardware & Zippers, Stitching, Straps & Handles, Logos & Brand Stamps, Dust Bag, Authenticity Card).
     - Use bullet points in observations.
     - Provide a specific score on a scale of 0-100 and a grade for each section and for the overall assessment.
+    - Include a "requestForMoreInfo" section suggesting what additional images or information could improve the analysis.
     - ALWAYS return your response as a valid, raw JSON object conforming to the QCReport schema. Do NOT wrap it in markdown backticks.`
     });
 
@@ -332,7 +333,8 @@ export const runQCAnalysis = async (
               observations: { type: Type.ARRAY, items: { type: Type.STRING } }
             }
           }
-        }
+        },
+        requestForMoreInfo: { type: Type.ARRAY, items: { type: Type.STRING } }
       }
     };
 
@@ -418,4 +420,95 @@ export const runQCAnalysis = async (
     }
     throw error; // Re-throw if not detailed or if fallback fails
   }
+};
+
+export const runFinalQCAnalysis = async (
+  apiKey: string,
+  profile: ProductProfile,
+  refImages: string[],
+  qcImages: string[],
+  qcImageIds: string[],
+  settings: AppSettings,
+  preliminaryReport: QCReport,
+  userComments: string,
+): Promise<QCReport> => {
+  // This function is similar to runQCAnalysis but includes the preliminary report and user feedback.
+  // For brevity, we'll reuse the main logic and just add the new context.
+  
+  const ai = new GoogleGenAI({ apiKey });
+  const { model } = getModelConfig(settings.modelTier);
+
+  const parts: any[] = [];
+
+  // Add Ref Images
+  refImages.forEach((img, idx) => {
+    parts.push({ text: `REFERENCE IMAGE ${idx + 1} (Authentic):` });
+    parts.push({ inlineData: { mimeType: 'image/jpeg', data: img.split(',')[1] || img } });
+  });
+
+  // Add Product Context
+  parts.push({ text: `AUTHENTIC PRODUCT PROFILE:\n${JSON.stringify(profile, null, 2)}\n\n` });
+
+  // Add QC Images
+  qcImages.forEach((img, idx) => {
+    parts.push({ text: `QC INSPECTION IMAGE ${idx + 1} (To be analyzed):` });
+    parts.push({ inlineData: { mimeType: 'image/jpeg', data: img.split(',')[1] || img } });
+  });
+
+  // Add Preliminary Report and User Comments
+  parts.push({ text: `\n**PRELIMINARY QC REPORT:**\n${JSON.stringify(preliminaryReport, null, 2)}\n` });
+  parts.push({ text: `\n**USER'S ADDITIONAL COMMENTS:**\n${userComments}\n` });
+
+  parts.push({
+    text: `Generate a FINAL QC REPORT based on all the provided information, including the preliminary report and the user's new comments.
+    
+    Output requirements:
+    - Incorporate the user's feedback into your final analysis.
+    - Provide a specific score (0-100) and grade for each section and Overall.
+    - Include a "requestForMoreInfo" section suggesting what additional images or information could improve the analysis.
+    - ALWAYS return your response as a valid, raw JSON object conforming to the QCReport schema.`
+  });
+
+  const schema: Schema = {
+    type: Type.OBJECT,
+    properties: {
+      overallScore: { type: Type.NUMBER },
+      overallGrade: { type: Type.STRING, enum: ["PASS", "FAIL", "CAUTION"] },
+      summary: { type: Type.STRING },
+      sections: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            sectionName: { type: Type.STRING },
+            score: { type: Type.NUMBER },
+            grade: { type: Type.STRING, enum: ["PASS", "FAIL", "CAUTION"] },
+            observations: { type: Type.ARRAY, items: { type: Type.STRING } }
+          }
+        }
+      },
+      requestForMoreInfo: { type: Type.ARRAY, items: { type: Type.STRING } },
+      userComments: { type: Type.STRING }
+    }
+  };
+
+  const config: any = {
+      systemInstruction: getSystemInstruction(settings.expertMode, settings.modelTier, 'QC'),
+      responseMimeType: "application/json",
+      responseSchema: schema,
+  };
+
+  const response = await ai.models.generateContent({ model, contents: { parts }, config });
+  const result = JSON.parse(cleanJson(response.text || "{}"));
+  
+  return {
+    id: generateUUID(),
+    generatedAt: Date.now(),
+    basedOnBatchIds: [],
+    qcImageIds: qcImageIds,
+    modelTier: settings.modelTier,
+    expertMode: settings.expertMode,
+    userComments: userComments, // Ensure user comments are highlighted
+    ...result
+  };
 };
