@@ -5,7 +5,7 @@ import jpeg from 'jpeg-js';
 // Constants for retry and validation
 const BASE_RETRY_DELAY_MS = 1000;
 const MIN_VALID_IMAGE_SIZE = 100;
-const WORKER_VERSION = '1.1.0';
+const WORKER_VERSION = '1.2.0'; // Updated to fix 404 CORS issues
 
 // Helper to create standard CORS headers
 function getCorsHeaders(additionalHeaders = {}) {
@@ -76,6 +76,9 @@ async function handleRequest(request) {
   const url = new URL(request.url);
   const pathname = url.pathname.replace(/\/+$/, '');
 
+  // Log request for debugging (can be viewed in Cloudflare Dashboard logs)
+  console.log(`[Worker] ${request.method} ${pathname}`);
+
   // Handle CORS preflight for all endpoints
   if (request.method === 'OPTIONS') {
     return new Response(null, {
@@ -105,7 +108,9 @@ async function handleRequest(request) {
     });
   }
 
-  if (pathname.endsWith('/fetch-metadata') || pathname === '/fetch-metadata') {
+  // Handle /fetch-metadata endpoint - Extract image URLs from webpage
+  // Match both /fetch-metadata and any path ending with /fetch-metadata
+  if (pathname === '/fetch-metadata' || pathname.endsWith('/fetch-metadata')) {
     const target = url.searchParams.get('url');
     if (!target) {
       return new Response(JSON.stringify({ error: 'missing url' }), { 
@@ -466,6 +471,8 @@ async function handleRequest(request) {
     }
   }
 
+  // 404 - No endpoint matched
+  console.log(`[Worker] 404 - Path not found: ${pathname}`);
   return new Response(JSON.stringify({ 
     error: 'Not found',
     pathname: pathname,
@@ -532,7 +539,7 @@ function resizeToRGBA(img, width, height) {
   return out;
 }
 
-// Export as an ES Module Worker (module format) so hybrid-nodejs_compat
+// Export as an ES Module Worker (module format) so nodejs_compat
 // can detect the module worker and bundle node built-ins.
 export default {
   fetch: async (request, env, ctx) => {
@@ -540,11 +547,13 @@ export default {
       return await handleRequest(request);
     } catch (error) {
       // Global error handler to ensure CORS headers are always present
-      console.error('Unhandled error in worker:', error);
+      console.error('[Worker] Unhandled error:', error);
+      console.error('[Worker] Error stack:', error?.stack);
       
       const errorResponse = { 
         error: 'Internal server error',
-        message: error?.message || String(error)
+        message: error?.message || String(error),
+        workerVersion: WORKER_VERSION
       };
       
       // Only include stack trace in development (when env.ENVIRONMENT is not 'production')
