@@ -143,6 +143,10 @@ const STANDARD_SECTION_NAMES: Record<string, string[]> = {
   'default': ['Overall Quality', 'Materials', 'Construction', 'Hardware', 'Branding', 'Finish', 'Packaging', 'Documentation']
 };
 
+// Constants for string similarity comparison
+const MIN_TOKEN_LENGTH = 2;
+const SIMILARITY_THRESHOLD = 0.7;
+
 // Calculate similarity between two strings (0-1)
 const stringSimilarity = (str1: string, str2: string): number => {
   const s1 = str1.toLowerCase().trim();
@@ -150,7 +154,7 @@ const stringSimilarity = (str1: string, str2: string): number => {
   
   if (s1 === s2) return 1.0;
   
-  // Remove common words and punctuation for comparison
+  // Remove common punctuation and special characters for comparison
   const normalize = (s: string) => s
     .replace(/[&/\\#,+()$~%.'":*?<>{}]/g, ' ')
     .replace(/\s+/g, ' ')
@@ -165,9 +169,9 @@ const stringSimilarity = (str1: string, str2: string): number => {
   // Check for substring matches
   if (n1.includes(n2) || n2.includes(n1)) return 0.85;
   
-  // Token-based similarity
-  const tokens1 = new Set(n1.split(' ').filter(t => t.length > 2));
-  const tokens2 = new Set(n2.split(' ').filter(t => t.length > 2));
+  // Token-based Jaccard similarity
+  const tokens1 = new Set(n1.split(' ').filter(t => t.length > MIN_TOKEN_LENGTH));
+  const tokens2 = new Set(n2.split(' ').filter(t => t.length > MIN_TOKEN_LENGTH));
   
   if (tokens1.size === 0 || tokens2.size === 0) return 0;
   
@@ -186,7 +190,7 @@ const normalizeSectionName = (sectionName: string, category: string = 'default')
   
   // Try to find a matching standard name
   let bestMatch = trimmed;
-  let bestScore = 0.7; // Threshold for considering a match
+  let bestScore = SIMILARITY_THRESHOLD; // Threshold for considering a match
   
   for (const standardName of standardNames) {
     const similarity = stringSimilarity(trimmed, standardName);
