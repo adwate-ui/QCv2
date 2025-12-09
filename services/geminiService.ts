@@ -273,8 +273,9 @@ const stringSimilarity = (str1: string, str2: string): number => {
   const tokens1 = new Set(n1.split(' ').filter(t => t.length > MIN_TOKEN_LENGTH));
   const tokens2 = new Set(n2.split(' ').filter(t => t.length > MIN_TOKEN_LENGTH));
   
-  // Handle short strings: if both token sets are empty (due to short strings),
-  // fall back to character-based comparison
+  // Handle short strings: if both token sets are empty (due to all tokens being <= MIN_TOKEN_LENGTH),
+  // fall back to character-based comparison. This handles cases like "TV" vs "TV" or "PC" vs "PC"
+  // where the entire string would be filtered out by the token length check.
   if (tokens1.size === 0 && tokens2.size === 0) {
     // For very short strings, use simple character overlap
     const chars1 = new Set(n1.split('').filter(c => c !== ' '));
