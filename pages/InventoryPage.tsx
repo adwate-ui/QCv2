@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { getPublicImageUrl, db } from '../services/db';
 import { Product } from '../types';
@@ -38,6 +38,7 @@ export const InventoryPage = () => {
   const [statusFilter, setStatusFilter] = useState<FilterType>('ALL');
   const [groupedProducts, setGroupedProducts] = useState<Record<string, Product[]>>({});
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
+  const loadingImagesRef = useRef<Set<string>>(new Set());
   const [gridSize, setGridSize] = useState(() => {
     const savedGridSize = localStorage.getItem('inventoryGridSize');
     return savedGridSize ? parseInt(savedGridSize, 10) : 3;
@@ -77,27 +78,28 @@ export const InventoryPage = () => {
         (async () => {
           const map: Record<string, string> = {};
           for (const p of filteredList) {
+            // Skip if already cached or currently loading
+            if (imageMap[p.id] || loadingImagesRef.current.has(p.id)) {
+              continue;
+            }
+
             try {
               if (p.referenceImageIds && p.referenceImageIds.length > 0) {
-                // If we already have a cached image URL, reuse it
-                if (imageMap[p.id]) {
-                  map[p.id] = imageMap[p.id];
-                  continue;
-                }
-
+                // Mark as loading
+                loadingImagesRef.current.add(p.id);
+                
                 const imageId = p.referenceImageIds[0];
                 let imgBase64: string | undefined;
 
+                // Try db.getImage first
                 try {
                   imgBase64 = await db.getImage(imageId);
+                  if (imgBase64) {
+                    map[p.id] = imgBase64;
+                    continue; // Successfully loaded, skip to next product
+                  }
                 } catch (e) {
                   console.debug('db.getImage failed for', imageId, e);
-                  imgBase64 = undefined;
-                }
-
-                if (imgBase64) {
-                  map[p.id] = imgBase64;
-                  continue;
                 }
 
                 // Fallback: try to get a signed URL via the DB service and fetch that
@@ -114,9 +116,7 @@ export const InventoryPage = () => {
                         reader.readAsDataURL(blob);
                       });
                       map[p.id] = dataUrl;
-                      continue;
-                    } else {
-                      console.debug('Signed URL fetch failed', signed, resp.status, resp.statusText);
+                      continue; // Successfully loaded, skip to next product
                     }
                   }
                 } catch (e) {
@@ -136,21 +136,19 @@ export const InventoryPage = () => {
                       reader.readAsDataURL(blob);
                     });
                     map[p.id] = dataUrl;
-                    continue;
-                  } else {
-                    console.debug('Public URL fetch failed', publicUrl, resp.status, resp.statusText);
                   }
                 } catch (e) {
                   console.debug('Public URL fetch error for', publicUrl, e);
                 }
-
-                // As last resort set nothing so UI shows placeholder
               }
             } catch (e) {
               console.error('Failed to load thumbnail for', p.id, e);
             }
           }
-          setImageMap(prev => ({...prev, ...map}));
+          // Only update state if we loaded new images
+          if (Object.keys(map).length > 0) {
+            setImageMap(prev => ({...prev, ...map}));
+          }
         })();
       }
   }, [products, searchTerm, statusFilter, user?.id]);
