@@ -17,7 +17,6 @@ This version includes:
 - **index.mjs**: The main worker code (ES Module format with nodejs_compat)
 - **package.json**: Worker dependencies (pixelmatch, pngjs, jpeg-js)
 - **wrangler.toml**: The worker configuration file used for deployment
-- **worker.js**: Legacy service worker format (kept for reference, not used in deployment)
 
 ## Deployment
 
