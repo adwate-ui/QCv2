@@ -21,19 +21,32 @@ View your app in AI Studio: https://ai.studio/apps/drive/1pShI4np7Qntn9U9CTnSQ8B
 3. Run the app:
    `npm run dev`
 
-## Cloudflare Worker Deployment
+## Cloudflare Deployment
 
-The app requires a Cloudflare Worker to fetch images from product URLs. The worker code is in `cloudflare-worker/worker.js`.
+The app requires both a Cloudflare Pages deployment (for the frontend) and a Cloudflare Worker deployment (for the image proxy).
 
-To deploy the worker:
+### Quick Start (Local Development)
+
+To deploy the worker for local development:
 1. Install Wrangler CLI: `npm install -g wrangler`
 2. Login to Cloudflare: `wrangler login`
 3. Deploy the worker: `cd cloudflare-worker && wrangler deploy`
 4. Copy the worker URL and set it as `VITE_IMAGE_PROXY_URL` in your `.env.local`
 
-The worker provides the following endpoints:
-- `/fetch-metadata?url=<product_url>` - Fetches image URLs from a product page
-- `/proxy-image?url=<image_url>` - Proxies image requests with CORS headers
+### Production Deployment
+
+For complete step-by-step instructions on deploying to Cloudflare Pages (including automatic deployment via GitHub Actions), see:
+
+📖 **[Cloudflare Deployment Guide](CLOUDFLARE_DEPLOYMENT_GUIDE.md)**
+
+This guide covers:
+- Deploying the Cloudflare Worker (image proxy)
+- Deploying the frontend to Cloudflare Pages
+- Setting up environment variables correctly
+- Configuring GitHub Actions for automatic deployment
+- Troubleshooting common deployment issues
+
+**Important:** The `VITE_IMAGE_PROXY_URL` environment variable must be set during the build process for the image fetching feature to work in production.
 
 ### Troubleshooting Image Fetching
 
