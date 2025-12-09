@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { getPublicImageUrl, db } from '../services/db';
 import { Product } from '../types';
@@ -38,6 +38,7 @@ export const InventoryPage = () => {
   const [statusFilter, setStatusFilter] = useState<FilterType>('ALL');
   const [groupedProducts, setGroupedProducts] = useState<Record<string, Product[]>>({});
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
+  const imageMapRef = useRef<Record<string, string>>({});
   const loadingImagesRef = useRef<Set<string>>(new Set());
   const [gridSize, setGridSize] = useState(() => {
     const savedGridSize = localStorage.getItem('inventoryGridSize');
@@ -48,6 +49,80 @@ export const InventoryPage = () => {
                       gridSize === 3 ? "md:grid-cols-3" :
                       gridSize === 4 ? "md:grid-cols-4" :
                       gridSize === 5 ? "md:grid-cols-5" : "md:grid-cols-3";
+
+  // Sync ref with state
+  useEffect(() => {
+    imageMapRef.current = imageMap;
+  }, [imageMap]);
+
+  // Memoized function to load a single image
+  const loadImage = useCallback(async (productId: string, imageId: string, userId: string) => {
+    // Double-check if already loaded or loading
+    if (imageMapRef.current[productId] || loadingImagesRef.current.has(productId)) {
+      return null;
+    }
+    
+    // Mark as loading
+    loadingImagesRef.current.add(productId);
+    
+    try {
+      // Try db.getImage first
+      try {
+        const imgBase64 = await db.getImage(imageId);
+        if (imgBase64) {
+          return imgBase64;
+        }
+      } catch (e) {
+        console.debug('db.getImage failed for', imageId, e);
+      }
+
+      // Fallback: try to get a signed URL via the DB service and fetch that
+      try {
+        const signed = await db.getSignedUrl(imageId, 60);
+        if (signed) {
+          const resp = await fetch(signed);
+          if (resp.ok) {
+            const blob = await resp.blob();
+            const reader = new FileReader();
+            const dataUrl: string = await new Promise((res, rej) => {
+              reader.onloadend = () => res(reader.result as string);
+              reader.onerror = rej;
+              reader.readAsDataURL(blob);
+            });
+            return dataUrl;
+          }
+        }
+      } catch (e) {
+        console.debug('Signed URL fetch error for', imageId, e);
+      }
+
+      // Fallback: try to fetch the public URL and convert to base64 client-side
+      const publicUrl = getPublicImageUrl(userId, imageId);
+      try {
+        const resp = await fetch(publicUrl);
+        if (resp.ok) {
+          const blob = await resp.blob();
+          const reader = new FileReader();
+          const dataUrl: string = await new Promise((res, rej) => {
+            reader.onloadend = () => res(reader.result as string);
+            reader.onerror = rej;
+            reader.readAsDataURL(blob);
+          });
+          return dataUrl;
+        }
+      } catch (e) {
+        console.debug('Public URL fetch error for', publicUrl, e);
+      }
+      
+      return null;
+    } catch (e) {
+      console.error('Failed to load thumbnail for', productId, e);
+      return null;
+    } finally {
+      // Clean up loading state
+      loadingImagesRef.current.delete(productId);
+    }
+  }, []);
 
   useEffect(() => {
     // 1. Filter Logic
@@ -73,85 +148,28 @@ export const InventoryPage = () => {
     }, {} as Record<string, Product[]>);
     setGroupedProducts(grouped);
 
-      // 3. Load thumbnails (prefer base64 via DB.getImage to avoid public-bucket/CORS issues)
-      if (user?.id) {
-        (async () => {
-          const map: Record<string, string> = {};
-          for (const p of filteredList) {
-            // Skip if already cached or currently loading
-            if (imageMap[p.id] || loadingImagesRef.current.has(p.id)) {
-              continue;
-            }
+    // 3. Load thumbnails (prefer base64 via DB.getImage to avoid public-bucket/CORS issues)
+    if (user?.id) {
+      (async () => {
+        const loadPromises = filteredList
+          .filter(p => p.referenceImageIds && p.referenceImageIds.length > 0)
+          .filter(p => !imageMapRef.current[p.id]) // Check ref to avoid re-loading
+          .map(async (p) => {
+            const imageId = p.referenceImageIds[0];
+            const dataUrl = await loadImage(p.id, imageId, user.id!);
+            return dataUrl ? { [p.id]: dataUrl } : null;
+          });
 
-            try {
-              if (p.referenceImageIds && p.referenceImageIds.length > 0) {
-                // Mark as loading
-                loadingImagesRef.current.add(p.id);
-                
-                const imageId = p.referenceImageIds[0];
-                let imgBase64: string | undefined;
-
-                // Try db.getImage first
-                try {
-                  imgBase64 = await db.getImage(imageId);
-                  if (imgBase64) {
-                    map[p.id] = imgBase64;
-                    continue; // Successfully loaded, skip to next product
-                  }
-                } catch (e) {
-                  console.debug('db.getImage failed for', imageId, e);
-                }
-
-                // Fallback: try to get a signed URL via the DB service and fetch that
-                try {
-                  const signed = await db.getSignedUrl(imageId, 60);
-                  if (signed) {
-                    const resp = await fetch(signed);
-                    if (resp.ok) {
-                      const blob = await resp.blob();
-                      const reader = new FileReader();
-                      const dataUrl: string = await new Promise((res, rej) => {
-                        reader.onloadend = () => res(reader.result as string);
-                        reader.onerror = rej;
-                        reader.readAsDataURL(blob);
-                      });
-                      map[p.id] = dataUrl;
-                      continue; // Successfully loaded, skip to next product
-                    }
-                  }
-                } catch (e) {
-                  console.debug('Signed URL fetch error for', imageId, e);
-                }
-
-                // Fallback: try to fetch the public URL and convert to base64 client-side
-                const publicUrl = getPublicImageUrl(user.id, imageId);
-                try {
-                  const resp = await fetch(publicUrl);
-                  if (resp.ok) {
-                    const blob = await resp.blob();
-                    const reader = new FileReader();
-                    const dataUrl: string = await new Promise((res, rej) => {
-                      reader.onloadend = () => res(reader.result as string);
-                      reader.onerror = rej;
-                      reader.readAsDataURL(blob);
-                    });
-                    map[p.id] = dataUrl;
-                  }
-                } catch (e) {
-                  console.debug('Public URL fetch error for', publicUrl, e);
-                }
-              }
-            } catch (e) {
-              console.error('Failed to load thumbnail for', p.id, e);
-            }
-          }
-          // Only update state if we loaded new images
-          if (Object.keys(map).length > 0) {
-            setImageMap(prev => ({...prev, ...map}));
-          }
-        })();
-      }
-  }, [products, searchTerm, statusFilter, user?.id]);
+        const results = await Promise.all(loadPromises);
+        const newImages = results.filter(Boolean).reduce((acc, img) => ({ ...acc, ...img }), {});
+        
+        // Only update state if we loaded new images
+        if (Object.keys(newImages).length > 0) {
+          setImageMap(prev => ({ ...prev, ...newImages }));
+        }
+      })();
+    }
+  }, [products, searchTerm, statusFilter, user?.id, loadImage]);
 
   useEffect(() => {
     localStorage.setItem('inventoryGridSize', gridSize.toString());
