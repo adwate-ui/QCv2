@@ -89,7 +89,8 @@ export const DiagnosticsPage = () => {
           errorDetails = JSON.stringify(errorData, null, 2);
         } else {
           // Worker might be returning HTML (404 page) instead of JSON
-          errorDetails = `Response Content-Type: ${contentType || 'not set'}\n\nThe worker may not be deployed or the URL is incorrect.\n\nExpected: application/json\nReceived: ${contentType || 'not set'}`;
+          const received = contentType || 'not set';
+          errorDetails = `The worker may not be deployed or the URL is incorrect.\n\nExpected: application/json\nReceived: ${received}`;
         }
         
         updateResult('metadata-fetch', {
