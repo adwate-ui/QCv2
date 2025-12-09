@@ -14,9 +14,14 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
   aspectRatio = 'auto',
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   const handleLoad = () => {
     setIsLoaded(true);
+  };
+
+  const handleError = () => {
+    setHasError(true);
   };
 
   return (
@@ -25,8 +30,8 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
       style={{ aspectRatio }}
     >
       {/* Skeleton loader with pulse animation */}
-      {!isLoaded && (
-        <div className="absolute inset-0 bg-gray-300 animate-pulse" />
+      {!isLoaded && !hasError && (
+        <div className="absolute inset-0 bg-gray-300 animate-pulse" aria-hidden="true" />
       )}
 
       {/* Actual image */}
@@ -36,6 +41,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
         loading="lazy"
         decoding="async"
         onLoad={handleLoad}
+        onError={handleError}
         className={`w-full h-full object-cover transition-opacity duration-500 ${
           isLoaded ? 'opacity-100' : 'opacity-0'
         }`}
