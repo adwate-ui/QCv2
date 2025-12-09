@@ -302,7 +302,11 @@ export const InventoryPage = () => {
                   }
 
                   return (
-                    <div key={product.id} className={`group bg-white rounded-lg md:rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden relative ${isSelected ? 'ring-2 ring-primary/40' : ''}`}>
+                    <Link 
+                      key={product.id} 
+                      to={'/inventory/' + product.id} 
+                      className={`group bg-white rounded-lg md:rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden relative block ${isSelected ? 'ring-2 ring-primary/40' : ''}`}
+                    >
                       <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
                         {imageMap[product.id] ? (
                           <img src={imageMap[product.id]} alt={product.profile.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -325,13 +329,11 @@ export const InventoryPage = () => {
                           )}
                         </div>
                       </div>
-                      <Link to={'/inventory/' + product.id} className="block">
-                        <div className="p-2.5 md:p-4">
-                          <p className="text-[10px] md:text-xs text-slate-500 font-semibold uppercase tracking-wider mb-0.5 md:mb-1 truncate">{product.profile.brand || 'Unknown'}</p>
-                          <h4 className="font-bold text-xs md:text-base text-slate-900 truncate">{product.profile.name || product.profile.url || 'Untitled Product'}</h4>
-                          <p className="text-xs md:text-sm text-slate-600 mt-0.5 md:mt-1 truncate">{product.profile.priceEstimate || ''}</p>
-                        </div>
-                      </Link>
+                      <div className="p-2.5 md:p-4">
+                        <p className="text-[10px] md:text-xs text-slate-500 font-semibold uppercase tracking-wider mb-0.5 md:mb-1 truncate">{product.profile.brand || 'Unknown'}</p>
+                        <h4 className="font-bold text-xs md:text-base text-slate-900 truncate">{product.profile.name || product.profile.url || 'Untitled Product'}</h4>
+                        <p className="text-xs md:text-sm text-slate-600 mt-0.5 md:mt-1 truncate">{product.profile.priceEstimate || ''}</p>
+                      </div>
 
                       {/* Controls overlay: checkbox & delete (stop propagation/prevent navigation) */}
                       <div className="absolute top-2 left-2 md:top-3 md:left-3 z-20">
@@ -351,8 +353,7 @@ export const InventoryPage = () => {
                       <button
                         onClick={async (e) => {
                           e.stopPropagation();
-                          // prevent Link navigation
-                          e.preventDefault?.();
+                          e.preventDefault();
                           if (!confirm('Delete product "' + product.profile.name + '"? This cannot be undone.')) return;
                           await deleteProduct(product.id);
                           setSelectedIds(prev => prev.filter(id => id !== product.id));
@@ -362,7 +363,7 @@ export const InventoryPage = () => {
                       >
                         <Trash2 size={14} className="md:w-4 md:h-4 text-red-600" />
                       </button>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
