@@ -348,6 +348,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   // Maximum number of images to fetch from a product URL
   const MAX_IMAGES_FROM_URL = 5;
 
+  // Helper function to check if a response is JSON based on content-type
+  const isJsonResponse = (response: Response): boolean => {
+    const contentType = response.headers.get('content-type');
+    return contentType !== null && contentType.includes('application/json');
+  };
+
   // Helper function to fetch images from a product URL with retry logic and better error handling
   const fetchImagesFromUrl = async (url: string, retryCount: number = 0): Promise<{ images: string[]; error?: string }> => {
     const MAX_RETRIES = 2;
@@ -381,8 +387,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if (!metadataResponse.ok) {
         // Try to parse error response as JSON if content-type is appropriate
         let errorData = { error: 'Unknown error' };
-        const contentType = metadataResponse.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
+        if (isJsonResponse(metadataResponse)) {
           try {
             errorData = await metadataResponse.json();
           } catch (parseError) {
@@ -404,8 +409,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
       
       // Check if response is JSON before parsing
-      const contentType = metadataResponse.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
+      if (!isJsonResponse(metadataResponse)) {
+        const contentType = metadataResponse.headers.get('content-type');
         const error = `Worker returned non-JSON response (Content-Type: ${contentType || 'not set'}). Please verify VITE_IMAGE_PROXY_URL is correctly configured and the Cloudflare Worker is deployed.`;
         console.error('[Image Fetch]', error);
         return { images: [], error };
