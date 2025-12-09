@@ -42,13 +42,88 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   });
   const [tasks, setTasks] = useState<BackgroundTask[]>([]);
 
+  // Helper function to strip large image data from tasks before persisting
+  const sanitizeTasksForStorage = (tasksToSave: BackgroundTask[]): BackgroundTask[] => {
+    return tasksToSave.map(task => {
+      // Create a shallow copy of the task
+      const sanitized = { ...task };
+      
+      // Strip large image data from meta to avoid quota issues
+      if (sanitized.meta) {
+        sanitized.meta = {
+          ...sanitized.meta,
+          // Remove image data but keep count for reference
+          images: sanitized.meta.images ? [] : undefined,
+          allQCRawImages: sanitized.meta.allQCRawImages ? [] : undefined,
+          // Add image counts as separate metadata
+          imageCount: sanitized.meta.images?.length,
+          allQCRawImageCount: sanitized.meta.allQCRawImages?.length,
+        };
+      }
+      
+      // Remove large result data for completed tasks
+      if (sanitized.status === 'COMPLETED' && sanitized.result) {
+        sanitized.result = undefined;
+      }
+      
+      return sanitized;
+    });
+  };
+
   // Save tasks to localStorage whenever they change
   useEffect(() => {
-    if (tasks.length > 0) {
+    // Only keep active tasks (PROCESSING or AWAITING_FEEDBACK) and recent completed tasks
+    const activeTasks = tasks.filter(t => 
+      t.status === 'PROCESSING' || 
+      t.status === 'AWAITING_FEEDBACK' ||
+      (t.status === 'COMPLETED' && Date.now() - t.createdAt < 3600000) || // Keep completed tasks for 1 hour
+      (t.status === 'FAILED' && Date.now() - t.createdAt < 1800000) // Keep failed tasks for 30 minutes
+    );
+    
+    if (activeTasks.length > 0) {
       try {
-        localStorage.setItem('authentiqc_tasks', JSON.stringify(tasks));
+        const sanitized = sanitizeTasksForStorage(activeTasks);
+        const serialized = JSON.stringify(sanitized);
+        
+        // Check size before saving (localStorage typically has 5-10MB limit)
+        const sizeInBytes = new TextEncoder().encode(serialized).length;
+        const maxSizeInBytes = 4 * 1024 * 1024; // 4MB safety limit
+        
+        if (sizeInBytes > maxSizeInBytes) {
+          console.warn(`Tasks data too large (${Math.round(sizeInBytes / 1024)}KB), keeping only processing tasks`);
+          // Only keep processing tasks if size is too large
+          const processingOnly = activeTasks.filter(t => t.status === 'PROCESSING');
+          const processingSanitized = sanitizeTasksForStorage(processingOnly);
+          localStorage.setItem('authentiqc_tasks', JSON.stringify(processingSanitized));
+        } else {
+          localStorage.setItem('authentiqc_tasks', serialized);
+        }
       } catch (e) {
         console.error('Failed to persist tasks:', e);
+        // If quota exceeded, try saving only critical processing tasks
+        try {
+          const criticalTasks = activeTasks.filter(t => t.status === 'PROCESSING');
+          if (criticalTasks.length > 0) {
+            const sanitized = sanitizeTasksForStorage(criticalTasks);
+            localStorage.setItem('authentiqc_tasks', JSON.stringify(sanitized));
+            console.log('Saved only processing tasks due to storage constraints');
+          }
+        } catch (fallbackError) {
+          console.error('Failed to save even critical tasks:', fallbackError);
+          // Clear the storage and try one more time with just task IDs
+          try {
+            localStorage.removeItem('authentiqc_tasks');
+          } catch (clearError) {
+            // Can't do anything if we can't even clear
+          }
+        }
+      }
+    } else {
+      // Clean up storage when no active tasks
+      try {
+        localStorage.removeItem('authentiqc_tasks');
+      } catch (e) {
+        console.error('Failed to remove tasks from storage:', e);
       }
     }
   }, [tasks]);
@@ -86,6 +161,39 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [tasks]);
+
+  // Periodic cleanup of old completed/failed tasks to prevent memory issues
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      const now = Date.now();
+      const ONE_HOUR = 3600000;
+      const THIRTY_MINUTES = 1800000;
+      
+      setTasks(prevTasks => {
+        const filtered = prevTasks.filter(task => {
+          // Always keep processing and awaiting feedback tasks
+          if (task.status === 'PROCESSING' || task.status === 'AWAITING_FEEDBACK') {
+            return true;
+          }
+          // Keep completed tasks for 1 hour
+          if (task.status === 'COMPLETED' && now - task.createdAt < ONE_HOUR) {
+            return true;
+          }
+          // Keep failed tasks for 30 minutes
+          if (task.status === 'FAILED' && now - task.createdAt < THIRTY_MINUTES) {
+            return true;
+          }
+          // Remove everything else
+          return false;
+        });
+        
+        // Only update state if we actually removed something
+        return filtered.length !== prevTasks.length ? filtered : prevTasks;
+      });
+    }, 60000); // Check every minute
+
+    return () => clearInterval(cleanupInterval);
+  }, []);
 
   useEffect(() => {
     // This function runs once on initial app load.
