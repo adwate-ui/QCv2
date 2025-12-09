@@ -196,20 +196,65 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const generateAndStoreComparisonImages = async (
-    validRefImages: string[],
+    product: Product,
     allQCRawImages: string[],
-    referenceImageIds: string[]
+    report: QCReport
   ): Promise<Record<string, { authImageId?: string; diffImageId?: string; diffScore?: number }>> => {
     const sectionComparisons: Record<string, { authImageId?: string; diffImageId?: string; diffScore?: number }> = {};
     
-    if (validRefImages.length === 0 || allQCRawImages.length === 0 || referenceImageIds.length === 0) {
+    if (allQCRawImages.length === 0) {
       return sectionComparisons;
     }
 
     try {
-      for (let i = 0; i < allQCRawImages.length; i++) {
-        const qcImageSrc = allQCRawImages[i];
-        const refImageSrc = validRefImages[0]; // Use first reference image
+      // Use original images from internet if available, otherwise fall back to reference images
+      let referenceImages: string[] = [];
+      
+      if (product.profile.imageUrls && product.profile.imageUrls.length > 0) {
+        // Download and convert original images from internet
+        const proxyBase = (import.meta as any).env?.VITE_IMAGE_PROXY_URL || '';
+        for (const imageUrl of product.profile.imageUrls) {
+          try {
+            const fetchUrl = proxyBase ? `${proxyBase.replace(/\/$/, '')}/proxy-image?url=${encodeURIComponent(imageUrl)}` : imageUrl;
+            const response = await fetch(fetchUrl);
+            if (!response.ok) {
+              console.debug('Failed to fetch original image', fetchUrl);
+              continue;
+            }
+            const blob = await response.blob();
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+            referenceImages.push(dataUrl);
+          } catch (error) {
+            console.error(`Failed to fetch original image from ${imageUrl}:`, error);
+          }
+        }
+      }
+      
+      // Fall back to uploaded reference images if no original images available
+      if (referenceImages.length === 0) {
+        const refImageIds = product.referenceImageIds || [];
+        const refImages = await Promise.all(refImageIds.map(id => db.getImage(id)));
+        referenceImages = refImages.filter(Boolean) as string[];
+      }
+      
+      if (referenceImages.length === 0) {
+        console.warn('No reference images available for comparison');
+        return sectionComparisons;
+      }
+
+      // Generate comparison only for sections with discrepancies (not PASS)
+      const sectionsWithIssues = report.sections.filter(s => s.grade !== 'PASS');
+      
+      for (let i = 0; i < sectionsWithIssues.length; i++) {
+        const section = sectionsWithIssues[i];
+        // Use corresponding QC image or first available
+        const qcImageSrc = allQCRawImages[Math.min(i, allQCRawImages.length - 1)];
+        const refImageSrc = referenceImages[0]; // Use first reference image
         
         // Generate side-by-side comparison
         const comparisonImageData = await generateComparisonImage(refImageSrc, qcImageSrc);
@@ -218,10 +263,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         const comparisonImageId = generateUUID();
         await db.saveImage(comparisonImageId, comparisonImageData);
         
-        // Map to section (use QC image index as section identifier)
-        const sectionKey = `qc_image_${i + 1}`;
-        sectionComparisons[sectionKey] = {
-          authImageId: referenceImageIds[0],
+        // Map to section by name
+        sectionComparisons[section.sectionName] = {
+          authImageId: product.referenceImageIds[0],
           diffImageId: comparisonImageId
         };
       }
@@ -349,11 +393,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
        const preliminaryReport = await runQCAnalysis(apiKey, product.profile, validRefImagesAsBase64, allQCRawImages, allQCImageIds, settings, qcUserComments);
 
-       // Generate comparison images for each QC image
+       // Generate comparison images for sections with discrepancies
        const sectionComparisons = await generateAndStoreComparisonImages(
-         validRefImages,
+         product,
          allQCRawImages,
-         product.referenceImageIds
+         preliminaryReport
        );
        preliminaryReport.sectionComparisons = sectionComparisons;
 
@@ -426,11 +470,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           userComments
         );
         
-        // Generate comparison images for final report
+        // Generate comparison images for sections with discrepancies
         const sectionComparisons = await generateAndStoreComparisonImages(
-          validRefImages,
+          product,
           allQCRawImages,
-          product.referenceImageIds
+          finalReport
         );
         finalReport.sectionComparisons = sectionComparisons;
         
