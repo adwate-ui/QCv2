@@ -892,3 +892,91 @@ export const runFinalQCAnalysis = async (
     ...result
   };
 };
+
+/**
+ * Search for section-specific close-up images using Google Search
+ * @param apiKey - Gemini API key
+ * @param productProfile - Product profile information
+ * @param sectionName - Name of the section to search images for (e.g., "Dial & Hands", "Clasp")
+ * @param modelTier - Model tier to use (FAST or DETAILED)
+ * @returns Promise resolving to an array of image URLs
+ */
+export const searchSectionSpecificImages = async (
+  apiKey: string,
+  productProfile: ProductProfile,
+  sectionName: string,
+  modelTier: ModelTier = ModelTier.FAST
+): Promise<string[]> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const { model } = getModelConfig(modelTier);
+
+    // Construct search prompt
+    const searchPrompt = `Find high-quality close-up images of the ${sectionName} section for the authentic ${productProfile.brand} ${productProfile.name}.
+
+Product Details:
+- Brand: ${productProfile.brand}
+- Model: ${productProfile.name}
+- Category: ${productProfile.category}
+- Material: ${productProfile.material}
+
+Search for images that show:
+1. Clear, detailed close-up views of the ${sectionName}
+2. From official product pages, authorized retailers, or authentication guides
+3. High resolution and well-lit
+4. Showing authentic product details
+
+Return 3-5 relevant image URLs that would be useful for quality control comparison of the ${sectionName}.`;
+
+    // Configure for web search
+    const config: any = {
+      systemInstruction: 'You are an expert at finding reference images for product authentication. Use Google Search to find the most relevant, high-quality close-up images.',
+      tools: [{ googleSearch: {} }],
+      safetySettings: [
+        {
+          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH
+        }
+      ]
+    };
+
+    if (modelTier === ModelTier.FAST) {
+      config.thinkingConfig = { thinkingBudget: 8192 };
+    }
+
+    const parts = [{ text: searchPrompt }];
+    const response = await ai.models.generateContent({
+      model,
+      contents: { parts },
+      config
+    });
+
+    if (!response || !response.text) {
+      console.warn(`[Image Search] No response text received for ${sectionName}`);
+      return [];
+    }
+
+    const responseText = response.text;
+    
+    // Extract URLs from the response text
+    // Look for URLs in the format http:// or https://
+    const urlRegex = /https?:\/\/[^\s<>"{}|\\^`\[\]]+\.(jpg|jpeg|png|webp|gif)/gi;
+    const matches = responseText.match(urlRegex);
+    
+    if (!matches || matches.length === 0) {
+      console.warn(`[Image Search] No image URLs found for ${sectionName}`);
+      return [];
+    }
+
+    // Filter and validate URLs
+    const validUrls = matches
+      .filter((url, index, self) => self.indexOf(url) === index) // Remove duplicates
+      .slice(0, 5); // Limit to 5 images
+
+    console.log(`[Image Search] Found ${validUrls.length} images for ${sectionName}`);
+    return validUrls;
+  } catch (error) {
+    console.error(`[Image Search] Failed to search images for ${sectionName}:`, error);
+    return [];
+  }
+};
