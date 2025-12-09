@@ -51,6 +51,85 @@ const normalizePriceEstimate = (raw?: string): string => {
 };
 
 // Normalize an entire ProductProfile object to have consistent field formats
+// Normalize category to standard forms (singular, lowercase, consistent naming)
+const normalizeCategory = (category: string): string => {
+  if (!category) return 'Uncategorized';
+  
+  // Convert to lowercase and trim
+  let normalized = category.toLowerCase().trim();
+  
+  // Remove common variations and standardize
+  // Map plural to singular
+  const pluralToSingular: Record<string, string> = {
+    'watches': 'watch',
+    'bags': 'bag',
+    'handbags': 'handbag',
+    'purses': 'purse',
+    'shoes': 'shoe',
+    'sneakers': 'sneaker',
+    'boots': 'boot',
+    'electronics': 'electronic',
+    'phones': 'phone',
+    'tablets': 'tablet',
+    'computers': 'computer',
+    'laptops': 'laptop',
+    'accessories': 'accessory',
+    'sunglasses': 'sunglass',
+    'belts': 'belt',
+    'wallets': 'wallet',
+    'rings': 'ring',
+    'necklaces': 'necklace',
+    'bracelets': 'bracelet',
+    'earrings': 'earring',
+  };
+  
+  // Normalize common category variations
+  const categoryAliases: Record<string, string> = {
+    'wristwatch': 'watch',
+    'timepiece': 'watch',
+    'luxury watch': 'watch',
+    'luxury watches': 'watch',
+    'designer watch': 'watch',
+    'designer watches': 'watch',
+    'smart watch': 'smartwatch',
+    'smart watches': 'smartwatch',
+    'handbag': 'bag',
+    'purse': 'bag',
+    'tote': 'bag',
+    'clutch': 'bag',
+    'satchel': 'bag',
+    'backpack': 'bag',
+    'sneaker': 'shoe',
+    'trainer': 'shoe',
+    'boot': 'shoe',
+    'sandal': 'shoe',
+    'smartphone': 'phone',
+    'mobile phone': 'phone',
+    'cell phone': 'phone',
+    'tablet': 'tablet',
+    'ipad': 'tablet',
+    'laptop': 'computer',
+    'desktop': 'computer',
+    'sunglass': 'sunglasses',
+    'eyewear': 'sunglasses',
+    'jewellery': 'jewelry',
+    'jewel': 'jewelry',
+  };
+  
+  // Apply plural to singular mapping
+  if (pluralToSingular[normalized]) {
+    normalized = pluralToSingular[normalized];
+  }
+  
+  // Apply alias mapping
+  if (categoryAliases[normalized]) {
+    normalized = categoryAliases[normalized];
+  }
+  
+  // Title-case the result
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
 const normalizeProfile = (profile: ProductProfile): ProductProfile => {
   const out: Partial<ProductProfile> = { ...profile };
 
@@ -61,9 +140,8 @@ const normalizeProfile = (profile: ProductProfile): ProductProfile => {
   out.name = safeTrim(profile.name);
   out.brand = safeTrim(profile.brand);
 
-  // Category: title-case first letter
-  const cat = safeTrim(profile.category);
-  out.category = cat ? (cat.charAt(0).toUpperCase() + cat.slice(1)) : 'Uncategorized';
+  // Category: normalize to standard form
+  out.category = normalizeCategory(profile.category || 'Uncategorized');
 
   // Price: normalize and format in accounting style with no decimals and thousand separators
   if (profile.priceEstimate) {
