@@ -214,7 +214,7 @@ export const ProductDetailPage: React.FC = () => {
           </div>
         </div>
 
-        <div className={`transition-all ${expanded ? 'max-h-none' : 'max-h-0 overflow-hidden'} ${expanded ? 'opacity-100' : 'opacity-0'}`} style={{ transition: 'max-height 350ms ease, opacity 300ms ease' }}>
+        <div className={`transition-all duration-300 ease-in-out ${expanded ? 'max-h-none' : 'max-h-0 overflow-hidden'} ${expanded ? 'opacity-100' : 'opacity-0'}`}>
           {report.userComments && (
             <div className="mb-4 p-3 bg-indigo-50 border border-indigo-100 rounded-lg">
               <h4 className="text-sm font-bold text-indigo-800 mb-1">User Comments Considered</h4>

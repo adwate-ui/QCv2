@@ -33,7 +33,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // Helper function to ensure grade matches score based on the rubric:
-// PASS: > 80, CAUTION: 61-80, FAIL: <= 60
+// PASS: score > 80, CAUTION: score 61-80 (inclusive), FAIL: score <= 60
 const correctGradeBasedOnScore = (report: QCReport): QCReport => {
   const correctedReport = { ...report };
   
