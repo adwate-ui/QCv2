@@ -196,20 +196,77 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const generateAndStoreComparisonImages = async (
-    validRefImages: string[],
+    product: Product,
     allQCRawImages: string[],
-    referenceImageIds: string[]
+    report: QCReport
   ): Promise<Record<string, { authImageId?: string; diffImageId?: string; diffScore?: number }>> => {
     const sectionComparisons: Record<string, { authImageId?: string; diffImageId?: string; diffScore?: number }> = {};
     
-    if (validRefImages.length === 0 || allQCRawImages.length === 0 || referenceImageIds.length === 0) {
+    if (allQCRawImages.length === 0) {
       return sectionComparisons;
     }
 
     try {
-      for (let i = 0; i < allQCRawImages.length; i++) {
-        const qcImageSrc = allQCRawImages[i];
-        const refImageSrc = validRefImages[0]; // Use first reference image
+      // Use original images from internet if available, otherwise fall back to reference images
+      let referenceImages: string[] = [];
+      
+      if (product.profile.imageUrls && product.profile.imageUrls.length > 0) {
+        // Download and convert original images from internet in parallel
+        const proxyBase = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
+        const imagePromises = product.profile.imageUrls.map(async (imageUrl) => {
+          try {
+            let fetchUrl: string;
+            if (proxyBase) {
+              // Use URL constructor for safe URL building
+              const proxyUrl = new URL('/proxy-image', proxyBase.replace(/\/$/, ''));
+              proxyUrl.searchParams.set('url', imageUrl);
+              fetchUrl = proxyUrl.toString();
+            } else {
+              fetchUrl = imageUrl;
+            }
+            
+            const response = await fetch(fetchUrl);
+            if (!response.ok) {
+              console.debug('Failed to fetch original image', fetchUrl);
+              return null;
+            }
+            const blob = await response.blob();
+            return new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          } catch (error) {
+            console.error(`Failed to fetch original image from ${imageUrl}:`, error);
+            return null;
+          }
+        });
+        
+        const fetchedImages = await Promise.all(imagePromises);
+        referenceImages = fetchedImages.filter(Boolean) as string[];
+      }
+      
+      // Fall back to uploaded reference images if no original images available
+      if (referenceImages.length === 0) {
+        const refImageIds = product.referenceImageIds || [];
+        const refImages = await Promise.all(refImageIds.map(id => db.getImage(id)));
+        referenceImages = refImages.filter(Boolean) as string[];
+      }
+      
+      if (referenceImages.length === 0) {
+        console.warn('No reference images available for comparison');
+        return sectionComparisons;
+      }
+
+      // Generate comparison only for sections with discrepancies (not PASS)
+      const sectionsWithIssues = report.sections.filter(s => s.grade !== 'PASS');
+      
+      // Generate all comparison images in parallel
+      const comparisonPromises = sectionsWithIssues.map(async (section, i) => {
+        // Use corresponding QC image or first available
+        const qcImageSrc = allQCRawImages[Math.min(i, allQCRawImages.length - 1)];
+        const refImageSrc = referenceImages[0]; // Use first reference image
         
         // Generate side-by-side comparison
         const comparisonImageData = await generateComparisonImage(refImageSrc, qcImageSrc);
@@ -218,13 +275,21 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         const comparisonImageId = generateUUID();
         await db.saveImage(comparisonImageId, comparisonImageData);
         
-        // Map to section (use QC image index as section identifier)
-        const sectionKey = `qc_image_${i + 1}`;
-        sectionComparisons[sectionKey] = {
-          authImageId: referenceImageIds[0],
-          diffImageId: comparisonImageId
+        return {
+          sectionName: section.sectionName,
+          comparison: {
+            authImageId: product.referenceImageIds[0],
+            diffImageId: comparisonImageId
+          }
         };
-      }
+      });
+      
+      const comparisonResults = await Promise.all(comparisonPromises);
+      
+      // Map results to sectionComparisons
+      comparisonResults.forEach(result => {
+        sectionComparisons[result.sectionName] = result.comparison;
+      });
     } catch (error) {
       console.error('Error generating comparison images:', error);
       // Return partial results or empty object if generation fails
@@ -255,11 +320,20 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             let finalImages = images;
             if (images.length === 0 && profile.imageUrls && profile.imageUrls.length > 0) {
                 // If no images were provided, but the model returned some, fetch and save them.
-                const proxyBase = (import.meta as any).env?.VITE_IMAGE_PROXY_URL || '';
+                const proxyBase = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
                 const fetchedImages = await Promise.all(
                     profile.imageUrls.slice(0, 5).map(async (imageUrl) => {
                       try {
-                        const fetchUrl = proxyBase ? `${proxyBase.replace(/\/$/, '')}/proxy-image?url=${encodeURIComponent(imageUrl)}` : imageUrl;
+                        let fetchUrl: string;
+                        if (proxyBase) {
+                          // Use URL constructor for safe URL building
+                          const proxyUrl = new URL('/proxy-image', proxyBase.replace(/\/$/, ''));
+                          proxyUrl.searchParams.set('url', imageUrl);
+                          fetchUrl = proxyUrl.toString();
+                        } else {
+                          fetchUrl = imageUrl;
+                        }
+                        
                         const response = await fetch(fetchUrl);
                         if (!response.ok) {
                           console.debug('Image fetch failed', fetchUrl, response.status, response.statusText);
@@ -308,25 +382,25 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
    (async () => {
      try {
-       const newImageIds = await Promise.all(
-         qcImages.map(async (img) => {
-           const id = generateUUID();
-           await db.saveImage(id, img);
-           return id;
-         })
-       );
+       // Parallel operations: save new images and load previous images simultaneously
+       const [newImageIds, previousImages, refImages] = await Promise.all([
+         Promise.all(
+           qcImages.map(async (img) => {
+             const id = generateUUID();
+             await db.saveImage(id, img);
+             return id;
+           })
+         ),
+         Promise.all((product.qcBatches || []).flatMap(b => b.imageIds).map(id => db.getImage(id))),
+         Promise.all((product.referenceImageIds || []).map(id => db.getImage(id)))
+       ]);
 
-       const batches = product.qcBatches || [];
-       const previousBatchIds = batches.flatMap(b => b.imageIds);
-       const previousImages = await Promise.all(previousBatchIds.map(id => db.getImage(id)));
        const validPrevImages = previousImages.filter(Boolean) as string[];
        const allQCRawImages = [...validPrevImages, ...qcImages];
-       const allQCImageIds = [...previousBatchIds, ...newImageIds];
-
-       const refImageIds = product.referenceImageIds || [];
-       const refImages = await Promise.all(refImageIds.map(id => db.getImage(id)));
+       const allQCImageIds = [...(product.qcBatches || []).flatMap(b => b.imageIds), ...newImageIds];
        const validRefImages = refImages.filter(Boolean) as string[];
 
+       // Convert reference images to base64 in parallel
        const refImagesAsBase64 = await Promise.all(
          validRefImages.map(async (url) => {
            try {
@@ -349,20 +423,20 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
        const preliminaryReport = await runQCAnalysis(apiKey, product.profile, validRefImagesAsBase64, allQCRawImages, allQCImageIds, settings, qcUserComments);
 
-       // Generate comparison images for each QC image
-       const sectionComparisons = await generateAndStoreComparisonImages(
-         validRefImages,
-         allQCRawImages,
-         product.referenceImageIds
-       );
+       // Generate comparison images and update product in parallel
+       const [sectionComparisons] = await Promise.all([
+         generateAndStoreComparisonImages(product, allQCRawImages, preliminaryReport),
+         (async () => {
+           const newBatch: QCBatch = { id: generateUUID(), timestamp: Date.now(), imageIds: newImageIds };
+           const updatedProduct = {
+             ...product,
+             qcBatches: [...(product.qcBatches || []), newBatch],
+           };
+           await updateProduct(updatedProduct);
+         })()
+       ]);
+       
        preliminaryReport.sectionComparisons = sectionComparisons;
-
-       const newBatch: QCBatch = { id: generateUUID(), timestamp: Date.now(), imageIds: newImageIds };
-       const updatedProduct = {
-         ...product,
-         qcBatches: [...(product.qcBatches || []), newBatch],
-       };
-       await updateProduct(updatedProduct);
 
        setTasks(prev => prev.map(t => t.id === taskId ? { 
          ...t, 
@@ -388,8 +462,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         const product = products.find(p => p.id === task.meta.targetId);
         if (!product) throw new Error("Product not found for task");
 
-        const refImageIds = product.referenceImageIds || [];
-        const refImages = await Promise.all(refImageIds.map(id => db.getImage(id)));
+        const allQCRawImages = task.meta.allQCRawImages || [];
+        const allQCImageIds = task.meta.allQCImageIds || [];
+
+        // Load and convert reference images in parallel
+        const refImages = await Promise.all((product.referenceImageIds || []).map(id => db.getImage(id)));
         const validRefImages = refImages.filter(Boolean) as string[];
 
         const refImagesAsBase64 = await Promise.all(
@@ -412,9 +489,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         );
         const validRefImagesAsBase64 = refImagesAsBase64.filter(Boolean);
 
-        const allQCRawImages = task.meta.allQCRawImages || [];
-        const allQCImageIds = task.meta.allQCImageIds || [];
-
         const finalReport = await runFinalQCAnalysis(
           apiKey,
           product.profile,
@@ -426,19 +500,19 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           userComments
         );
         
-        // Generate comparison images for final report
-        const sectionComparisons = await generateAndStoreComparisonImages(
-          validRefImages,
-          allQCRawImages,
-          product.referenceImageIds
-        );
-        finalReport.sectionComparisons = sectionComparisons;
+        // Generate comparison images and update product in parallel
+        const [sectionComparisons] = await Promise.all([
+          generateAndStoreComparisonImages(product, allQCRawImages, finalReport),
+          (async () => {
+            const updatedProduct = {
+              ...product,
+              reports: [...(product.reports || []), finalReport],
+            };
+            await updateProduct(updatedProduct);
+          })()
+        ]);
         
-        const updatedProduct = {
-          ...product,
-          reports: [...(product.reports || []), finalReport],
-        };
-        await updateProduct(updatedProduct);
+        finalReport.sectionComparisons = sectionComparisons;
 
         setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'COMPLETED', result: finalReport } : t));
       } catch (err: any) {

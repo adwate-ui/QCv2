@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { getPublicImageUrl } from '../services/db';
@@ -124,7 +124,7 @@ export const ProductDetailPage: React.FC = () => {
   const sortedReports = (product.reports || []).slice().sort((a, b) => b.generatedAt - a.generatedAt);
   const currentReport = sortedReports.find(r => r.id === selectedReportId) || sortedReports[0];
   
-  const ReportCard: React.FC<{ report: QCReport; previous?: QCReport; refImages: string[]; expanded?: boolean; onToggle?: (id: string) => void }> = ({ report, previous, refImages, expanded = false, onToggle }) => {
+  const ReportCard = React.memo<{ report: QCReport; previous?: QCReport; refImages: string[]; expanded?: boolean; onToggle?: (id: string) => void }>(({ report, previous, refImages, expanded = false, onToggle }) => {
     const [imgs, setImgs] = useState<string[]>([]);
     const [comparisonImgs, setComparisonImgs] = useState<string[]>([]);
     const { user } = useApp();
@@ -133,7 +133,7 @@ export const ProductDetailPage: React.FC = () => {
       if (!report.qcImageIds || report.qcImageIds.length === 0 || !user?.id) return;
       const imageUrls = report.qcImageIds.map(id => getPublicImageUrl(user.id!, id));
       setImgs(imageUrls);
-    }, [report, user?.id]);
+    }, [report.qcImageIds, user?.id]);
 
     useEffect(() => {
       // Load comparison images if they exist
@@ -158,13 +158,13 @@ export const ProductDetailPage: React.FC = () => {
       };
       
       loadComparisonImages();
-    }, [report, user?.id]);
+    }, [report.sectionComparisons, user?.id]);
 
-    const gradeToClasses = (grade: string) => {
+    const gradeToClasses = useCallback((grade: string) => {
       if (grade === 'PASS') return { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-100' };
       if (grade === 'FAIL') return { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-100' };
       return { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-100' };
-    };
+    }, []);
 
     return (
       <div className={`bg-white rounded-2xl shadow-sm border p-6 mb-6 ${expanded ? 'ring-2 ring-primary/30' : ''}`}>
@@ -215,20 +215,6 @@ export const ProductDetailPage: React.FC = () => {
             </div>
           )}
 
-          {comparisonImgs.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">Side-by-Side Comparisons</h4>
-              <p className="text-xs text-gray-500 mb-2">Reference image (left) vs QC image (right) - Defects highlighted with red markers</p>
-              <div className="grid gap-3">
-                {comparisonImgs.map((src, i) => (
-                  <div key={i} className="cursor-pointer border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary/30" onClick={() => setSelectedImage(src)}>
-                    <img src={src} className="w-full h-auto" alt={`Comparison ${i + 1}`} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className="mb-4">
             <div className="text-sm text-gray-700 whitespace-pre-line">{report.summary}</div>
           </div>
@@ -237,6 +223,11 @@ export const ProductDetailPage: React.FC = () => {
             {report.sections.map((s, idx) => {
               const cls = gradeToClasses(s.grade);
               const observations = Array.isArray(s.observations) ? s.observations : parseObservations(s.observations as any);
+              
+              // Get comparison image for this section if it has discrepancies
+              const sectionComparison = report.sectionComparisons?.[s.sectionName];
+              const comparisonImgUrl = sectionComparison?.diffImageId ? getPublicImageUrl(user!.id!, sectionComparison.diffImageId) : null;
+              
               return (
                 <div key={idx} className="p-3 border rounded-lg bg-gray-50">
                   <div className="flex justify-between items-start mb-2">
@@ -246,6 +237,16 @@ export const ProductDetailPage: React.FC = () => {
                   <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
                     {observations.map((o, i) => (<li key={i}>{o}</li>))}
                   </ul>
+                  
+                  {comparisonImgUrl && s.grade !== 'PASS' && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <h5 className="text-xs font-semibold text-gray-600 mb-2">Side-by-Side Comparison</h5>
+                      <p className="text-xs text-gray-500 mb-2">Reference image (left) vs QC image (right) - Defects highlighted</p>
+                      <div className="cursor-pointer border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary/30" onClick={() => setSelectedImage(comparisonImgUrl)}>
+                        <img src={comparisonImgUrl} className="w-full h-auto" alt={`Comparison for ${s.sectionName}`} />
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -262,7 +263,12 @@ export const ProductDetailPage: React.FC = () => {
         </div>
       </div>
     );
-  };
+  }, (prevProps, nextProps) => {
+    // Custom comparison function to prevent unnecessary re-renders
+    return prevProps.report.id === nextProps.report.id &&
+           prevProps.expanded === nextProps.expanded &&
+           prevProps.refImages.length === nextProps.refImages.length;
+  });
 
   useEffect(() => {
     if (currentReport) setExpandedReportId(currentReport.id);
@@ -399,66 +405,82 @@ export const ProductDetailPage: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white p-6 rounded shadow mt-6">
-        <h3 className="font-bold mb-2">Run New Inspection</h3>
-        <p className="text-sm text-gray-500 mb-4">Drag, paste, or upload images to run a new inspection.</p>
+      {!isRunningQC && (
+        <div className="bg-white p-6 rounded shadow mt-6">
+          <h3 className="font-bold mb-2">Run New Inspection</h3>
+          <p className="text-sm text-gray-500 mb-4">Drag, paste, or upload images to run a new inspection.</p>
 
-        <div className="mb-4">
-              <label className="text-sm font-medium text-gray-700">Initial Comments</label>
-              <textarea
-                value={qcUserComments}
-                onChange={(e) => setQcUserComments(e.target.value)}
-                rows={3}
-                className="w-full mt-1 p-2 border border-gray-300 rounded-md"
-                placeholder="e.g., Check authenticity of the clasp..."
-              />
-            </div>
-
-            <div className="mb-4 flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Model</label>
-                <Toggle
-                  labelLeft="Flash 2.5"
-                  labelRight="Pro 3.0"
-                  value={localModelTier === ModelTier.DETAILED}
-                  onChange={(isDetailed) => setLocalModelTier(isDetailed ? ModelTier.DETAILED : ModelTier.FAST)}
+          <div className="mb-4">
+                <label className="text-sm font-medium text-gray-700">Initial Comments</label>
+                <textarea
+                  value={qcUserComments}
+                  onChange={(e) => setQcUserComments(e.target.value)}
+                  rows={3}
+                  className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                  placeholder="e.g., Check authenticity of the clasp..."
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Persona</label>
-                <Toggle
-                  labelLeft="Normal"
-                  labelRight="Expert"
-                  value={localExpertMode === ExpertMode.EXPERT}
-                  onChange={(isExpert) => setLocalExpertMode(isExpert ? ExpertMode.EXPERT : ExpertMode.NORMAL)}
-                />
+
+              <div className="mb-4 flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Toggle
+                    labelLeft="Flash 2.5"
+                    labelRight="Pro 3.0"
+                    value={localModelTier === ModelTier.DETAILED}
+                    onChange={(isDetailed) => setLocalModelTier(isDetailed ? ModelTier.DETAILED : ModelTier.FAST)}
+                  />
+                  <button 
+                    className="text-gray-400 hover:text-gray-600"
+                    title="Flash 2.5: Fast analysis (~30-40s). Pro 3.0: Detailed analysis with web search (~45-60s)."
+                    aria-label="Model information"
+                    type="button"
+                  >
+                    <Info size={16} />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Toggle
+                    labelLeft="Normal"
+                    labelRight="Expert"
+                    value={localExpertMode === ExpertMode.EXPERT}
+                    onChange={(isExpert) => setLocalExpertMode(isExpert ? ExpertMode.EXPERT : ExpertMode.NORMAL)}
+                  />
+                  <button 
+                    className="text-gray-400 hover:text-gray-600"
+                    title="Normal: Standard QC inspection. Expert: More thorough analysis with extended reasoning."
+                    aria-label="Persona information"
+                    type="button"
+                  >
+                    <Info size={16} />
+                  </button>
+                </div>
               </div>
+
+              <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop} className={`p-3 rounded border-2 border-dashed ${isDragging ? 'bg-indigo-50' : ''}`}>
+            <div className="flex gap-2 flex-wrap">
+              {qcImages.map((q, i) => (
+                <div key={i} onClick={() => setSelectedImage(q)} className="h-16 w-16 rounded overflow-hidden">
+                  <img src={q} className="h-full w-full object-cover" />
+                </div>
+              ))}
+
+              <label className="h-16 w-16 flex items-center justify-center cursor-pointer border rounded">
+                <input type="file" multiple accept="image/*" className="hidden" onChange={handleQCUpload} />
+                <Upload />
+              </label>
             </div>
-
-            <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop} className={`p-3 rounded border-2 border-dashed ${isDragging ? 'bg-indigo-50' : ''}`}>
-          <div className="flex gap-2 flex-wrap">
-            {qcImages.map((q, i) => (
-              <div key={i} onClick={() => setSelectedImage(q)} className="h-16 w-16 rounded overflow-hidden">
-                <img src={q} className="h-full w-full object-cover" />
-              </div>
-            ))}
-
-            <label className="h-16 w-16 flex items-center justify-center cursor-pointer border rounded">
-              <input type="file" multiple accept="image/*" className="hidden" onChange={handleQCUpload} />
-              <Upload />
-            </label>
           </div>
-        </div>
 
-        <button
-          onClick={executeQC}
-          disabled={qcImages.length === 0 || isRunningQC}
-          className={`mt-4 w-full py-2 rounded font-semibold flex items-center justify-center gap-2 ${qcImages.length === 0 || isRunningQC ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-primary text-white hover:bg-indigo-700'}`}
-        >
-          {isRunningQC ? <Loader2 className="animate-spin" size={18} /> : <Zap size={16} />}
-          <span>{isRunningQC ? 'Running...' : 'Start Background Analysis'}</span>
-        </button>
-      </div>
+          <button
+            onClick={executeQC}
+            disabled={qcImages.length === 0}
+            className={`mt-4 w-full py-2 rounded font-semibold flex items-center justify-center gap-2 ${qcImages.length === 0 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-primary text-white hover:bg-indigo-700'}`}
+          >
+            <Zap size={16} />
+            <span>Start Background Analysis</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };
