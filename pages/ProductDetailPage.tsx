@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { getPublicImageUrl } from '../services/db';
@@ -44,7 +44,7 @@ export const ProductDetailPage: React.FC = () => {
   
   const [feedbackTask, setFeedbackTask] = useState<BackgroundTask | null>(null);
   const [additionalComments, setAdditionalComments] = useState('');
-  const debouncedAdditionalComments = useDebounce(additionalComments, 300);
+  // Note: Debouncing can be added here if needed: const debouncedComments = useDebounce(additionalComments, 300);
 
   const activeQCTask = tasks.find(t => t.type === 'QC' && t.meta.targetId === id && t.status === 'PROCESSING');
   const isRunningQC = !!activeQCTask;

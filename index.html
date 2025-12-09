@@ -39,13 +39,23 @@
       
       /* Improve touch targets on mobile */
       @media (max-width: 768px) {
-        button, a, input, select, textarea {
+        button:not(.compact), 
+        a:not(.compact), 
+        input[type="checkbox"],
+        input[type="radio"],
+        select, 
+        textarea {
           min-height: 44px;
         }
         
-        /* Fix iOS input zoom */
-        input, select, textarea {
-          font-size: 16px !important;
+        /* Fix iOS input zoom - use specific selector */
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="number"],
+        select, 
+        textarea {
+          font-size: 16px;
         }
       }
       
