@@ -196,6 +196,18 @@ async function handleRequest(request) {
   }
 
   if (pathname.endsWith('/fetch-metadata')) {
+    // Handle CORS preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Max-Age': '86400'
+        }
+      });
+    }
+
     const target = url.searchParams.get('url');
     if (!target) return new Response(JSON.stringify({ error: 'missing url' }), { 
       status: 400,
@@ -211,9 +223,20 @@ async function handleRequest(request) {
     }
     
     try {
-      const resp = await fetch(target, { redirect: 'follow' });
+      const resp = await fetch(target, { 
+        redirect: 'follow',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; AuthentiQC/1.0; +https://authentiqc.app)',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        }
+      });
       if (!resp.ok) {
-        return new Response(JSON.stringify({ error: 'fetch failed', status: resp.status }), { 
+        return new Response(JSON.stringify({ 
+          error: 'fetch failed', 
+          status: resp.status,
+          statusText: resp.statusText,
+          message: `Failed to fetch URL (${resp.status} ${resp.statusText})`
+        }), { 
           status: 502,
           headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
         });
@@ -222,6 +245,8 @@ async function handleRequest(request) {
       const text = await resp.text();
 
       // Use regex-based parsing instead of DOMParser (which doesn't exist in Cloudflare Workers)
+      
+      // Open Graph images (og:image)
       const ogImgs = [];
       const ogImageRegex = /<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/gi;
       let match;
@@ -233,6 +258,19 @@ async function handleRequest(request) {
       const ogImageRegex2 = /<meta\s+content=["']([^"']+)["']\s+property=["']og:image["']/gi;
       while ((match = ogImageRegex2.exec(text)) !== null) {
         ogImgs.push(match[1]);
+      }
+      
+      // Twitter Card images (twitter:image)
+      const twitterImgs = [];
+      const twitterImageRegex = /<meta\s+(?:name|property)=["']twitter:image(?::src)?["']\s+content=["']([^"']+)["']/gi;
+      while ((match = twitterImageRegex.exec(text)) !== null) {
+        twitterImgs.push(match[1]);
+      }
+      
+      // Twitter Card images (reverse order)
+      const twitterImageRegex2 = /<meta\s+content=["']([^"']+)["']\s+(?:name|property)=["']twitter:image(?::src)?["']/gi;
+      while ((match = twitterImageRegex2.exec(text)) !== null) {
+        twitterImgs.push(match[1]);
       }
 
       // JSON-LD images
@@ -288,19 +326,35 @@ async function handleRequest(request) {
       };
 
       // Resolve and filter images
-      const allImages = [...ogImgs, ...ldImgs, ...imgTags]
+      const allImages = [...ogImgs, ...twitterImgs, ...ldImgs, ...imgTags]
         .map(resolveUrl)
         .filter(Boolean)
         .filter(url => {
-          // Filter out common tracking pixels and small images
+          // Filter out common tracking pixels, small images, and data URIs
           const lower = url.toLowerCase();
-          return !lower.includes('1x1') && 
+          return !lower.startsWith('data:') &&
+                 !lower.includes('1x1') && 
                  !lower.includes('tracking') && 
                  !lower.includes('pixel') &&
-                 !lower.includes('spacer.gif');
+                 !lower.includes('spacer.gif') &&
+                 !lower.includes('blank.gif') &&
+                 !lower.includes('transparent.gif') &&
+                 !lower.includes('logo.svg') && // Often small logos, not product images
+                 !lower.includes('icon') &&
+                 !lower.match(/\d+x\d+\.(gif|png)/) && // Small fixed-size images like 10x10.gif
+                 url.length < 2048; // Avoid extremely long URLs which are likely data URIs or malformed
         });
 
-      const images = Array.from(new Set(allImages)).slice(0, 12);
+      // Prioritize OG and Twitter images first as they're usually the main product image
+      const uniqueImages = Array.from(new Set(allImages));
+      const ogTwitterImages = uniqueImages.filter(url => 
+        ogImgs.includes(url) || twitterImgs.includes(url)
+      );
+      const otherImages = uniqueImages.filter(url => 
+        !ogImgs.includes(url) && !twitterImgs.includes(url)
+      );
+      
+      const images = [...ogTwitterImages, ...otherImages].slice(0, 12);
 
       return new Response(JSON.stringify({ images }), { 
         headers: { 

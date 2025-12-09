@@ -34,3 +34,11 @@ To deploy the worker:
 The worker provides the following endpoints:
 - `/fetch-metadata?url=<product_url>` - Fetches image URLs from a product page
 - `/proxy-image?url=<image_url>` - Proxies image requests with CORS headers
+
+### Troubleshooting Image Fetching
+
+If you're having issues with fetching images from product URLs, see the [Image Fetching Troubleshooting Guide](IMAGE_FETCHING_GUIDE.md) for:
+- How the multi-stage image fetching works
+- Common issues and solutions
+- Monitoring and debugging tips
+- Best practices for reliable results
