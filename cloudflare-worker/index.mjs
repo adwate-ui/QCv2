@@ -2,6 +2,10 @@ import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 import jpeg from 'jpeg-js';
 
+// Constants for retry and validation
+const BASE_RETRY_DELAY_MS = 1000;
+const MIN_VALID_IMAGE_SIZE = 100;
+
 // Validate URL to prevent SSRF attacks
 function isInternalUrl(urlString) {
   try {
@@ -112,7 +116,7 @@ async function handleRequest(request) {
           
           if (isRetriable && attempt < maxRetries) {
             // Wait before retrying (exponential backoff)
-            await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * BASE_RETRY_DELAY_MS));
             lastError = { status: resp.status };
             continue;
           }
@@ -214,7 +218,7 @@ async function handleRequest(request) {
         
         // Retry on network errors
         if (attempt < maxRetries && (e.name === 'TypeError' || e.message.includes('fetch'))) {
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * BASE_RETRY_DELAY_MS));
           continue;
         }
         
@@ -283,7 +287,7 @@ async function handleRequest(request) {
           
           if (isRetriable && attempt < maxRetries) {
             // Wait before retrying (exponential backoff)
-            await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * BASE_RETRY_DELAY_MS));
             lastError = { status: resp.status, statusText: resp.statusText };
             continue;
           }
@@ -305,7 +309,7 @@ async function handleRequest(request) {
         const body = await resp.arrayBuffer();
         
         // Validate that we got actual image data
-        if (!contentType.startsWith('image/') && body.byteLength < 100) {
+        if (!contentType.startsWith('image/') && body.byteLength < MIN_VALID_IMAGE_SIZE) {
           return new Response(JSON.stringify({ 
             error: 'invalid response', 
             message: `Expected image data but received ${contentType} with ${body.byteLength} bytes`
@@ -328,7 +332,7 @@ async function handleRequest(request) {
         
         // Retry on network errors
         if (attempt < maxRetries && (e.name === 'TypeError' || e.message.includes('fetch'))) {
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * BASE_RETRY_DELAY_MS));
           continue;
         }
         

@@ -52,9 +52,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if (sanitized.meta) {
         sanitized.meta = {
           ...sanitized.meta,
-          // Keep only essential metadata, remove image data
-          images: sanitized.meta.images ? [`${sanitized.meta.images.length} images`] : undefined,
-          allQCRawImages: sanitized.meta.allQCRawImages ? [`${sanitized.meta.allQCRawImages.length} images`] : undefined,
+          // Remove image data but keep count for reference
+          images: sanitized.meta.images ? [] : undefined,
+          allQCRawImages: sanitized.meta.allQCRawImages ? [] : undefined,
+          // Add image counts as separate metadata
+          imageCount: sanitized.meta.images?.length,
+          allQCRawImageCount: sanitized.meta.allQCRawImages?.length,
         };
       }
       
@@ -83,7 +86,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         const serialized = JSON.stringify(sanitized);
         
         // Check size before saving (localStorage typically has 5-10MB limit)
-        const sizeInBytes = new Blob([serialized]).size;
+        const sizeInBytes = new TextEncoder().encode(serialized).length;
         const maxSizeInBytes = 4 * 1024 * 1024; // 4MB safety limit
         
         if (sizeInBytes > maxSizeInBytes) {
