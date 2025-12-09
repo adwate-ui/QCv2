@@ -2,5 +2,6 @@ name = "authentiqc-worker"
 main = "index.mjs"
 compatibility_date = "2025-12-08"
 compatibility_flags = ["nodejs_compat"]
+workers_dev = true
 # Set your Cloudflare account id here (matches CF_ACCOUNT_ID secret)
 account_id = "72edc81c65cb5830f76c57e841831d7d"
