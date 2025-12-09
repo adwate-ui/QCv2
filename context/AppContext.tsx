@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, ReactNode } from 'react';
 import { User, Product, AppSettings, ModelTier, ExpertMode, BackgroundTask, QCBatch, QCReport } from '../types';
 import { db } from '../services/db';
 import { supabase } from '../services/supabase';
@@ -73,6 +73,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     expertMode: ExpertMode.NORMAL
   });
   const [tasks, setTasks] = useState<BackgroundTask[]>([]);
+
+  // Memoize existing categories to avoid recalculating on every identification
+  const existingCategories = useMemo(() => {
+    return [...new Set(products.map(p => p.profile.category).filter(Boolean))];
+  }, [products]);
 
   // Helper function to strip large image data from tasks before persisting
   const sanitizeTasksForStorage = (tasksToSave: BackgroundTask[]): BackgroundTask[] => {
@@ -542,16 +547,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           }
           
           // Step 4: Get observations for this section (limit for better readability)
-          const observations = Array.isArray(section.observations) 
-            ? section.observations.slice(0, MAX_OBSERVATIONS_FOR_COMPARISON) 
-            : [];
+          // NOTE: We don't pass observations to the comparison image anymore as per requirement
+          // The text observations are already shown in the section, no need to duplicate them
           
-          // Step 5: Generate side-by-side comparison with observations highlighted
+          // Step 5: Generate side-by-side comparison WITHOUT text observations
+          // Only visual comparison with highlighted areas (if bounding boxes were available)
           const comparisonImageData = await generateComparisonImage(
             referenceImageUrl, 
             qcImageSrc, 
             undefined, // No bounding boxes available from AI model
-            observations
+            undefined  // Don't duplicate observations in image - they're shown in section text
           );
           
           // Step 6: Save comparison image
@@ -868,7 +873,8 @@ To fix:
       }
     }
 
-    identifyProduct(apiKey, imagesToUse, url, settings)
+    // Use memoized existing categories for better performance
+    identifyProduct(apiKey, imagesToUse, url, settings, existingCategories)
         .then(async (profile) => {
             // Use imagesToUse which may contain scraped images
             let finalImages = imagesToUse;
