@@ -527,6 +527,7 @@ export const runQCAnalysis = async (
       qcImageIds: qcImageIds, // <-- ADD THIS
       modelTier: settings.modelTier,
       expertMode: settings.expertMode,
+      userComments: qcUserComments, // Store initial user comments
       ...result
     };
   } catch (error) {
