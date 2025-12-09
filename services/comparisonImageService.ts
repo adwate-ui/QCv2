@@ -38,11 +38,15 @@ const drawHighlight = (
   ctx.lineWidth = 3;
   ctx.strokeRect(x, y, width, height);
 
-  // Draw arrow pointing to the issue (simple arrow from top-left)
+  // Draw arrow pointing to the issue (with bounds checking)
+  const arrowSize = 20;
+  const arrowOffsetX = Math.max(arrowSize, x);
+  const arrowOffsetY = Math.max(arrowSize, y);
+  
   ctx.fillStyle = '#EF4444';
   ctx.beginPath();
-  const arrowX = x - 20;
-  const arrowY = y - 20;
+  const arrowX = arrowOffsetX - arrowSize;
+  const arrowY = arrowOffsetY - arrowSize;
   ctx.moveTo(arrowX, arrowY);
   ctx.lineTo(arrowX + 10, arrowY - 10);
   ctx.lineTo(arrowX + 5, arrowY - 10);
@@ -78,23 +82,21 @@ export const generateComparisonImage = async (
     const refAspect = refImg.width / refImg.height;
     const qcAspect = qcImg.width / qcImg.height;
 
-    let refHeight = Math.min(refImg.height, maxHeight);
-    let refWidth = refHeight * refAspect;
+    const refScaledHeight = Math.min(refImg.height, maxHeight);
+    const refScaledWidth = refScaledHeight * refAspect;
     
-    let qcHeight = Math.min(qcImg.height, maxHeight);
-    let qcWidth = qcHeight * qcAspect;
+    const qcScaledHeight = Math.min(qcImg.height, maxHeight);
+    const qcScaledWidth = qcScaledHeight * qcAspect;
 
-    // Make both images the same height
-    const finalHeight = Math.max(refHeight, qcHeight);
-    refHeight = finalHeight;
-    refWidth = finalHeight * refAspect;
-    qcHeight = finalHeight;
-    qcWidth = finalHeight * qcAspect;
+    // Make both images the same height for better comparison
+    const finalHeight = Math.max(refScaledHeight, qcScaledHeight);
+    const finalRefWidth = finalHeight * refAspect;
+    const finalQcWidth = finalHeight * qcAspect;
 
     // Create canvas with padding between images
     const padding = 40;
     const canvas = document.createElement('canvas');
-    canvas.width = refWidth + qcWidth + padding * 3;
+    canvas.width = finalRefWidth + finalQcWidth + padding * 3;
     canvas.height = finalHeight + padding * 2;
 
     const ctx = canvas.getContext('2d');
@@ -110,20 +112,20 @@ export const generateComparisonImage = async (
     ctx.fillStyle = '#1F2937';
     ctx.font = 'bold 16px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Reference (Authentic)', padding + refWidth / 2, 25);
-    ctx.fillText('QC Image', padding * 2 + refWidth + qcWidth / 2, 25);
+    ctx.fillText('Reference (Authentic)', padding + finalRefWidth / 2, 25);
+    ctx.fillText('QC Image', padding * 2 + finalRefWidth + finalQcWidth / 2, 25);
 
     // Draw reference image
-    ctx.drawImage(refImg, padding, padding, refWidth, refHeight);
+    ctx.drawImage(refImg, padding, padding, finalRefWidth, finalHeight);
 
     // Draw QC image
-    const qcOffsetX = padding * 2 + refWidth;
-    ctx.drawImage(qcImg, qcOffsetX, padding, qcWidth, qcHeight);
+    const qcOffsetX = padding * 2 + finalRefWidth;
+    ctx.drawImage(qcImg, qcOffsetX, padding, finalQcWidth, finalHeight);
 
     // Draw highlights on QC image if discrepancies are provided
     if (discrepancies && discrepancies.length > 0) {
       discrepancies.forEach(bbox => {
-        drawHighlight(ctx, bbox, qcWidth, qcHeight, qcOffsetX);
+        drawHighlight(ctx, bbox, finalQcWidth, finalHeight, qcOffsetX);
       });
     }
 
