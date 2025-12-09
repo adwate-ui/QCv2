@@ -4,6 +4,7 @@ import { db } from '../services/db';
 import { supabase } from '../services/supabase';
 import { identifyProduct, runQCAnalysis, runFinalQCAnalysis } from '../services/geminiService';
 import { generateUUID } from '../services/utils';
+import { generateComparisonImage } from '../services/comparisonImageService';
 
 interface AppContextType {
   user: User | null;
@@ -310,6 +311,39 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
        const preliminaryReport = await runQCAnalysis(apiKey, product.profile, validRefImagesAsBase64, allQCRawImages, allQCImageIds, settings, qcUserComments);
 
+       // Generate comparison images for each QC image
+       const sectionComparisons: Record<string, { authImageId?: string; diffImageId?: string; diffScore?: number }> = {};
+       
+       // Generate a comparison image for each QC image against the first reference image
+       if (validRefImages.length > 0 && allQCRawImages.length > 0) {
+         try {
+           for (let i = 0; i < allQCRawImages.length; i++) {
+             const qcImageSrc = allQCRawImages[i];
+             const refImageSrc = validRefImages[0]; // Use first reference image
+             
+             // Generate side-by-side comparison
+             const comparisonImageData = await generateComparisonImage(refImageSrc, qcImageSrc);
+             
+             // Save comparison image
+             const comparisonImageId = generateUUID();
+             await db.saveImage(comparisonImageId, comparisonImageData);
+             
+             // Map to section (use QC image index as section identifier)
+             const sectionKey = `qc_image_${i + 1}`;
+             sectionComparisons[sectionKey] = {
+               authImageId: product.referenceImageIds[0],
+               diffImageId: comparisonImageId
+             };
+           }
+           
+           // Add comparisons to the report
+           preliminaryReport.sectionComparisons = sectionComparisons;
+         } catch (error) {
+           console.error('Error generating comparison images:', error);
+           // Continue without comparison images if generation fails
+         }
+       }
+
        const newBatch: QCBatch = { id: generateUUID(), timestamp: Date.now(), imageIds: newImageIds };
        const updatedProduct = {
          ...product,
@@ -378,6 +412,32 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           task.preliminaryReport,
           userComments
         );
+        
+        // Generate comparison images for final report
+        const sectionComparisons: Record<string, { authImageId?: string; diffImageId?: string; diffScore?: number }> = {};
+        
+        if (validRefImages.length > 0 && allQCRawImages.length > 0) {
+          try {
+            for (let i = 0; i < allQCRawImages.length; i++) {
+              const qcImageSrc = allQCRawImages[i];
+              const refImageSrc = validRefImages[0];
+              
+              const comparisonImageData = await generateComparisonImage(refImageSrc, qcImageSrc);
+              const comparisonImageId = generateUUID();
+              await db.saveImage(comparisonImageId, comparisonImageData);
+              
+              const sectionKey = `qc_image_${i + 1}`;
+              sectionComparisons[sectionKey] = {
+                authImageId: product.referenceImageIds[0],
+                diffImageId: comparisonImageId
+              };
+            }
+            
+            finalReport.sectionComparisons = sectionComparisons;
+          } catch (error) {
+            console.error('Error generating comparison images:', error);
+          }
+        }
         
         const updatedProduct = {
           ...product,
