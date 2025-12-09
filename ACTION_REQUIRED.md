@@ -33,7 +33,7 @@ npx wrangler@4 deploy index.mjs --name authentiqc-worker
 
 ### Step 2: Add GitHub Secret
 
-1. Go to your repository: https://github.com/adwate-ui/QCv2
+1. Go to your repository on GitHub
 2. Navigate to: **Settings** → **Secrets and variables** → **Actions**
 3. Click: **New repository secret**
 4. Enter:

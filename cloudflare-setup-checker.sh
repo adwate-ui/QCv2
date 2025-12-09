@@ -54,8 +54,15 @@ if [ -z "$WORKER_URL" ]; then
     exit 1
 fi
 
+# Validate URL format to prevent command injection
+if ! [[ "$WORKER_URL" =~ ^https?:// ]]; then
+    echo -e "${RED}❌ Invalid URL format. Must start with http:// or https://${NC}"
+    exit 1
+fi
+
 echo "Testing worker endpoint..."
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${WORKER_URL}/fetch-metadata?url=https://example.com" || echo "000")
+# Use -- to prevent curl from interpreting URL as options
+HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -- "${WORKER_URL}/fetch-metadata?url=https://example.com" || echo "000")
 
 if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 400 ] || [ "$HTTP_STATUS" -eq 500 ]; then
     echo -e "${GREEN}✓ Worker is accessible and responding${NC}"
@@ -96,8 +103,14 @@ if [ -z "$PAGES_URL" ]; then
     echo -e "${YELLOW}⚠️  Cloudflare Pages URL not provided${NC}"
     echo "You can check it later in Cloudflare Dashboard → Workers & Pages"
 else
+    # Validate URL format
+    if ! [[ "$PAGES_URL" =~ ^https?:// ]]; then
+        echo -e "${RED}❌ Invalid URL format. Must start with http:// or https://${NC}"
+        exit 1
+    fi
     echo "Testing Cloudflare Pages..."
-    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PAGES_URL" || echo "000")
+    # Use -- to prevent curl from interpreting URL as options
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -- "$PAGES_URL" || echo "000")
     
     if [ "$HTTP_STATUS" -eq 200 ]; then
         echo -e "${GREEN}✓ Cloudflare Pages is accessible${NC}"

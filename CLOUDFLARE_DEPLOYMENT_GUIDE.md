@@ -10,6 +10,17 @@ The application consists of two parts:
 
 Both parts need to be deployed and properly configured for the image fetching feature to work.
 
+### ⚠️ Important: Vite Environment Variables
+
+**Critical concept**: Environment variables starting with `VITE_` (like `VITE_IMAGE_PROXY_URL`) are **embedded into the build at build time**, not at runtime. This means:
+
+- They must be set **during the build process** (in GitHub Actions or your build command)
+- Setting them in Cloudflare Pages environment variables dashboard **will NOT work** for Vite builds
+- They become part of the compiled JavaScript bundle
+- Once built, they cannot be changed without rebuilding
+
+This is why the GitHub Actions workflow passes `VITE_IMAGE_PROXY_URL` as an environment variable during the `npm run build` step.
+
 ## Prerequisites
 
 - A Cloudflare account (free tier works)
