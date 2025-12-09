@@ -319,6 +319,34 @@ async function handleRequest(request) {
     return new Response(JSON.stringify({ url: target, results }), { headers: { 'content-type': 'application/json' } });
   }
 
+  if (pathname.endsWith('/search-image')) {
+    const query = url.searchParams.get('query');
+    if (!query) return new Response(JSON.stringify({ error: 'missing query' }), { status: 400 });
+    
+    try {
+      // Use Google Custom Search API or similar service to search for images
+      // For this implementation, we'll use a simplified approach
+      // In production, you'd integrate with Google Custom Search API, Bing Image Search API, etc.
+      
+      // This is a placeholder implementation that returns a mock response
+      // In production, replace this with actual image search API integration
+      const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch`;
+      
+      // Return a placeholder response indicating search should be implemented
+      return new Response(JSON.stringify({ 
+        error: 'Image search API not yet configured',
+        query: query,
+        suggestion: 'Please configure Google Custom Search API or Bing Image Search API',
+        placeholder: true
+      }), { 
+        status: 501,
+        headers: { 'content-type': 'application/json' } 
+      });
+    } catch (e) {
+      return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+    }
+  }
+
   if (pathname.endsWith('/diff')) {
     // Query params: imageA, imageB (URLs)
     const imageA = url.searchParams.get('imageA');

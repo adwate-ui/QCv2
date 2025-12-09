@@ -98,15 +98,20 @@ export interface BackgroundTask {
   preliminaryReport?: QCReport;
 }
 
+export interface BoundingBox {
+  ymin: number;
+  xmin: number;
+  ymax: number;
+  xmax: number;
+}
+
 export interface Discrepancy {
-  id: string;
   description: string;
-  severity: 'critical' | 'major' | 'minor';
-  boundingBox: [number, number, number, number]; // [ymin, xmin, ymax, xmax] normalized to 0-1000
+  boundingBox: BoundingBox;
 }
 
 export interface QCAnalysisResult {
-  score: number;
+  score: number; // 0-100
   summary: string;
   discrepancies: Discrepancy[];
 }
