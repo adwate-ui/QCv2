@@ -530,7 +530,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   // Maximum number of images to fetch from a product URL
-  const MAX_IMAGES_FROM_URL = 5;
+  const MAX_IMAGES_FROM_URL = 1;
 
   // Helper function to check if a response is JSON based on content-type
   const isJsonResponse = (response: Response): boolean => {
@@ -668,9 +668,9 @@ To fix:
         return { images: [], error };
       }
 
-      console.log(`[Image Fetch] Found ${metadata.images.length} images on page, fetching up to ${MAX_IMAGES_FROM_URL}`);
+      console.log(`[Image Fetch] Found ${metadata.images.length} images on page, fetching the most relevant image (limit: ${MAX_IMAGES_FROM_URL})`);
 
-      // Fetch up to MAX_IMAGES_FROM_URL images from the page through the proxy
+      // Fetch only the most relevant image from the page through the proxy
       const imageUrls = metadata.images.slice(0, MAX_IMAGES_FROM_URL);
       const fetchedImages = await Promise.all(
         imageUrls.map(async (imageUrl: string, index: number) => {
@@ -944,7 +944,13 @@ To fix:
        const refImagesAsBase64 = await Promise.all(
          validRefImages.map(async (url) => {
            try {
-             const response = await fetch(url);
+              // If it's already a data URL, return it as-is
+              if (url.startsWith('data:')) {
+                return url;
+              }
+              
+              // Otherwise, fetch the HTTP URL and convert to base64
+              const response = await fetch(url);
              if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
              const blob = await response.blob();
              return new Promise<string>((resolve, reject) => {
@@ -1015,6 +1021,12 @@ To fix:
         const refImagesAsBase64 = await Promise.all(
           validRefImages.map(async (url) => {
             try {
+              // If it's already a data URL, return it as-is
+              if (url.startsWith('data:')) {
+                return url;
+              }
+              
+              // Otherwise, fetch the HTTP URL and convert to base64
               const response = await fetch(url);
               if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
               const blob = await response.blob();
