@@ -42,6 +42,51 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   });
   const [tasks, setTasks] = useState<BackgroundTask[]>([]);
 
+  // Save tasks to localStorage whenever they change
+  useEffect(() => {
+    if (tasks.length > 0) {
+      try {
+        localStorage.setItem('authentiqc_tasks', JSON.stringify(tasks));
+      } catch (e) {
+        console.error('Failed to persist tasks:', e);
+      }
+    }
+  }, [tasks]);
+
+  // Restore tasks from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedTasks = localStorage.getItem('authentiqc_tasks');
+      if (savedTasks) {
+        const parsedTasks = JSON.parse(savedTasks);
+        // Only restore tasks that are still processing or awaiting feedback
+        const activeTasks = parsedTasks.filter((t: BackgroundTask) => 
+          t.status === 'PROCESSING' || t.status === 'AWAITING_FEEDBACK'
+        );
+        if (activeTasks.length > 0) {
+          setTasks(activeTasks);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to restore tasks:', e);
+    }
+  }, []);
+
+  // Add beforeunload warning if there are active tasks
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const activeTasks = tasks.filter(t => t.status === 'PROCESSING');
+      if (activeTasks.length > 0) {
+        e.preventDefault();
+        e.returnValue = 'You have active QC inspections running. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [tasks]);
+
   useEffect(() => {
     // This function runs once on initial app load.
     const checkSession = async () => {
@@ -96,6 +141,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         console.error("Login Error:", error.message);
         return { success: false, message: error.message };
     }
+    // Load products immediately after successful login
+    await loadProducts();
     return { success: true };
   };
 
