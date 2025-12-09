@@ -139,7 +139,7 @@ class ScopedLogger {
   }
 
   performance(operation: string, duration: number, context?: LogContext): void {
-    this.logger.performance(operation, context);
+    this.logger.performance(operation, duration, context);
   }
 }
 
