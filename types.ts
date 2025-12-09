@@ -97,3 +97,16 @@ export interface BackgroundTask {
   };
   preliminaryReport?: QCReport;
 }
+
+export interface Discrepancy {
+  id: string;
+  description: string;
+  severity: 'critical' | 'major' | 'minor';
+  boundingBox: number[]; // [ymin, xmin, ymax, xmax] normalized to 0-1000
+}
+
+export interface QCAnalysisResult {
+  score: number;
+  summary: string;
+  discrepancies: Discrepancy[];
+}
