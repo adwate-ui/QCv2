@@ -47,14 +47,17 @@ async function handleRequest(request) {
     try {
       // Some hosts block non-browser user agents or require referer headers.
       const targetUrl = new URL(target);
+      // Allow optional override of Referer and User-Agent via query params for testing
+      const refererOverride = url.searchParams.get('referer');
+      const uaOverride = url.searchParams.get('ua');
+      const acceptOverride = url.searchParams.get('accept');
+
       const fetchOpts = {
         redirect: 'follow',
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; AuthentiQC/1.0; +https://example.com)',
-          'Accept': 'image/*,*/*;q=0.8',
-          // Some hosts require a Referer header that looks like a normal browser page to permit hotlinking.
-          // Use the origin of the target URL as a reasonable referer value.
-          'Referer': targetUrl.origin
+          'User-Agent': uaOverride || 'Mozilla/5.0 (compatible; AuthentiQC/1.0; +https://example.com)',
+          'Accept': acceptOverride || 'image/*,*/*;q=0.8',
+          'Referer': refererOverride || targetUrl.origin
         }
       };
 
@@ -77,6 +80,54 @@ async function handleRequest(request) {
     } catch (e) {
       return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
     }
+  }
+
+  // Test endpoint: tries different header strategies and reports back status/headers
+  if (pathname.endsWith('/proxy-test')) {
+    const target = url.searchParams.get('url');
+    if (!target) return new Response(JSON.stringify({ error: 'missing url' }), { status: 400 });
+
+    const mode = url.searchParams.get('mode') || 'referer_origin';
+    const results = [];
+
+    const strategies = {
+      referer_origin: {
+        'User-Agent': 'Mozilla/5.0 (compatible; AuthentiQC/1.0; +https://example.com)',
+        'Accept': 'image/*,*/*;q=0.8',
+        'Referer': new URL(target).origin
+      },
+      no_headers: {},
+      fake_ua: {
+        'User-Agent': 'curl/7.79.1',
+        'Referer': new URL(target).origin
+      },
+      custom_referer: {
+        'User-Agent': 'Mozilla/5.0 (compatible; AuthentiQC/1.0; +https://example.com)',
+        'Referer': 'https://example.com'
+      }
+    };
+
+    const tryStrategy = async (name, headers) => {
+      try {
+        const resp = await fetch(target, { redirect: 'follow', headers });
+        const ct = resp.headers.get('content-type');
+        return { name, status: resp.status, statusText: resp.statusText, contentType: ct };
+      } catch (e) {
+        return { name, error: String(e) };
+      }
+    };
+
+    if (mode === 'all') {
+      for (const k of Object.keys(strategies)) {
+        // eslint-disable-next-line no-await-in-loop
+        results.push(await tryStrategy(k, strategies[k]));
+      }
+    } else {
+      const strat = strategies[mode] || strategies['referer_origin'];
+      results.push(await tryStrategy(mode, strat));
+    }
+
+    return new Response(JSON.stringify({ url: target, results }), { headers: { 'content-type': 'application/json' } });
   }
 
   if (pathname.endsWith('/diff')) {
