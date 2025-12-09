@@ -109,7 +109,6 @@ const normalizeCategory = (category: string): string => {
     'ipad': 'tablet',
     'laptop': 'computer',
     'desktop': 'computer',
-    'sunglass': 'sunglass',
     'eyewear': 'sunglass',
     'jewellery': 'jewelry',
     'jewel': 'jewelry',
