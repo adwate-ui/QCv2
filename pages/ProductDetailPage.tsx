@@ -44,7 +44,7 @@ export const ProductDetailPage: React.FC = () => {
   
   const [feedbackTask, setFeedbackTask] = useState<BackgroundTask | null>(null);
   const [additionalComments, setAdditionalComments] = useState('');
-  // Note: Debouncing can be added here if needed: const debouncedComments = useDebounce(additionalComments, 300);
+  const debouncedComments = useDebounce(additionalComments, 300);
 
   const activeQCTask = tasks.find(t => t.type === 'QC' && t.meta.targetId === id && t.status === 'PROCESSING');
   const isRunningQC = !!activeQCTask;
@@ -308,7 +308,7 @@ export const ProductDetailPage: React.FC = () => {
           <div className="bg-white rounded-lg shadow-xl p-4 md:p-6 w-full max-w-2xl max-h-[90vh] flex flex-col">
             <h2 className="text-lg md:text-xl font-bold mb-3 md:mb-4">Preliminary Report - Provide Feedback</h2>
             <div className="flex-1 overflow-y-auto p-3 md:p-4 bg-gray-50 rounded">
-              <ReportCard report={feedbackTask.preliminaryReport} refImages={refImages} expanded={true} />
+              <ReportCard key={feedbackTask.preliminaryReport.id} report={feedbackTask.preliminaryReport} refImages={refImages} expanded={true} />
             </div>
             <div className="mt-3 md:mt-4">
               <label className="text-sm font-medium text-gray-700">Additional Comments</label>
