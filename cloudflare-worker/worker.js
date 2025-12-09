@@ -6,6 +6,53 @@ async function handleRequest(request) {
   const url = new URL(request.url);
   const pathname = url.pathname.replace(/\/+$/, '');
 
+  // Handle CORS preflight requests
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Max-Age': '86400'
+      }
+    });
+  }
+
+  // Handle /proxy endpoint - simple image/blob proxy with CORS
+  if (pathname.endsWith('/proxy')) {
+    const target = url.searchParams.get('url');
+    if (!target) return new Response(JSON.stringify({ error: 'missing url parameter' }), { 
+      status: 400,
+      headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+    });
+    
+    try {
+      const resp = await fetch(target, { redirect: 'follow' });
+      if (!resp.ok) {
+        return new Response(JSON.stringify({ error: 'fetch failed', status: resp.status, statusText: resp.statusText }), {
+          status: 502,
+          headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+        });
+      }
+
+      const contentType = resp.headers.get('content-type') || 'application/octet-stream';
+      const body = await resp.arrayBuffer();
+
+      return new Response(body, {
+        headers: {
+          'content-type': contentType,
+          'access-control-allow-origin': '*',
+          'cache-control': 'public, max-age=3600'
+        }
+      });
+    } catch (e) {
+      return new Response(JSON.stringify({ error: String(e) }), {
+        status: 500,
+        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+      });
+    }
+  }
+
   if (pathname.endsWith('/fetch-metadata')) {
     const target = url.searchParams.get('url');
     if (!target) return new Response(JSON.stringify({ error: 'missing url' }), { status: 400 });
