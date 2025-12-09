@@ -26,6 +26,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
         run: |
-          # Use Wrangler v4 and `deploy` (replaces deprecated `publish`).
-          # Pass an explicit compatibility date required by Wrangler v4.
-          npx wrangler@4 deploy cloudflare-worker/index.mjs --name authentiqc-worker --compatibility-date 2025-12-08
+          # Deploy from the cloudflare-worker directory to ensure wrangler.toml is used
+          # This ensures compatibility flags (nodejs_compat) are properly applied
+          cd cloudflare-worker
+          npx wrangler@4 deploy

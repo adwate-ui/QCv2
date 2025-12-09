@@ -530,7 +530,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   // Maximum number of images to fetch from a product URL
-  const MAX_IMAGES_FROM_URL = 1;
+  const MAX_IMAGES_FROM_URL = 5;
 
   // Helper function to check if a response is JSON based on content-type
   const isJsonResponse = (response: Response): boolean => {
