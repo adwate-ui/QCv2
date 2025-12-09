@@ -455,8 +455,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         const qcImageSrc = allQCRawImages[Math.min(i, allQCRawImages.length - 1)];
         const refImageSrc = referenceImages[0]; // Use first reference image
         
-        // Generate side-by-side comparison
-        const comparisonImageData = await generateComparisonImage(refImageSrc, qcImageSrc);
+        // Get observations for this section
+        const observations = Array.isArray(section.observations) ? section.observations : [];
+        
+        // Generate side-by-side comparison with observations
+        const comparisonImageData = await generateComparisonImage(refImageSrc, qcImageSrc, undefined, observations);
         
         // Save comparison image
         const comparisonImageId = generateUUID();

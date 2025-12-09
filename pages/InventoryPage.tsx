@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { getPublicImageUrl, db } from '../services/db';
 import { Product } from '../types';
 import { Link } from 'react-router-dom';
-import { Plus, Search, Tag, Filter, CheckCircle, XCircle, AlertTriangle, Clock, Trash2, LayoutGrid } from 'lucide-react';
+import { Plus, Search, Tag, Filter, CheckCircle, XCircle, AlertTriangle, Clock, Trash2, LayoutGrid, ChevronDown } from 'lucide-react';
 
 type FilterType = 'ALL' | 'PASS' | 'FAIL' | 'CAUTION' | 'PENDING';
 
@@ -57,6 +57,10 @@ export const InventoryPage = () => {
   const [gridSize, setGridSize] = useState(() => {
     const savedGridSize = localStorage.getItem('inventoryGridSize');
     return savedGridSize ? parseInt(savedGridSize, 10) : 3;
+  });
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('inventoryCollapsedSections');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
   });
 
   const gridColsClass = gridSize === 2 ? "md:grid-cols-2" : 
@@ -188,6 +192,22 @@ export const InventoryPage = () => {
     localStorage.setItem('inventoryGridSize', gridSize.toString());
   }, [gridSize]);
 
+  useEffect(() => {
+    localStorage.setItem('inventoryCollapsedSections', JSON.stringify(Array.from(collapsedSections)));
+  }, [collapsedSections]);
+
+  const toggleSection = (category: string) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  };
+
   if (!user?.apiKey) {
     return (
       <div className="text-center mt-20 p-6">
@@ -284,12 +304,23 @@ export const InventoryPage = () => {
         </div>
       ) : (
         <div className="space-y-6 md:space-y-8">
-          {Object.entries(groupedProducts).map(([category, prods]: [string, Product[]]) => (
-            <div key={category}>
-              <h3 className="flex items-center gap-2 text-base md:text-lg font-bold text-slate-800 mb-3 md:mb-4 bg-gray-100 p-2 rounded-lg inline-block px-3 md:px-4">
-                <Tag size={16} /> {category}
-              </h3>
-              <div className={`grid grid-cols-2 ${gridColsClass} gap-3 md:gap-4`}>
+          {Object.entries(groupedProducts).map(([category, prods]: [string, Product[]]) => {
+            const isCollapsed = collapsedSections.has(category);
+            return (
+              <div key={category}>
+                <button 
+                  onClick={() => toggleSection(category)}
+                  className="flex items-center gap-2 text-base md:text-lg font-bold text-slate-800 mb-3 md:mb-4 bg-gray-100 p-2 rounded-lg px-3 md:px-4 hover:bg-gray-200 transition-colors w-auto"
+                >
+                  <ChevronDown 
+                    size={16} 
+                    className={`transition-transform ${isCollapsed ? '-rotate-90' : ''}`}
+                  />
+                  <Tag size={16} /> {category}
+                  <span className="text-sm font-normal text-gray-500">({prods.length})</span>
+                </button>
+                {!isCollapsed && (
+                  <div className={`grid grid-cols-2 ${gridColsClass} gap-3 md:gap-4`}>
                 {prods.map(product => {
                   const latestReport = product.reports && product.reports.length > 0 ? product.reports[product.reports.length - 1] : null;
                   
@@ -367,8 +398,10 @@ export const InventoryPage = () => {
                   );
                 })}
               </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
