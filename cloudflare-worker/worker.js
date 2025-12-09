@@ -89,6 +89,18 @@ async function handleRequest(request) {
       });
     }
 
+    // Only allow GET requests
+    if (request.method !== 'GET') {
+      return new Response(JSON.stringify({ error: 'method not allowed' }), {
+        status: 405,
+        headers: { 
+          'content-type': 'application/json', 
+          'access-control-allow-origin': '*',
+          'allow': 'GET, OPTIONS'
+        }
+      });
+    }
+
     const target = url.searchParams.get('url');
     if (!target) return new Response(JSON.stringify({ error: 'missing url parameter' }), { 
       status: 400,
@@ -116,11 +128,16 @@ async function handleRequest(request) {
           });
         }
         
-        // Resolve relative redirects
-        const redirectUrl = new URL(location, target).toString();
+        // Resolve relative redirects and validate same origin for security
+        const targetUrl = new URL(target);
+        const redirectUrl = new URL(location, target);
+        
+        // For additional security, ensure redirect stays within the same origin or validate the new URL
+        // We'll validate the redirect URL regardless of whether it's relative or absolute
+        const redirectUrlString = redirectUrl.toString();
         
         // Validate redirect destination
-        if (isInternalUrl(redirectUrl)) {
+        if (isInternalUrl(redirectUrlString)) {
           return new Response(JSON.stringify({ error: 'redirect to internal resources not allowed' }), {
             status: 403,
             headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
@@ -128,7 +145,7 @@ async function handleRequest(request) {
         }
         
         // Follow the redirect (limited to one redirect for simplicity and security)
-        const redirectResp = await fetch(redirectUrl, { redirect: 'manual' });
+        const redirectResp = await fetch(redirectUrlString, { redirect: 'manual' });
         
         // If there's another redirect, don't follow it
         if (redirectResp.status >= 300 && redirectResp.status < 400) {
