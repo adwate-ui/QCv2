@@ -7,6 +7,7 @@ import { InventoryPage } from './pages/InventoryPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { AddProductPage } from './pages/AddProductPage';
 import { UserProfilePage } from './pages/UserProfilePage';
+import { QCInspectionDemo } from './src/pages/QCInspectionDemo';
 import { isSupabaseConfigured, saveSupabaseConfig } from './services/supabase';
 import { Database, ArrowRight, AlertCircle } from 'lucide-react';
 import { Input } from './components/Input';
@@ -118,6 +119,8 @@ const AppContent = () => {
             <UserProfilePage />
           </ProtectedRoute>
         } />
+        
+        <Route path="/qc-demo" element={<QCInspectionDemo />} />
       </Routes>
     </Router>
   );
