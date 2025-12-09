@@ -55,6 +55,16 @@ export const InventoryPage = () => {
     imageMapRef.current = imageMap;
   }, [imageMap]);
 
+  // Helper to convert blob to base64
+  const blobToBase64 = useCallback((blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }, []);
+
   // Memoized function to load a single image
   const loadImage = useCallback(async (productId: string, imageId: string, userId: string) => {
     // Double-check if already loaded or loading
@@ -83,13 +93,7 @@ export const InventoryPage = () => {
           const resp = await fetch(signed);
           if (resp.ok) {
             const blob = await resp.blob();
-            const reader = new FileReader();
-            const dataUrl: string = await new Promise((res, rej) => {
-              reader.onloadend = () => res(reader.result as string);
-              reader.onerror = rej;
-              reader.readAsDataURL(blob);
-            });
-            return dataUrl;
+            return await blobToBase64(blob);
           }
         }
       } catch (e) {
@@ -102,13 +106,7 @@ export const InventoryPage = () => {
         const resp = await fetch(publicUrl);
         if (resp.ok) {
           const blob = await resp.blob();
-          const reader = new FileReader();
-          const dataUrl: string = await new Promise((res, rej) => {
-            reader.onloadend = () => res(reader.result as string);
-            reader.onerror = rej;
-            reader.readAsDataURL(blob);
-          });
-          return dataUrl;
+          return await blobToBase64(blob);
         }
       } catch (e) {
         console.debug('Public URL fetch error for', publicUrl, e);
@@ -122,7 +120,7 @@ export const InventoryPage = () => {
       // Clean up loading state
       loadingImagesRef.current.delete(productId);
     }
-  }, []);
+  }, [blobToBase64]);
 
   useEffect(() => {
     // 1. Filter Logic
