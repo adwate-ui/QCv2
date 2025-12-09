@@ -351,7 +351,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   // Helper function to check if a response is JSON based on content-type
   const isJsonResponse = (response: Response): boolean => {
     const contentType = response.headers.get('content-type');
-    return contentType !== null && contentType.includes('application/json');
+    return contentType !== null && contentType.toLowerCase().includes('application/json');
   };
 
   // Helper function to fetch images from a product URL with retry logic and better error handling
@@ -391,7 +391,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           try {
             errorData = await metadataResponse.json();
           } catch (parseError) {
-            // Keep default error data if parsing fails
+            // Keep default error data if JSON parsing fails due to malformed content or other parse errors
           }
         }
         
