@@ -32,6 +32,38 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Helper function to ensure grade matches score based on the rubric:
+// PASS: score > 80, CAUTION: score 61-80 (inclusive), FAIL: score <= 60
+const correctGradeBasedOnScore = (report: QCReport): QCReport => {
+  const correctedReport = { ...report };
+  
+  // Correct overall grade
+  if (correctedReport.overallScore > 80) {
+    correctedReport.overallGrade = 'PASS';
+  } else if (correctedReport.overallScore >= 61 && correctedReport.overallScore <= 80) {
+    correctedReport.overallGrade = 'CAUTION';
+  } else {
+    correctedReport.overallGrade = 'FAIL';
+  }
+  
+  // Correct section grades
+  if (correctedReport.sections) {
+    correctedReport.sections = correctedReport.sections.map(section => {
+      const correctedSection = { ...section };
+      if (correctedSection.score > 80) {
+        correctedSection.grade = 'PASS';
+      } else if (correctedSection.score >= 61 && correctedSection.score <= 80) {
+        correctedSection.grade = 'CAUTION';
+      } else {
+        correctedSection.grade = 'FAIL';
+      }
+      return correctedSection;
+    });
+  }
+  
+  return correctedReport;
+};
+
 export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -454,7 +486,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   // Maximum number of images to fetch from a product URL
-  const MAX_IMAGES_FROM_URL = 5;
+  const MAX_IMAGES_FROM_URL = 1;
 
   // Helper function to check if a response is JSON based on content-type
   const isJsonResponse = (response: Response): boolean => {
@@ -864,10 +896,13 @@ To fix:
        const validRefImagesAsBase64 = refImagesAsBase64.filter(Boolean);
 
        const preliminaryReport = await runQCAnalysis(apiKey, product.profile, validRefImagesAsBase64, allQCRawImages, allQCImageIds, settings, qcUserComments);
+       
+       // Correct grades to match scores based on rubric
+       const correctedPreliminaryReport = correctGradeBasedOnScore(preliminaryReport);
 
        // Generate comparison images and update product in parallel
        const [sectionComparisons] = await Promise.all([
-         generateAndStoreComparisonImages(product, allQCRawImages, preliminaryReport),
+         generateAndStoreComparisonImages(product, allQCRawImages, correctedPreliminaryReport),
          (async () => {
            const newBatch: QCBatch = { id: generateUUID(), timestamp: Date.now(), imageIds: newImageIds };
            const updatedProduct = {
@@ -878,12 +913,12 @@ To fix:
          })()
        ]);
        
-       preliminaryReport.sectionComparisons = sectionComparisons;
+       correctedPreliminaryReport.sectionComparisons = sectionComparisons;
 
        setTasks(prev => prev.map(t => t.id === taskId ? { 
          ...t, 
          status: 'AWAITING_FEEDBACK', 
-         preliminaryReport: preliminaryReport,
+         preliminaryReport: correctedPreliminaryReport,
          meta: { ...t.meta, allQCImageIds: allQCImageIds, allQCRawImages: allQCRawImages, subtitle: 'Ready for your feedback' }
         } : t));
 
@@ -942,21 +977,24 @@ To fix:
           userComments
         );
         
+        // Correct grades to match scores based on rubric
+        const correctedFinalReport = correctGradeBasedOnScore(finalReport);
+        
         // Generate comparison images and update product in parallel
         const [sectionComparisons] = await Promise.all([
-          generateAndStoreComparisonImages(product, allQCRawImages, finalReport),
+          generateAndStoreComparisonImages(product, allQCRawImages, correctedFinalReport),
           (async () => {
             const updatedProduct = {
               ...product,
-              reports: [...(product.reports || []), finalReport],
+              reports: [...(product.reports || []), correctedFinalReport],
             };
             await updateProduct(updatedProduct);
           })()
         ]);
         
-        finalReport.sectionComparisons = sectionComparisons;
+        correctedFinalReport.sectionComparisons = sectionComparisons;
 
-        setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'COMPLETED', result: finalReport } : t));
+        setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'COMPLETED', result: correctedFinalReport } : t));
       } catch (err: any) {
         console.error("Final QC Task failed:", err);
         setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'FAILED', error: err.message || "Final QC analysis failed" } : t));

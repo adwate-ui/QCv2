@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { getPublicImageUrl } from '../services/db';
 import { Product, QCReport, ModelTier, ExpertMode, BackgroundTask } from '../types';
-import { Loader2, CheckCircle, XCircle, Upload, History, ExternalLink, X, ZoomIn, Zap, Brain, Activity, Trash2, Info } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Upload, History, ExternalLink, X, ZoomIn, Zap, Brain, Activity, Trash2, Info, ChevronDown } from 'lucide-react';
 import { parseObservations } from '../services/utils';
 import { Toggle } from '../components/Toggle';
 
@@ -144,6 +144,7 @@ export const ProductDetailPage: React.FC = () => {
   const ReportCard = React.memo<{ report: QCReport; previous?: QCReport; refImages: string[]; expanded?: boolean; onToggle?: (id: string) => void }>(({ report, previous, refImages, expanded = false, onToggle }) => {
     const [imgs, setImgs] = useState<string[]>([]);
     const [comparisonImgs, setComparisonImgs] = useState<string[]>([]);
+    const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
     const { user } = useApp();
 
     useEffect(() => {
@@ -213,7 +214,7 @@ export const ProductDetailPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="overflow-hidden transition-[max-height,opacity]" style={{ maxHeight: expanded ? '2000px' : '0px', opacity: expanded ? 1 : 0, transition: 'max-height 350ms ease, opacity 300ms ease' }}>
+        <div className={`transition-all duration-300 ease-in-out ${expanded ? 'max-h-none' : 'max-h-0 overflow-hidden'} ${expanded ? 'opacity-100' : 'opacity-0'}`}>
           {report.userComments && (
             <div className="mb-4 p-3 bg-indigo-50 border border-indigo-100 rounded-lg">
               <h4 className="text-sm font-bold text-indigo-800 mb-1">User Comments Considered</h4>
@@ -242,28 +243,51 @@ export const ProductDetailPage: React.FC = () => {
             {report.sections && report.sections.length > 0 ? report.sections.map((s, idx) => {
               const cls = gradeToClasses(s.grade);
               const observations = Array.isArray(s.observations) ? s.observations : parseObservations(s.observations as any);
+              const isSectionExpanded = expandedSections.has(idx);
               
               // Get comparison image for this section if it has discrepancies
               const sectionComparison = report.sectionComparisons?.[s.sectionName];
               const comparisonImgUrl = sectionComparison?.diffImageId ? getPublicImageUrl(user!.id!, sectionComparison.diffImageId) : null;
               
               return (
-                <div key={idx} className="p-3 border rounded-lg bg-gray-50">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="font-semibold">{s.sectionName}</div>
+                <div key={idx} className="border rounded-lg bg-gray-50">
+                  <button 
+                    onClick={() => {
+                      const newExpanded = new Set(expandedSections);
+                      if (isSectionExpanded) {
+                        newExpanded.delete(idx);
+                      } else {
+                        newExpanded.add(idx);
+                      }
+                      setExpandedSections(newExpanded);
+                    }}
+                    className="w-full p-3 flex justify-between items-center hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ChevronDown 
+                        size={16} 
+                        className={`transition-transform ${isSectionExpanded ? 'rotate-180' : ''}`}
+                      />
+                      <div className="font-semibold text-left">{s.sectionName}</div>
+                    </div>
                     <div className={`text-sm font-semibold px-2 py-0.5 rounded ${cls.bg} ${cls.text}`}>{s.score} — {s.grade}</div>
-                  </div>
-                  <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
-                    {observations.map((o, i) => (<li key={i}>{o}</li>))}
-                  </ul>
+                  </button>
                   
-                  {comparisonImgUrl && s.grade !== 'PASS' && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <h5 className="text-xs font-semibold text-gray-600 mb-2">Side-by-Side Comparison</h5>
-                      <p className="text-xs text-gray-500 mb-2">Reference image (left) vs QC image (right) - Defects highlighted</p>
-                      <div className="cursor-pointer border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary/30" onClick={() => setSelectedImage(comparisonImgUrl)}>
-                        <img src={comparisonImgUrl} className="w-full h-auto" alt={`Comparison for ${s.sectionName}`} />
-                      </div>
+                  {isSectionExpanded && (
+                    <div className="px-3 pb-3">
+                      <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
+                        {observations.map((o, i) => (<li key={i}>{o}</li>))}
+                      </ul>
+                      
+                      {comparisonImgUrl && s.grade !== 'PASS' && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <h5 className="text-xs font-semibold text-gray-600 mb-2">Side-by-Side Comparison</h5>
+                          <p className="text-xs text-gray-500 mb-2">Reference image (left) vs QC image (right) - Defects highlighted</p>
+                          <div className="cursor-pointer border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary/30" onClick={() => setSelectedImage(comparisonImgUrl)}>
+                            <img src={comparisonImgUrl} className="w-full h-auto" alt={`Comparison for ${s.sectionName}`} />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
