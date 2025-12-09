@@ -32,6 +32,19 @@ if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
     echo ""
 fi
 
+# Check if package.json exists and install dependencies
+if [ -f "package.json" ]; then
+    echo "→ Installing dependencies..."
+    npm ci
+    if [ $? -eq 0 ]; then
+        echo "  ✓ Dependencies installed"
+    else
+        echo "  ✗ Failed to install dependencies"
+        exit 1
+    fi
+    echo ""
+fi
+
 # Validate JavaScript syntax
 echo "→ Validating JavaScript syntax..."
 node --check index.mjs

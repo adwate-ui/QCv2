@@ -55,3 +55,5 @@ If you're having issues with fetching images from product URLs, see the [Image F
 - Common issues and solutions
 - Monitoring and debugging tips
 - Best practices for reliable results
+
+**December 2025 Update:** If you encounter **404 errors with no CORS headers** when accessing worker endpoints, see [WORKER_DEPLOYMENT_FIX.md](WORKER_DEPLOYMENT_FIX.md) for the solution. This was caused by missing dependencies during worker deployment and has been fixed.

@@ -16,11 +16,10 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install wrangler
-        run: npm install -g wrangler@4
+      - name: Install worker dependencies
+        run: |
+          cd cloudflare-worker
+          npm ci
 
       - name: Publish worker
         env:
