@@ -28,6 +28,19 @@ This is why the GitHub Actions workflow passes `VITE_IMAGE_PROXY_URL` as an envi
 - Node.js installed (for local testing)
 - Gemini API key from Google AI Studio
 
+### 📝 Note: Wrangler Configuration
+
+The repository includes a `wrangler.toml` file at the root that configures Cloudflare Pages deployment:
+```toml
+name = "qcv2"
+compatibility_date = "2025-12-09"
+
+[assets]
+directory = "./dist"
+```
+
+This tells Cloudflare to deploy the `dist` folder (created by `npm run build`) as static assets. This configuration is required for the deploy command `npx wrangler versions upload` to work correctly.
+
 ---
 
 ## Part 1: Deploy the Cloudflare Worker
