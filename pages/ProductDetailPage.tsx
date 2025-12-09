@@ -44,7 +44,6 @@ export const ProductDetailPage: React.FC = () => {
   
   const [feedbackTask, setFeedbackTask] = useState<BackgroundTask | null>(null);
   const [additionalComments, setAdditionalComments] = useState('');
-  const debouncedComments = useDebounce(additionalComments, 300);
 
   const activeQCTask = tasks.find(t => t.type === 'QC' && t.meta.targetId === id && t.status === 'PROCESSING');
   const isRunningQC = !!activeQCTask;
