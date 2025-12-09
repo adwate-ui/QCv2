@@ -78,7 +78,27 @@ async function handleRequest(request) {
     });
   }
 
-  if (pathname.endsWith('/fetch-metadata')) {
+  // Root path handler - health check and API information
+  if (pathname === '' || pathname === '/') {
+    return new Response(JSON.stringify({
+      name: 'AuthentiqC Image Proxy Worker',
+      version: '1.0.0',
+      status: 'ok',
+      endpoints: [
+        { path: '/fetch-metadata', method: 'GET', description: 'Extract image URLs from a webpage' },
+        { path: '/proxy-image', method: 'GET', description: 'Proxy an image with CORS headers' },
+        { path: '/diff', method: 'GET', description: 'Generate a diff image (pixel comparison)' }
+      ]
+    }), {
+      status: 200,
+      headers: { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
+  }
+
+  if (pathname.endsWith('/fetch-metadata') || pathname === '/fetch-metadata') {
     const target = url.searchParams.get('url');
     if (!target) {
       return new Response(JSON.stringify({ error: 'missing url' }), { 
@@ -272,7 +292,7 @@ async function handleRequest(request) {
     });
   }
 
-  if (pathname.endsWith('/proxy-image')) {
+  if (pathname.endsWith('/proxy-image') || pathname === '/proxy-image') {
     const target = url.searchParams.get('url');
     if (!target) {
       return new Response(JSON.stringify({ error: 'missing url' }), { 
@@ -388,7 +408,7 @@ async function handleRequest(request) {
     });
   }
 
-  if (pathname.endsWith('/diff')) {
+  if (pathname.endsWith('/diff') || pathname === '/diff') {
     const imageA = url.searchParams.get('imageA');
     const imageB = url.searchParams.get('imageB');
     if (!imageA || !imageB) return new Response(JSON.stringify({ error: 'missing images' }), { 
@@ -442,7 +462,12 @@ async function handleRequest(request) {
     }
   }
 
-  return new Response(JSON.stringify({ error: 'Not found' }), { 
+  return new Response(JSON.stringify({ 
+    error: 'Not found',
+    pathname: pathname,
+    message: `The requested path '${pathname}' does not match any known endpoints. Available endpoints: /fetch-metadata, /proxy-image, /diff`,
+    availableEndpoints: ['/fetch-metadata', '/proxy-image', '/diff']
+  }), { 
     status: 404,
     headers: { 
       'Content-Type': 'application/json', 
@@ -507,7 +532,23 @@ function resizeToRGBA(img, width, height) {
 // Export as an ES Module Worker (module format) so hybrid-nodejs_compat
 // can detect the module worker and bundle node built-ins.
 export default {
-  fetch: (request, env, ctx) => {
-    return handleRequest(request);
+  fetch: async (request, env, ctx) => {
+    try {
+      return await handleRequest(request);
+    } catch (error) {
+      // Global error handler to ensure CORS headers are always present
+      console.error('Unhandled error in worker:', error);
+      return new Response(JSON.stringify({ 
+        error: 'Internal server error',
+        message: error?.message || String(error),
+        stack: error?.stack
+      }), { 
+        status: 500,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
   }
 };
