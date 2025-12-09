@@ -379,7 +379,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       });
       
       if (!metadataResponse.ok) {
-        const errorData = await metadataResponse.json().catch(() => ({ error: 'Unknown error' }));
+        // Try to parse error response as JSON if content-type is appropriate
+        let errorData = { error: 'Unknown error' };
+        const contentType = metadataResponse.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            errorData = await metadataResponse.json();
+          } catch (parseError) {
+            // Keep default error data if parsing fails
+          }
+        }
+        
         const error = `Failed to fetch metadata (Status ${metadataResponse.status}): ${errorData.error || errorData.message || 'Unknown error'}`;
         console.error('[Image Fetch]', error);
         
@@ -405,8 +415,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       let metadata;
       try {
         metadata = await metadataResponse.json();
-      } catch (parseError: any) {
-        const error = `Failed to parse worker response as JSON: ${parseError.message}. The worker may be misconfigured or returning an error page.`;
+      } catch (parseError: unknown) {
+        const errorMsg = parseError instanceof Error ? parseError.message : String(parseError);
+        const error = `Failed to parse worker response as JSON: ${errorMsg}. The worker may be misconfigured or returning an error page.`;
         console.error('[Image Fetch]', error);
         return { images: [], error };
       }
@@ -482,15 +493,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
       
       return { images: validImages };
-    } catch (error: any) {
-      const errorMsg = error.name === 'TimeoutError' 
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error && error.name === 'TimeoutError' 
         ? 'Request timed out. The website may be slow or blocking requests.'
-        : `Error fetching images: ${error.message || error}`;
+        : error instanceof Error 
+          ? `Error fetching images: ${error.message}`
+          : `Error fetching images: ${String(error)}`;
       
       console.error('[Image Fetch]', errorMsg, error);
       
       // Retry on network errors
-      if (retryCount < MAX_RETRIES && error.name !== 'AbortError') {
+      if (retryCount < MAX_RETRIES && error instanceof Error && error.name !== 'AbortError') {
         console.log(`[Image Fetch] Retrying in ${RETRY_DELAY}ms...`);
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (retryCount + 1)));
         return fetchImagesFromUrl(url, retryCount + 1);
