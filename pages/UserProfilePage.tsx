@@ -59,24 +59,24 @@ export const UserProfilePage = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">User Profile</h1>
+    <div className="space-y-4 md:space-y-6">
+      <h1 className="text-xl md:text-2xl font-bold">User Profile</h1>
 
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-          <div className="bg-gray-100 p-3 rounded-full"><UserIcon size={32} className="text-gray-600"/></div>
-          <div>
-              <p className="text-sm text-gray-500">Logged in as</p>
-              <p className="font-bold text-lg">{user?.email}</p>
+      <div className="bg-white p-4 md:p-6 rounded-xl md:rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3 md:gap-4">
+          <div className="bg-gray-100 p-2.5 md:p-3 rounded-full shrink-0"><UserIcon size={28} className="md:w-8 md:h-8 text-gray-600"/></div>
+          <div className="min-w-0">
+              <p className="text-xs md:text-sm text-gray-500">Logged in as</p>
+              <p className="font-bold text-base md:text-lg truncate">{user?.email}</p>
           </div>
       </div>
 
       {/* API Key Section */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <div className="flex items-center gap-3 mb-4">
-            <div className="bg-yellow-100 p-2 rounded-lg text-yellow-700"><Key size={24} /></div>
-            <h2 className="font-bold text-lg">Gemini API Configuration</h2>
+      <div className="bg-white p-4 md:p-6 rounded-xl md:rounded-2xl shadow-sm border border-gray-100">
+        <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
+            <div className="bg-yellow-100 p-1.5 md:p-2 rounded-lg text-yellow-700 shrink-0"><Key size={20} className="md:w-6 md:h-6" /></div>
+            <h2 className="font-bold text-base md:text-lg">Gemini API Configuration</h2>
         </div>
-        <p className="text-sm text-gray-500 mb-6">Your API key is stored securely in your private profile.</p>
+        <p className="text-xs md:text-sm text-gray-500 mb-4 md:mb-6">Your API key is stored securely in your private profile.</p>
         
         {isEditingKey ? (
           <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
@@ -84,15 +84,15 @@ export const UserProfilePage = () => {
                 type="password" 
                 value={apiKey} 
                 onChange={(e) => setApiKey(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                className="w-full border border-gray-300 rounded-lg px-3 md:px-4 py-2.5 md:py-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-base"
                 placeholder="Enter your Gemini API Key"
                 autoFocus
             />
-            <div className="flex gap-2">
+            <div className="flex flex-col md:flex-row gap-2">
               <button 
                 onClick={handleSaveKey} 
                 disabled={!apiKey || isSaving}
-                className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full md:w-auto bg-primary text-white px-4 py-2.5 md:py-2 rounded-lg font-medium hover:bg-indigo-700 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSaving ? "Saving..." : <><Check size={16} /> Save Key</>}
               </button>
@@ -100,7 +100,7 @@ export const UserProfilePage = () => {
                 <button 
                   onClick={handleCancelEdit} 
                   disabled={isSaving}
-                  className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 flex items-center gap-2"
+                  className="w-full md:w-auto bg-gray-100 text-gray-700 px-4 py-2.5 md:py-2 rounded-lg font-medium hover:bg-gray-200 flex items-center justify-center gap-2"
                 >
                   <X size={16} /> Cancel
                 </button>
@@ -108,16 +108,16 @@ export const UserProfilePage = () => {
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-0 bg-gray-50 p-3 md:p-4 rounded-xl border border-gray-200">
             <div className="flex flex-col">
               <span className="text-xs text-gray-500 uppercase font-semibold mb-1">Current Key</span>
-              <code className="font-mono text-slate-700 font-bold tracking-wider">
+              <code className="font-mono text-xs md:text-sm text-slate-700 font-bold tracking-wider break-all">
                 {user?.apiKey ? getMaskedKey(user.apiKey) : "No API Key Set"}
               </code>
             </div>
             <button 
               onClick={() => setIsEditingKey(true)} 
-              className="text-primary hover:bg-primary/10 p-2 rounded-lg transition-colors flex items-center gap-2 font-medium"
+              className="w-full md:w-auto text-primary hover:bg-primary/10 px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 font-medium text-sm md:text-base"
             >
               <Edit2 size={16} /> Change
             </button>
@@ -126,13 +126,13 @@ export const UserProfilePage = () => {
 
         {msg && <p className="text-green-600 text-sm mt-4 flex items-center gap-2"><Check size={14} /> {msg}</p>}
 
-        <div className="mt-6 pt-4 border-t border-gray-100">
+        <div className="mt-4 md:mt-6 pt-4 border-t border-gray-100">
             <p className="text-xs text-gray-400 mb-2">Need a key?</p>
             <a 
                 href="https://aistudio.google.com/app/apikey" 
                 target="_blank" 
                 rel="noreferrer"
-                className="text-sm text-primary hover:underline flex items-center gap-1 font-medium"
+                className="text-xs md:text-sm text-primary hover:underline flex items-center gap-1 font-medium"
             >
                 Get a free API key from Google AI Studio
             </a>
@@ -140,15 +140,15 @@ export const UserProfilePage = () => {
       </div>
 
       {/* Danger Zone */}
-      <div className="bg-red-50 p-6 rounded-2xl shadow-sm border border-red-100 mt-8">
-        <h3 className="text-red-800 font-bold text-lg mb-2">Danger Zone</h3>
-        <p className="text-red-600/80 text-sm mb-6">Permanently remove your account and access data from this device.</p>
+      <div className="bg-red-50 p-4 md:p-6 rounded-xl md:rounded-2xl shadow-sm border border-red-100 mt-6 md:mt-8">
+        <h3 className="text-red-800 font-bold text-base md:text-lg mb-1 md:mb-2">Danger Zone</h3>
+        <p className="text-red-600/80 text-xs md:text-sm mb-4 md:mb-6">Permanently remove your account and access data from this device.</p>
         
         <button 
           type="button"
           onClick={handleDeleteAccount}
           disabled={isDeleting}
-          className="bg-white border border-red-200 text-red-600 px-6 py-3 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm flex items-center gap-2 w-full sm:w-auto justify-center disabled:opacity-70 disabled:cursor-wait"
+          className="bg-white border border-red-200 text-red-600 px-5 md:px-6 py-2.5 md:py-3 rounded-lg font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm flex items-center gap-2 w-full md:w-auto justify-center disabled:opacity-70 disabled:cursor-wait text-sm md:text-base"
         >
           {isDeleting ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
           {isDeleting ? 'Deleting...' : 'Delete Account'}
