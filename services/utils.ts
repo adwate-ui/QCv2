@@ -1,3 +1,8 @@
+/**
+ * Generate a UUID v4 identifier
+ * Uses crypto.randomUUID if available (Secure Contexts), falls back to Math.random
+ * @returns A unique identifier string in UUID v4 format
+ */
 export const generateUUID = (): string => {
   // Use crypto.randomUUID if available (Secure Contexts)
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -11,6 +16,12 @@ export const generateUUID = (): string => {
   });
 };
 
+/**
+ * Parse a text string into an array of observations
+ * Handles various formats including newline-separated lists, numbered lists, and bullets
+ * @param text - Text to parse (may contain line breaks, bullets, or numbered lists)
+ * @returns Array of individual observations (trimmed, non-empty strings)
+ */
 export const parseObservations = (text?: string): string[] => {
   if (!text) return [];
   // Normalize Windows CRLF
