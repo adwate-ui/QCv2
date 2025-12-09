@@ -23,9 +23,9 @@ const storedKey = typeof localStorage !== 'undefined' ? localStorage.getItem('VI
 const envUrl = getEnv('VITE_SUPABASE_URL');
 const envKey = getEnv('VITE_SUPABASE_ANON_KEY');
 
-// 3. Use Provided Credentials as Default
-export const supabaseUrl = storedUrl || envUrl || 'https://gbsgkvmjtsjpmjrpupma.supabase.co';
-const supabaseKey = storedKey || envKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdic2drdm1qdHNqcG1qcnB1cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwOTQ4MjQsImV4cCI6MjA4MDY3MDgyNH0.GYsoEO8qJXOsiOjK2QHYMOOI0OFAdc9KqX1SA-Z-3ac';
+// 3. Use Stored or Environment Credentials (no hardcoded defaults for security)
+export const supabaseUrl = storedUrl || envUrl || '';
+const supabaseKey = storedKey || envKey || '';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 

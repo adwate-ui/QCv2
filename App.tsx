@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { Layout } from './components/Layout';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthPage } from './pages/AuthPage';
 import { InventoryPage } from './pages/InventoryPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
@@ -9,8 +10,12 @@ import { AddProductPage } from './pages/AddProductPage';
 import { UserProfilePage } from './pages/UserProfilePage';
 import { QCInspectionDemo } from './src/pages/QCInspectionDemo';
 import { isSupabaseConfigured, saveSupabaseConfig } from './services/supabase';
+import { logEnvValidation } from './services/env';
 import { Database, ArrowRight, AlertCircle } from 'lucide-react';
 import { Input } from './components/Input';
+
+// Validate environment on app initialization
+logEnvValidation();
 
 const SetupPage = () => {
   const [url, setUrl] = useState('');
@@ -132,8 +137,10 @@ export default function App() {
   }
 
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }

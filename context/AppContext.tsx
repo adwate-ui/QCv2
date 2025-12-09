@@ -5,6 +5,7 @@ import { supabase } from '../services/supabase';
 import { identifyProduct, runQCAnalysis, runFinalQCAnalysis, searchSectionSpecificImages } from '../services/geminiService';
 import { generateUUID } from '../services/utils';
 import { generateComparisonImage } from '../services/comparisonImageService';
+import { TIME, STORAGE, QC_GRADING } from '../services/constants';
 
 interface AppContextType {
   user: User | null;
@@ -38,9 +39,9 @@ const correctGradeBasedOnScore = (report: QCReport): QCReport => {
   const correctedReport = { ...report };
   
   // Correct overall grade
-  if (correctedReport.overallScore > 80) {
+  if (correctedReport.overallScore > QC_GRADING.PASS_THRESHOLD) {
     correctedReport.overallGrade = 'PASS';
-  } else if (correctedReport.overallScore >= 61 && correctedReport.overallScore <= 80) {
+  } else if (correctedReport.overallScore >= QC_GRADING.CAUTION_MIN && correctedReport.overallScore <= QC_GRADING.CAUTION_MAX) {
     correctedReport.overallGrade = 'CAUTION';
   } else {
     correctedReport.overallGrade = 'FAIL';
@@ -50,9 +51,9 @@ const correctGradeBasedOnScore = (report: QCReport): QCReport => {
   if (correctedReport.sections) {
     correctedReport.sections = correctedReport.sections.map(section => {
       const correctedSection = { ...section };
-      if (correctedSection.score > 80) {
+      if (correctedSection.score > QC_GRADING.PASS_THRESHOLD) {
         correctedSection.grade = 'PASS';
-      } else if (correctedSection.score >= 61 && correctedSection.score <= 80) {
+      } else if (correctedSection.score >= QC_GRADING.CAUTION_MIN && correctedSection.score <= QC_GRADING.CAUTION_MAX) {
         correctedSection.grade = 'CAUTION';
       } else {
         correctedSection.grade = 'FAIL';
@@ -113,8 +114,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const activeTasks = tasks.filter(t => 
       t.status === 'PROCESSING' || 
       t.status === 'AWAITING_FEEDBACK' ||
-      (t.status === 'COMPLETED' && Date.now() - t.createdAt < 3600000) || // Keep completed tasks for 1 hour
-      (t.status === 'FAILED' && Date.now() - t.createdAt < 1800000) // Keep failed tasks for 30 minutes
+      (t.status === 'COMPLETED' && Date.now() - t.createdAt < TIME.ONE_HOUR) || // Keep completed tasks for 1 hour
+      (t.status === 'FAILED' && Date.now() - t.createdAt < TIME.THIRTY_MINUTES) // Keep failed tasks for 30 minutes
     );
     
     if (activeTasks.length > 0) {
@@ -124,16 +125,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         
         // Check size before saving (localStorage typically has 5-10MB limit)
         const sizeInBytes = new TextEncoder().encode(serialized).length;
-        const maxSizeInBytes = 4 * 1024 * 1024; // 4MB safety limit
         
-        if (sizeInBytes > maxSizeInBytes) {
+        if (sizeInBytes > STORAGE.MAX_SIZE_BYTES) {
           console.warn(`Tasks data too large (${Math.round(sizeInBytes / 1024)}KB), keeping only processing tasks`);
           // Only keep processing tasks if size is too large
           const processingOnly = activeTasks.filter(t => t.status === 'PROCESSING');
           const processingSanitized = sanitizeTasksForStorage(processingOnly);
-          localStorage.setItem('authentiqc_tasks', JSON.stringify(processingSanitized));
+          localStorage.setItem(STORAGE.TASKS_KEY, JSON.stringify(processingSanitized));
         } else {
-          localStorage.setItem('authentiqc_tasks', serialized);
+          localStorage.setItem(STORAGE.TASKS_KEY, serialized);
         }
       } catch (e) {
         console.error('Failed to persist tasks:', e);
@@ -142,14 +142,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           const criticalTasks = activeTasks.filter(t => t.status === 'PROCESSING');
           if (criticalTasks.length > 0) {
             const sanitized = sanitizeTasksForStorage(criticalTasks);
-            localStorage.setItem('authentiqc_tasks', JSON.stringify(sanitized));
+            localStorage.setItem(STORAGE.TASKS_KEY, JSON.stringify(sanitized));
             console.log('Saved only processing tasks due to storage constraints');
           }
         } catch (fallbackError) {
           console.error('Failed to save even critical tasks:', fallbackError);
           // Clear the storage and try one more time with just task IDs
           try {
-            localStorage.removeItem('authentiqc_tasks');
+            localStorage.removeItem(STORAGE.TASKS_KEY);
           } catch (clearError) {
             // Can't do anything if we can't even clear
           }
@@ -158,7 +158,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     } else {
       // Clean up storage when no active tasks
       try {
-        localStorage.removeItem('authentiqc_tasks');
+        localStorage.removeItem(STORAGE.TASKS_KEY);
       } catch (e) {
         console.error('Failed to remove tasks from storage:', e);
       }
@@ -168,7 +168,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   // Restore tasks from localStorage on mount
   useEffect(() => {
     try {
-      const savedTasks = localStorage.getItem('authentiqc_tasks');
+      const savedTasks = localStorage.getItem(STORAGE.TASKS_KEY);
       if (savedTasks) {
         const parsedTasks = JSON.parse(savedTasks);
         // Only restore tasks that are still processing or awaiting feedback
@@ -203,8 +203,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
       const now = Date.now();
-      const ONE_HOUR = 3600000;
-      const THIRTY_MINUTES = 1800000;
       
       setTasks(prevTasks => {
         const filtered = prevTasks.filter(task => {
@@ -213,11 +211,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             return true;
           }
           // Keep completed tasks for 1 hour
-          if (task.status === 'COMPLETED' && now - task.createdAt < ONE_HOUR) {
+          if (task.status === 'COMPLETED' && now - task.createdAt < TIME.ONE_HOUR) {
             return true;
           }
           // Keep failed tasks for 30 minutes
-          if (task.status === 'FAILED' && now - task.createdAt < THIRTY_MINUTES) {
+          if (task.status === 'FAILED' && now - task.createdAt < TIME.THIRTY_MINUTES) {
             return true;
           }
           // Remove everything else
@@ -227,7 +225,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         // Only update state if we actually removed something
         return filtered.length !== prevTasks.length ? filtered : prevTasks;
       });
-    }, 60000); // Check every minute
+    }, TIME.ONE_MINUTE); // Check every minute
 
     return () => clearInterval(cleanupInterval);
   }, []);
