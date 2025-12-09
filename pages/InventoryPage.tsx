@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { getPublicImageUrl, db } from '../services/db';
 import { Product } from '../types';
@@ -38,6 +38,8 @@ export const InventoryPage = () => {
   const [statusFilter, setStatusFilter] = useState<FilterType>('ALL');
   const [groupedProducts, setGroupedProducts] = useState<Record<string, Product[]>>({});
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
+  const imageMapRef = useRef<Record<string, string>>({});
+  const loadingImagesRef = useRef<Set<string>>(new Set());
   const [gridSize, setGridSize] = useState(() => {
     const savedGridSize = localStorage.getItem('inventoryGridSize');
     return savedGridSize ? parseInt(savedGridSize, 10) : 3;
@@ -47,6 +49,78 @@ export const InventoryPage = () => {
                       gridSize === 3 ? "md:grid-cols-3" :
                       gridSize === 4 ? "md:grid-cols-4" :
                       gridSize === 5 ? "md:grid-cols-5" : "md:grid-cols-3";
+
+  // Sync ref with state
+  useEffect(() => {
+    imageMapRef.current = imageMap;
+  }, [imageMap]);
+
+  // Helper to convert blob to base64
+  const blobToBase64 = useCallback((blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }, []);
+
+  // Memoized function to load a single image
+  const loadImage = useCallback(async (productId: string, imageId: string, userId: string) => {
+    // Double-check if already loaded or loading
+    if (imageMapRef.current[productId] || loadingImagesRef.current.has(productId)) {
+      return null;
+    }
+    
+    // Mark as loading
+    loadingImagesRef.current.add(productId);
+    
+    try {
+      // Try db.getImage first
+      try {
+        const imgBase64 = await db.getImage(imageId);
+        if (imgBase64) {
+          return imgBase64;
+        }
+      } catch (e) {
+        console.debug('db.getImage failed for', imageId, e);
+      }
+
+      // Fallback: try to get a signed URL via the DB service and fetch that
+      try {
+        const signed = await db.getSignedUrl(imageId, 60);
+        if (signed) {
+          const resp = await fetch(signed);
+          if (resp.ok) {
+            const blob = await resp.blob();
+            return await blobToBase64(blob);
+          }
+        }
+      } catch (e) {
+        console.debug('Signed URL fetch error for', imageId, e);
+      }
+
+      // Fallback: try to fetch the public URL and convert to base64 client-side
+      const publicUrl = getPublicImageUrl(userId, imageId);
+      try {
+        const resp = await fetch(publicUrl);
+        if (resp.ok) {
+          const blob = await resp.blob();
+          return await blobToBase64(blob);
+        }
+      } catch (e) {
+        console.debug('Public URL fetch error for', publicUrl, e);
+      }
+      
+      return null;
+    } catch (e) {
+      console.error('Failed to load thumbnail for', productId, e);
+      return null;
+    } finally {
+      // Clean up loading state
+      loadingImagesRef.current.delete(productId);
+    }
+  }, [blobToBase64]);
 
   useEffect(() => {
     // 1. Filter Logic
@@ -72,88 +146,29 @@ export const InventoryPage = () => {
     }, {} as Record<string, Product[]>);
     setGroupedProducts(grouped);
 
-      // 3. Load thumbnails (prefer base64 via DB.getImage to avoid public-bucket/CORS issues)
-      if (user?.id) {
-        (async () => {
-          const map: Record<string, string> = {};
-          for (const p of filteredList) {
-            try {
-              if (p.referenceImageIds && p.referenceImageIds.length > 0) {
-                // If we already have a cached image URL, reuse it
-                if (imageMap[p.id]) {
-                  map[p.id] = imageMap[p.id];
-                  continue;
-                }
+    // 3. Load thumbnails (prefer base64 via DB.getImage to avoid public-bucket/CORS issues)
+    if (user?.id) {
+      const userId = user.id; // Capture for safe use in async closure
+      (async () => {
+        const loadPromises = filteredList
+          .filter(p => p.referenceImageIds && p.referenceImageIds.length > 0)
+          .filter(p => !imageMapRef.current[p.id]) // Check ref to avoid re-loading
+          .map(async (p) => {
+            const imageId = p.referenceImageIds[0];
+            const dataUrl = await loadImage(p.id, imageId, userId);
+            return dataUrl ? { [p.id]: dataUrl } : null;
+          });
 
-                const imageId = p.referenceImageIds[0];
-                let imgBase64: string | undefined;
-
-                try {
-                  imgBase64 = await db.getImage(imageId);
-                } catch (e) {
-                  console.debug('db.getImage failed for', imageId, e);
-                  imgBase64 = undefined;
-                }
-
-                if (imgBase64) {
-                  map[p.id] = imgBase64;
-                  continue;
-                }
-
-                // Fallback: try to get a signed URL via the DB service and fetch that
-                try {
-                  const signed = await db.getSignedUrl(imageId, 60);
-                  if (signed) {
-                    const resp = await fetch(signed);
-                    if (resp.ok) {
-                      const blob = await resp.blob();
-                      const reader = new FileReader();
-                      const dataUrl: string = await new Promise((res, rej) => {
-                        reader.onloadend = () => res(reader.result as string);
-                        reader.onerror = rej;
-                        reader.readAsDataURL(blob);
-                      });
-                      map[p.id] = dataUrl;
-                      continue;
-                    } else {
-                      console.debug('Signed URL fetch failed', signed, resp.status, resp.statusText);
-                    }
-                  }
-                } catch (e) {
-                  console.debug('Signed URL fetch error for', imageId, e);
-                }
-
-                // Fallback: try to fetch the public URL and convert to base64 client-side
-                const publicUrl = getPublicImageUrl(user.id, imageId);
-                try {
-                  const resp = await fetch(publicUrl);
-                  if (resp.ok) {
-                    const blob = await resp.blob();
-                    const reader = new FileReader();
-                    const dataUrl: string = await new Promise((res, rej) => {
-                      reader.onloadend = () => res(reader.result as string);
-                      reader.onerror = rej;
-                      reader.readAsDataURL(blob);
-                    });
-                    map[p.id] = dataUrl;
-                    continue;
-                  } else {
-                    console.debug('Public URL fetch failed', publicUrl, resp.status, resp.statusText);
-                  }
-                } catch (e) {
-                  console.debug('Public URL fetch error for', publicUrl, e);
-                }
-
-                // As last resort set nothing so UI shows placeholder
-              }
-            } catch (e) {
-              console.error('Failed to load thumbnail for', p.id, e);
-            }
-          }
-          setImageMap(prev => ({...prev, ...map}));
-        })();
-      }
-  }, [products, searchTerm, statusFilter, user?.id]);
+        const results = await Promise.all(loadPromises);
+        const newImages = results.filter(Boolean).reduce((acc, img) => ({ ...acc, ...img }), {} as Record<string, string>);
+        
+        // Only update state if we loaded new images
+        if (Object.keys(newImages).length > 0) {
+          setImageMap(prev => ({ ...prev, ...newImages }));
+        }
+      })();
+    }
+  }, [products, searchTerm, statusFilter, user?.id, loadImage]);
 
   useEffect(() => {
     localStorage.setItem('inventoryGridSize', gridSize.toString());
