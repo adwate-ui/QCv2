@@ -212,10 +212,19 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       
       if (product.profile.imageUrls && product.profile.imageUrls.length > 0) {
         // Download and convert original images from internet in parallel
-        const proxyBase = (import.meta as any).env?.VITE_IMAGE_PROXY_URL || '';
+        const proxyBase = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
         const imagePromises = product.profile.imageUrls.map(async (imageUrl) => {
           try {
-            const fetchUrl = proxyBase ? `${proxyBase.replace(/\/$/, '')}/proxy-image?url=${encodeURIComponent(imageUrl)}` : imageUrl;
+            let fetchUrl: string;
+            if (proxyBase) {
+              // Use URL constructor for safe URL building
+              const proxyUrl = new URL('/proxy-image', proxyBase.replace(/\/$/, ''));
+              proxyUrl.searchParams.set('url', imageUrl);
+              fetchUrl = proxyUrl.toString();
+            } else {
+              fetchUrl = imageUrl;
+            }
+            
             const response = await fetch(fetchUrl);
             if (!response.ok) {
               console.debug('Failed to fetch original image', fetchUrl);
@@ -311,11 +320,20 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             let finalImages = images;
             if (images.length === 0 && profile.imageUrls && profile.imageUrls.length > 0) {
                 // If no images were provided, but the model returned some, fetch and save them.
-                const proxyBase = (import.meta as any).env?.VITE_IMAGE_PROXY_URL || '';
+                const proxyBase = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
                 const fetchedImages = await Promise.all(
                     profile.imageUrls.slice(0, 5).map(async (imageUrl) => {
                       try {
-                        const fetchUrl = proxyBase ? `${proxyBase.replace(/\/$/, '')}/proxy-image?url=${encodeURIComponent(imageUrl)}` : imageUrl;
+                        let fetchUrl: string;
+                        if (proxyBase) {
+                          // Use URL constructor for safe URL building
+                          const proxyUrl = new URL('/proxy-image', proxyBase.replace(/\/$/, ''));
+                          proxyUrl.searchParams.set('url', imageUrl);
+                          fetchUrl = proxyUrl.toString();
+                        } else {
+                          fetchUrl = imageUrl;
+                        }
+                        
                         const response = await fetch(fetchUrl);
                         if (!response.ok) {
                           console.debug('Image fetch failed', fetchUrl, response.status, response.statusText);

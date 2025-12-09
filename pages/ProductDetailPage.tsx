@@ -432,6 +432,8 @@ export const ProductDetailPage: React.FC = () => {
                   <button 
                     className="text-gray-400 hover:text-gray-600"
                     title="Flash 2.5: Fast analysis (~30-40s). Pro 3.0: Detailed analysis with web search (~45-60s)."
+                    aria-label="Model information"
+                    type="button"
                   >
                     <Info size={16} />
                   </button>
@@ -446,6 +448,8 @@ export const ProductDetailPage: React.FC = () => {
                   <button 
                     className="text-gray-400 hover:text-gray-600"
                     title="Normal: Standard QC inspection. Expert: More thorough analysis with extended reasoning."
+                    aria-label="Persona information"
+                    type="button"
                   >
                     <Info size={16} />
                   </button>
