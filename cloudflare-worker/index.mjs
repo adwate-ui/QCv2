@@ -147,6 +147,19 @@ async function handleRequest(request) {
           ogImgs.push(match[1]);
         }
         
+        // Twitter Card images (twitter:image)
+        const twitterImgs = [];
+        const twitterImageRegex = /<meta\s+(?:name|property)=["']twitter:image(?::src)?["']\s+content=["']([^"']+)["']/gi;
+        while ((match = twitterImageRegex.exec(text)) !== null) {
+          twitterImgs.push(match[1]);
+        }
+        
+        // Twitter Card images (reverse order)
+        const twitterImageRegex2 = /<meta\s+content=["']([^"']+)["']\s+(?:name|property)=["']twitter:image(?::src)?["']/gi;
+        while ((match = twitterImageRegex2.exec(text)) !== null) {
+          twitterImgs.push(match[1]);
+        }
+        
         // JSON-LD images
         const ldImgs = [];
         const jsonldRegex = /<script\s+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
@@ -192,19 +205,35 @@ async function handleRequest(request) {
         };
         
         // Resolve and filter images
-        const allImages = [...ogImgs, ...ldImgs, ...imgTags]
+        const allImages = [...ogImgs, ...twitterImgs, ...ldImgs, ...imgTags]
           .map(resolveUrl)
           .filter(Boolean)
           .filter(url => {
-            // Filter out common tracking pixels and small images
+            // Filter out common tracking pixels, small images, and data URIs
             const lower = url.toLowerCase();
-            return !lower.includes('1x1') && 
+            return !lower.startsWith('data:') &&
+                   !lower.includes('1x1') && 
                    !lower.includes('tracking') && 
                    !lower.includes('pixel') &&
-                   !lower.includes('spacer.gif');
+                   !lower.includes('spacer.gif') &&
+                   !lower.includes('blank.gif') &&
+                   !lower.includes('transparent.gif') &&
+                   !lower.includes('logo.svg') && // Often small logos, not product images
+                   !lower.includes('icon') &&
+                   !lower.match(/\d+x\d+\.(gif|png)/) && // Small fixed-size images like 10x10.gif
+                   url.length < 2048; // Avoid extremely long URLs which are likely data URIs or malformed
           });
         
-        const images = Array.from(new Set(allImages)).slice(0, 12);
+        // Prioritize OG and Twitter images first as they're usually the main product image
+        const uniqueImages = Array.from(new Set(allImages));
+        const ogTwitterImages = uniqueImages.filter(url => 
+          ogImgs.includes(url) || twitterImgs.includes(url)
+        );
+        const otherImages = uniqueImages.filter(url => 
+          !ogImgs.includes(url) && !twitterImgs.includes(url)
+        );
+        
+        const images = [...ogTwitterImages, ...otherImages].slice(0, 12);
         
         return new Response(JSON.stringify({ images }), { 
           headers: { 
