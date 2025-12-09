@@ -97,3 +97,21 @@ export interface BackgroundTask {
   };
   preliminaryReport?: QCReport;
 }
+
+export interface BoundingBox {
+  ymin: number;
+  xmin: number;
+  ymax: number;
+  xmax: number;
+}
+
+export interface Discrepancy {
+  description: string;
+  boundingBox: BoundingBox;
+}
+
+export interface QCAnalysisResult {
+  score: number; // 0-100
+  summary: string;
+  discrepancies: Discrepancy[];
+}
