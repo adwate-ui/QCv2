@@ -202,7 +202,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   ): Promise<Record<string, { authImageId?: string; diffImageId?: string; diffScore?: number }>> => {
     const sectionComparisons: Record<string, { authImageId?: string; diffImageId?: string; diffScore?: number }> = {};
     
-    if (validRefImages.length === 0 || allQCRawImages.length === 0) {
+    if (validRefImages.length === 0 || allQCRawImages.length === 0 || referenceImageIds.length === 0) {
       return sectionComparisons;
     }
 

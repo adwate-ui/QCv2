@@ -40,20 +40,34 @@ const drawHighlight = (
 
   // Draw arrow pointing to the issue (with bounds checking)
   const arrowSize = 20;
-  const arrowOffsetX = Math.max(arrowSize, x);
-  const arrowOffsetY = Math.max(arrowSize, y);
+  // Ensure arrow is within canvas bounds
+  const canvasLeft = offsetX;
+  const canvasTop = 0;
+  const canvasRight = offsetX + imageWidth;
+  const canvasBottom = imageHeight;
+  
+  // Calculate arrow position - place it above and to the left of the bounding box
+  // but ensure it stays within the canvas
+  let arrowTipX = x - arrowSize;
+  let arrowTipY = y - arrowSize;
+  
+  // Adjust if arrow would go outside canvas
+  if (arrowTipX < canvasLeft + arrowSize) {
+    arrowTipX = canvasLeft + arrowSize;
+  }
+  if (arrowTipY < canvasTop + arrowSize) {
+    arrowTipY = canvasTop + arrowSize;
+  }
   
   ctx.fillStyle = '#EF4444';
   ctx.beginPath();
-  const arrowX = arrowOffsetX - arrowSize;
-  const arrowY = arrowOffsetY - arrowSize;
-  ctx.moveTo(arrowX, arrowY);
-  ctx.lineTo(arrowX + 10, arrowY - 10);
-  ctx.lineTo(arrowX + 5, arrowY - 10);
-  ctx.lineTo(arrowX + 5, arrowY - 20);
-  ctx.lineTo(arrowX - 5, arrowY - 20);
-  ctx.lineTo(arrowX - 5, arrowY - 10);
-  ctx.lineTo(arrowX - 10, arrowY - 10);
+  ctx.moveTo(arrowTipX, arrowTipY);
+  ctx.lineTo(arrowTipX + 10, arrowTipY - 10);
+  ctx.lineTo(arrowTipX + 5, arrowTipY - 10);
+  ctx.lineTo(arrowTipX + 5, arrowTipY - 20);
+  ctx.lineTo(arrowTipX - 5, arrowTipY - 20);
+  ctx.lineTo(arrowTipX - 5, arrowTipY - 10);
+  ctx.lineTo(arrowTipX - 10, arrowTipY - 10);
   ctx.closePath();
   ctx.fill();
 };
