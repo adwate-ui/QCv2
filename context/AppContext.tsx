@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { User, Product, AppSettings, ModelTier, ExpertMode, BackgroundTask, QCBatch, QCReport } from '../types';
 import { db } from '../services/db';
 import { supabase } from '../services/supabase';
-import { identifyProduct, runQCAnalysis, runFinalQCAnalysis } from '../services/geminiService';
+import { identifyProduct, runQCAnalysis, runFinalQCAnalysis, searchSectionSpecificImages } from '../services/geminiService';
 import { generateUUID } from '../services/utils';
 import { generateComparisonImage } from '../services/comparisonImageService';
 
@@ -383,9 +383,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const generateAndStoreComparisonImages = async (
+    apiKey: string,
     product: Product,
     allQCRawImages: string[],
-    report: QCReport
+    report: QCReport,
+    settings: AppSettings
   ): Promise<Record<string, { authImageId?: string; diffImageId?: string; diffScore?: number }>> => {
     const sectionComparisons: Record<string, { authImageId?: string; diffImageId?: string; diffScore?: number }> = {};
     
@@ -394,79 +396,138 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
 
     try {
-      // Use original images from internet if available, otherwise fall back to reference images
-      let referenceImages: string[] = [];
-      
-      if (product.profile.imageUrls && product.profile.imageUrls.length > 0) {
-        // Download and convert original images from internet in parallel
-        const proxyBaseRaw = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
-        const proxyBase = normalizeWorkerUrl(proxyBaseRaw);
-        const imagePromises = product.profile.imageUrls.map(async (imageUrl) => {
-          try {
-            let fetchUrl: string;
-            if (proxyBase) {
-              // Use URL constructor for safe URL building - proxyBase is normalized
-              const proxyUrl = new URL('/proxy-image', proxyBase);
-              proxyUrl.searchParams.set('url', imageUrl);
-              fetchUrl = proxyUrl.toString();
-            } else {
-              fetchUrl = imageUrl;
-            }
-            
-            const response = await fetch(fetchUrl);
-            if (!response.ok) {
-              console.debug('Failed to fetch original image', fetchUrl);
-              return null;
-            }
-            const blob = await response.blob();
-            return new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
-            });
-          } catch (error) {
-            console.error(`Failed to fetch original image from ${imageUrl}:`, error);
-            return null;
-          }
-        });
-        
-        const fetchedImages = await Promise.all(imagePromises);
-        referenceImages = fetchedImages.filter(Boolean) as string[];
-      }
-      
-      // Fall back to uploaded reference images if no original images available
-      if (referenceImages.length === 0) {
-        const refImageIds = product.referenceImageIds || [];
-        const refImages = await Promise.all(refImageIds.map(id => db.getImage(id)));
-        referenceImages = refImages.filter(Boolean) as string[];
-      }
-      
-      if (referenceImages.length === 0) {
-        console.warn('No reference images available for comparison');
-        return sectionComparisons;
-      }
-
       // Generate comparison only for sections with issues (CAUTION or FAIL)
       const sectionsWithIssues = report.sections.filter(s => s.grade !== 'PASS');
       
-      console.log(`Generating ${sectionsWithIssues.length} comparison images for non-PASS sections:`, sectionsWithIssues.map(s => `${s.sectionName} (${s.grade})`));
+      if (sectionsWithIssues.length === 0) {
+        console.log('[Comparison] All sections passed - no comparison images needed');
+        return sectionComparisons;
+      }
+      
+      console.log(`[Comparison] Generating ${sectionsWithIssues.length} comparison images for non-PASS sections:`, sectionsWithIssues.map(s => `${s.sectionName} (${s.grade})`));
       
       // Limit observations shown in comparison images for better readability
       const MAX_OBSERVATIONS_FOR_COMPARISON = 4;
       
+      // Get proxy configuration
+      const proxyBaseRaw = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
+      const proxyBase = normalizeWorkerUrl(proxyBaseRaw);
+      
+      if (!proxyBase) {
+        console.warn('[Comparison] VITE_IMAGE_PROXY_URL not configured. Cannot download reference images from internet.');
+      }
+      
       // Generate all comparison images in parallel
       const comparisonPromises = sectionsWithIssues.map(async (section, sectionIndex) => {
         try {
-          // Try to find the most relevant QC image for this section
-          // Strategy:
-          // 1. If section has imageIds (future compatibility), use the first available QC image
-          // 2. Otherwise, distribute QC images across sections using round-robin
-          // 3. Fallback to first image if only one available
+          console.log(`[Comparison] Processing ${section.sectionName}...`);
+          
+          // Step 1: Search for section-specific close-up images from the internet
+          let referenceImageUrl: string | null = null;
+          
+          if (proxyBase && apiKey) {
+            try {
+              console.log(`[Comparison] Searching for ${section.sectionName} close-up images...`);
+              const imageUrls = await searchSectionSpecificImages(
+                apiKey,
+                product.profile,
+                section.sectionName,
+                settings.modelTier
+              );
+              
+              if (imageUrls.length > 0) {
+                // Try to download the first valid image
+                for (const imageUrl of imageUrls) {
+                  try {
+                    const proxyUrl = new URL('/proxy-image', proxyBase);
+                    proxyUrl.searchParams.set('url', imageUrl);
+                    const fetchUrl = proxyUrl.toString();
+                    
+                    const response = await fetch(fetchUrl, {
+                      signal: AbortSignal.timeout(10000)
+                    });
+                    
+                    if (response.ok) {
+                      const blob = await response.blob();
+                      if (blob.type.startsWith('image/') && blob.size > 1024) {
+                        // Convert to data URL
+                        const dataUrl = await new Promise<string>((resolve, reject) => {
+                          const reader = new FileReader();
+                          reader.onloadend = () => resolve(reader.result as string);
+                          reader.onerror = reject;
+                          reader.readAsDataURL(blob);
+                        });
+                        
+                        referenceImageUrl = dataUrl;
+                        console.log(`[Comparison] Successfully downloaded close-up image for ${section.sectionName}`);
+                        break;
+                      }
+                    }
+                  } catch (imgError) {
+                    console.debug(`[Comparison] Failed to download image ${imageUrl}:`, imgError);
+                    continue;
+                  }
+                }
+              }
+            } catch (searchError) {
+              console.warn(`[Comparison] Image search failed for ${section.sectionName}:`, searchError);
+            }
+          }
+          
+          // Step 2: Fallback to general reference images if section-specific search failed
+          if (!referenceImageUrl) {
+            console.log(`[Comparison] Using fallback reference image for ${section.sectionName}`);
+            
+            // Try product.profile.imageUrls first
+            if (product.profile.imageUrls && product.profile.imageUrls.length > 0 && proxyBase) {
+              for (const imageUrl of product.profile.imageUrls.slice(0, 1)) {
+                try {
+                  const proxyUrl = new URL('/proxy-image', proxyBase);
+                  proxyUrl.searchParams.set('url', imageUrl);
+                  const fetchUrl = proxyUrl.toString();
+                  
+                  const response = await fetch(fetchUrl, {
+                    signal: AbortSignal.timeout(10000)
+                  });
+                  
+                  if (response.ok) {
+                    const blob = await response.blob();
+                    if (blob.type.startsWith('image/') && blob.size > 1024) {
+                      const dataUrl = await new Promise<string>((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result as string);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(blob);
+                      });
+                      
+                      referenceImageUrl = dataUrl;
+                      break;
+                    }
+                  }
+                } catch (error) {
+                  console.debug(`[Comparison] Failed to fetch product image ${imageUrl}:`, error);
+                }
+              }
+            }
+            
+            // Final fallback: use uploaded reference images
+            if (!referenceImageUrl && product.referenceImageIds && product.referenceImageIds.length > 0) {
+              const refImage = await db.getImage(product.referenceImageIds[0]);
+              if (refImage) {
+                referenceImageUrl = refImage;
+              }
+            }
+          }
+          
+          if (!referenceImageUrl) {
+            console.warn(`[Comparison] No reference image available for ${section.sectionName}`);
+            return null;
+          }
+          
+          // Step 3: Select the most relevant QC image for this section
           let qcImageSrc: string;
           if (section.imageIds && section.imageIds.length > 0 && allQCRawImages.length > 0) {
             // Section has specific image references (future compatibility)
-            // For now, just use the first QC image since we don't have imageId-to-image mapping here
             qcImageSrc = allQCRawImages[0];
           } else if (allQCRawImages.length > 1) {
             // Distribute images across sections using round-robin for better coverage
@@ -476,26 +537,24 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             qcImageSrc = allQCRawImages[0];
           }
           
-          const refImageSrc = referenceImages[0]; // Use first reference image
-          
-          // Get observations for this section (limit for better readability)
+          // Step 4: Get observations for this section (limit for better readability)
           const observations = Array.isArray(section.observations) 
             ? section.observations.slice(0, MAX_OBSERVATIONS_FOR_COMPARISON) 
             : [];
           
-          // Generate side-by-side comparison with observations highlighted
+          // Step 5: Generate side-by-side comparison with observations highlighted
           const comparisonImageData = await generateComparisonImage(
-            refImageSrc, 
+            referenceImageUrl, 
             qcImageSrc, 
             undefined, // No bounding boxes available from AI model
             observations
           );
           
-          // Save comparison image
+          // Step 6: Save comparison image
           const comparisonImageId = generateUUID();
           await db.saveImage(comparisonImageId, comparisonImageData);
           
-          console.log(`Generated comparison image for ${section.sectionName} (${section.grade})`);
+          console.log(`[Comparison] Generated comparison image for ${section.sectionName} (${section.grade})`);
           
           return {
             sectionName: section.sectionName,
@@ -505,7 +564,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             }
           };
         } catch (error) {
-          console.error(`Failed to generate comparison for ${section.sectionName}:`, error);
+          console.error(`[Comparison] Failed to generate comparison for ${section.sectionName}:`, error);
           return null;
         }
       });
@@ -520,9 +579,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         sectionComparisons[result.sectionName] = result.comparison;
       });
       
-      console.log(`Successfully generated ${comparisonResults.length} comparison images`);
+      console.log(`[Comparison] Successfully generated ${comparisonResults.length} comparison images`);
     } catch (error) {
-      console.error('Error generating comparison images:', error);
+      console.error('[Comparison] Error generating comparison images:', error);
       // Return partial results or empty object if generation fails
     }
     
@@ -974,7 +1033,7 @@ To fix:
 
        // Generate comparison images and update product in parallel
        const [sectionComparisons] = await Promise.all([
-         generateAndStoreComparisonImages(product, allQCRawImages, correctedPreliminaryReport),
+         generateAndStoreComparisonImages(apiKey, product, allQCRawImages, correctedPreliminaryReport, settings),
          (async () => {
            const newBatch: QCBatch = { id: generateUUID(), timestamp: Date.now(), imageIds: newImageIds };
            const updatedProduct = {
@@ -1099,7 +1158,7 @@ To fix:
         
         // Generate comparison images and update product in parallel
         const [sectionComparisons] = await Promise.all([
-          generateAndStoreComparisonImages(product, allQCRawImages, correctedFinalReport),
+          generateAndStoreComparisonImages(apiKey, product, allQCRawImages, correctedFinalReport, task.meta.settings!),
           (async () => {
             const updatedProduct = {
               ...product,
