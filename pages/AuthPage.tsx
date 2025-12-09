@@ -36,17 +36,17 @@ export const AuthPage = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
-        <div className="flex justify-center mb-6">
-          <div className="bg-primary/10 p-4 rounded-full">
-            <ShieldCheck size={48} className="text-primary" />
+    <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-6 bg-slate-50">
+      <div className="w-full max-w-md bg-white rounded-xl md:rounded-2xl shadow-xl p-6 md:p-8">
+        <div className="flex justify-center mb-4 md:mb-6">
+          <div className="bg-primary/10 p-3 md:p-4 rounded-full">
+            <ShieldCheck size={40} className="md:w-12 md:h-12 text-primary" />
           </div>
         </div>
-        <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
+        <h1 className="text-xl md:text-2xl font-bold text-center text-slate-800 mb-2">
           {isLogin ? 'Welcome Back' : 'Create Account'}
         </h1>
-        <p className="text-center text-slate-500 mb-8">
+        <p className="text-center text-slate-500 text-sm md:text-base mb-6 md:mb-8">
           {isLogin ? 'Sign in to access your inventory' : 'Start your QC journey today'}
         </p>
 
@@ -72,7 +72,7 @@ export const AuthPage = () => {
 
           <button 
             type="submit" 
-            className="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
+            className="w-full bg-primary text-white font-bold py-3 md:py-3.5 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 text-base md:text-lg"
           >
             {isLogin ? 'Sign In' : 'Create Account'}
           </button>
@@ -85,7 +85,7 @@ export const AuthPage = () => {
                 setIsLogin(!isLogin);
                 setError('');
             }}
-            className="text-sm text-slate-500 hover:text-primary transition-colors"
+            className="text-sm md:text-base text-slate-500 hover:text-primary transition-colors"
           >
             {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
           </button>

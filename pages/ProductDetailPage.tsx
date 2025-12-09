@@ -7,6 +7,23 @@ import { Loader2, CheckCircle, XCircle, Upload, History, ExternalLink, X, ZoomIn
 import { parseObservations } from '../services/utils';
 import { Toggle } from '../components/Toggle';
 
+// Debounce hook to prevent flickering
+const useDebounce = <T,>(value: T, delay: number): T => {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -27,6 +44,7 @@ export const ProductDetailPage: React.FC = () => {
   
   const [feedbackTask, setFeedbackTask] = useState<BackgroundTask | null>(null);
   const [additionalComments, setAdditionalComments] = useState('');
+  // Note: Debouncing can be added here if needed: const debouncedComments = useDebounce(additionalComments, 300);
 
   const activeQCTask = tasks.find(t => t.type === 'QC' && t.meta.targetId === id && t.status === 'PROCESSING');
   const isRunningQC = !!activeQCTask;
@@ -287,102 +305,102 @@ export const ProductDetailPage: React.FC = () => {
       
       {feedbackTask && feedbackTask.preliminaryReport && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
-            <h2 className="text-xl font-bold mb-4">Preliminary Report - Provide Feedback</h2>
-            <div className="max-h-[60vh] overflow-y-auto p-4 bg-gray-50 rounded">
+          <div className="bg-white rounded-lg shadow-xl p-4 md:p-6 w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <h2 className="text-lg md:text-xl font-bold mb-3 md:mb-4">Preliminary Report - Provide Feedback</h2>
+            <div className="flex-1 overflow-y-auto p-3 md:p-4 bg-gray-50 rounded">
               <ReportCard report={feedbackTask.preliminaryReport} refImages={refImages} expanded={true} />
             </div>
-            <div className="mt-4">
+            <div className="mt-3 md:mt-4">
               <label className="text-sm font-medium text-gray-700">Additional Comments</label>
               <textarea
                 value={additionalComments}
                 onChange={(e) => setAdditionalComments(e.target.value)}
                 rows={3}
-                className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                className="w-full mt-1 p-2 md:p-3 border border-gray-300 rounded-md text-base md:text-sm"
                 placeholder="e.g., The lighting was poor in the photos, please focus on the stitching."
               />
             </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setFeedbackTask(null)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
-              <button onClick={handleFinalizeQC} className="px-4 py-2 bg-primary text-white rounded">Submit for Final Report</button>
+            <div className="mt-3 md:mt-4 flex flex-col md:flex-row justify-end gap-2">
+              <button onClick={() => setFeedbackTask(null)} className="w-full md:w-auto px-4 py-2.5 md:py-2 bg-gray-200 rounded text-base md:text-sm">Cancel</button>
+              <button onClick={handleFinalizeQC} className="w-full md:w-auto px-4 py-2.5 md:py-2 bg-primary text-white rounded text-base md:text-sm">Submit for Final Report</button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="bg-white p-6 rounded-2xl shadow mb-6">
-        <div className="flex gap-6">
-          <div className="w-1/3">
-            <div onClick={() => refImages[0] && setSelectedImage(refImages[0])} className="aspect-square bg-gray-100 rounded overflow-hidden mb-2">
+      <div className="bg-white p-4 md:p-6 rounded-xl md:rounded-2xl shadow mb-4 md:mb-6">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          <div className="w-full md:w-1/3">
+            <div onClick={() => refImages[0] && setSelectedImage(refImages[0])} className="aspect-square bg-gray-100 rounded overflow-hidden mb-2 cursor-pointer">
               {refImages[0] && <img src={refImages[0]} className="w-full h-full object-cover" />}
             </div>
             <div className="flex gap-2 overflow-auto">
               {refImages.slice(1).map((r, i) => (
-                <div key={i} onClick={() => setSelectedImage(r)} className="h-16 w-16 rounded overflow-hidden">
+                <div key={i} onClick={() => setSelectedImage(r)} className="h-14 w-14 md:h-16 md:w-16 rounded overflow-hidden cursor-pointer shrink-0">
                   <img src={r} className="h-full w-full object-cover" />
                 </div>
               ))}
             </div>
           </div>
           <div className="flex-1">
-            <div className="flex justify-between">
+            <div className="flex flex-col md:flex-row justify-between gap-3 md:gap-0">
               <div>
-                <h1 className="text-2xl font-bold">{product.profile.name}</h1>
+                <h1 className="text-xl md:text-2xl font-bold">{product.profile.name}</h1>
                 <div className="text-sm text-gray-600">{product.profile.brand}</div>
               </div>
               <div className="text-right">
                 {product.profile.url ? (
-                  <a href={product.profile.url} target="_blank" rel="noreferrer" className="text-sm text-blue-600">
-                    <ExternalLink size={14} />
+                  <a href={product.profile.url} target="_blank" rel="noreferrer" className="text-sm text-blue-600 flex items-center gap-1 justify-end md:justify-start">
+                    <ExternalLink size={14} /> View Source
                   </a>
                 ) : null}
               </div>
             </div>
 
-            <div className="mt-4 flex gap-2">
+            <div className="mt-3 md:mt-4 flex flex-wrap gap-2">
               {product.creationSettings && (
-                <div className="px-2 py-1 rounded border text-sm">
+                <div className="px-2 py-1 rounded border text-xs md:text-sm">
                   {product.creationSettings.modelTier === ModelTier.DETAILED ? 'Pro 3.0' : 'Flash 2.5'}
                 </div>
               )}
               {product.creationSettings && (
-                <div className="px-2 py-1 rounded border text-sm">
+                <div className="px-2 py-1 rounded border text-xs md:text-sm">
                   {product.creationSettings.expertMode === ExpertMode.EXPERT ? 'Expert' : 'Normal'}
                 </div>
               )}
             </div>
 
-            <div className="mt-6">
-              <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded">
+            <div className="mt-4 md:mt-6">
+              <div className="grid grid-cols-2 gap-3 md:gap-4 bg-gray-50 p-2.5 md:p-3 rounded">
                 <div>
                   <div className="text-xs text-gray-500">Est. Price</div>
-                  <div className="font-semibold">{product.profile.priceEstimate}</div>
+                  <div className="font-semibold text-sm md:text-base">{product.profile.priceEstimate}</div>
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Material</div>
-                  <div className="font-semibold">{product.profile.material}</div>
+                  <div className="font-semibold text-sm md:text-base">{product.profile.material}</div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-6">
-              <div className="flex flex-wrap gap-2">
+            <div className="mt-4 md:mt-6">
+              <div className="flex flex-wrap gap-1.5 md:gap-2">
                 {product.profile.features?.map((f, i) => (
-                  <span key={i} className="px-2 py-1 bg-white rounded border text-sm">{f}</span>
+                  <span key={i} className="px-2 py-0.5 md:py-1 bg-white rounded border text-xs md:text-sm">{f}</span>
                 ))}
               </div>
             </div>
 
-            <div className="mt-6">
-              <button onClick={handleDelete} className="px-4 py-2 bg-red-50 text-red-600 rounded">Delete Identification</button>
+            <div className="mt-4 md:mt-6">
+              <button onClick={handleDelete} className="w-full md:w-auto px-4 py-2.5 md:py-2 bg-red-50 text-red-600 rounded text-sm md:text-base">Delete Identification</button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="mb-6 flex justify-between items-center">
-        <h2 className="text-xl font-bold">Quality Control</h2>
-        <button onClick={() => setShowHistory(v => !v)} className="text-sm text-gray-600 flex items-center gap-2">
+      <div className="mb-4 md:mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-0">
+        <h2 className="text-lg md:text-xl font-bold">Quality Control</h2>
+        <button onClick={() => setShowHistory(v => !v)} className="text-xs md:text-sm text-gray-600 flex items-center gap-2">
           <History size={16} /> {showHistory ? 'Hide History' : `History (${product.reports?.length || 0})`}
         </button>
       </div>
