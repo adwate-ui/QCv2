@@ -128,12 +128,8 @@ async function handleRequest(request) {
           });
         }
         
-        // Resolve relative redirects and validate same origin for security
-        const targetUrl = new URL(target);
+        // Resolve relative redirects and validate the redirect URL
         const redirectUrl = new URL(location, target);
-        
-        // For additional security, ensure redirect stays within the same origin or validate the new URL
-        // We'll validate the redirect URL regardless of whether it's relative or absolute
         const redirectUrlString = redirectUrl.toString();
         
         // Validate redirect destination
