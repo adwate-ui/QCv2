@@ -348,6 +348,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   // Maximum number of images to fetch from a product URL
   const MAX_IMAGES_FROM_URL = 5;
 
+  // Helper function to check if a response is JSON based on content-type
+  const isJsonResponse = (response: Response): boolean => {
+    const contentType = response.headers.get('content-type');
+    return contentType !== null && contentType.toLowerCase().includes('application/json');
+  };
+
   // Helper function to fetch images from a product URL with retry logic and better error handling
   const fetchImagesFromUrl = async (url: string, retryCount: number = 0): Promise<{ images: string[]; error?: string }> => {
     const MAX_RETRIES = 2;
@@ -379,7 +385,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       });
       
       if (!metadataResponse.ok) {
-        const errorData = await metadataResponse.json().catch(() => ({ error: 'Unknown error' }));
+        // Try to parse error response as JSON if content-type is appropriate
+        let errorData = { error: 'Unknown error' };
+        if (isJsonResponse(metadataResponse)) {
+          try {
+            errorData = await metadataResponse.json();
+          } catch (parseError) {
+            // Keep default error data if JSON parsing fails due to malformed content or other parse errors
+          }
+        }
+        
         const error = `Failed to fetch metadata (Status ${metadataResponse.status}): ${errorData.error || errorData.message || 'Unknown error'}`;
         console.error('[Image Fetch]', error);
         
@@ -393,7 +408,24 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         return { images: [], error };
       }
       
-      const metadata = await metadataResponse.json();
+      // Check if response is JSON before parsing
+      if (!isJsonResponse(metadataResponse)) {
+        const contentType = metadataResponse.headers.get('content-type');
+        const error = `Worker returned non-JSON response (Content-Type: ${contentType || 'not set'}). Please verify VITE_IMAGE_PROXY_URL is correctly configured and the Cloudflare Worker is deployed.`;
+        console.error('[Image Fetch]', error);
+        return { images: [], error };
+      }
+      
+      // Parse JSON response with error handling
+      let metadata;
+      try {
+        metadata = await metadataResponse.json();
+      } catch (parseError: unknown) {
+        const errorMsg = parseError instanceof Error ? parseError.message : String(parseError);
+        const error = `Failed to parse worker response as JSON: ${errorMsg}. The worker may be misconfigured or returning an error page.`;
+        console.error('[Image Fetch]', error);
+        return { images: [], error };
+      }
       
       if (metadata.error) {
         const error = `Metadata endpoint error: ${metadata.error}`;
@@ -466,15 +498,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
       
       return { images: validImages };
-    } catch (error: any) {
-      const errorMsg = error.name === 'TimeoutError' 
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error && error.name === 'TimeoutError' 
         ? 'Request timed out. The website may be slow or blocking requests.'
-        : `Error fetching images: ${error.message || error}`;
+        : error instanceof Error 
+          ? `Error fetching images: ${error.message}`
+          : `Error fetching images: ${String(error)}`;
       
       console.error('[Image Fetch]', errorMsg, error);
       
       // Retry on network errors
-      if (retryCount < MAX_RETRIES && error.name !== 'AbortError') {
+      if (retryCount < MAX_RETRIES && error instanceof Error && error.name !== 'AbortError') {
         console.log(`[Image Fetch] Retrying in ${RETRY_DELAY}ms...`);
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (retryCount + 1)));
         return fetchImagesFromUrl(url, retryCount + 1);
