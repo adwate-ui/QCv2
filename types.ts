@@ -102,7 +102,7 @@ export interface Discrepancy {
   id: string;
   description: string;
   severity: 'critical' | 'major' | 'minor';
-  boundingBox: number[]; // [ymin, xmin, ymax, xmax] normalized to 0-1000
+  boundingBox: [number, number, number, number]; // [ymin, xmin, ymax, xmax] normalized to 0-1000
 }
 
 export interface QCAnalysisResult {
