@@ -52,7 +52,8 @@ const normalizePriceEstimate = (raw?: string): string => {
 
 // Normalize an entire ProductProfile object to have consistent field formats
 // Normalize category to standard forms (singular, lowercase, consistent naming)
-const normalizeCategory = (category: string): string => {
+// If existingCategories is provided, will match against those first before creating a new category
+const normalizeCategory = (category: string, existingCategories?: string[]): string => {
   if (!category) return 'Uncategorized';
   
   // Convert to lowercase and trim
@@ -125,10 +126,33 @@ const normalizeCategory = (category: string): string => {
   }
   
   // Title-case the result
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  const titleCased = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  
+  // If existingCategories provided, check if there's a close match
+  if (existingCategories && existingCategories.length > 0) {
+    const CATEGORY_SIMILARITY_THRESHOLD = 0.75;
+    let bestMatch = titleCased;
+    let bestScore = CATEGORY_SIMILARITY_THRESHOLD;
+    
+    for (const existingCat of existingCategories) {
+      const similarity = stringSimilarity(titleCased, existingCat);
+      if (similarity > bestScore) {
+        bestScore = similarity;
+        bestMatch = existingCat;
+      }
+    }
+    
+    // If we found a close enough match, use the existing category
+    if (bestMatch !== titleCased) {
+      console.log(`[Category Match] "${category}" → "${titleCased}" → matched to existing "${bestMatch}" (similarity: ${bestScore.toFixed(2)})`);
+      return bestMatch;
+    }
+  }
+  
+  return titleCased;
 };
 
-const normalizeProfile = (profile: ProductProfile): ProductProfile => {
+const normalizeProfile = (profile: ProductProfile, existingCategories?: string[]): ProductProfile => {
   const out: Partial<ProductProfile> = { ...profile };
 
   // Helper: safe trim
@@ -138,8 +162,8 @@ const normalizeProfile = (profile: ProductProfile): ProductProfile => {
   out.name = safeTrim(profile.name);
   out.brand = safeTrim(profile.brand);
 
-  // Category: normalize to standard form
-  out.category = normalizeCategory(profile.category || 'Uncategorized');
+  // Category: normalize to standard form, matching against existing categories if provided
+  out.category = normalizeCategory(profile.category || 'Uncategorized', existingCategories);
 
   // Price: normalize and format in accounting style with no decimals and thousand separators
   if (profile.priceEstimate) {
@@ -380,7 +404,8 @@ const _performIdentification = async (
   apiKey: string,
   imageDatas: string[], // base64 strings or URLs
   inputUrl: string | undefined,
-  settings: AppSettings
+  settings: AppSettings,
+  existingCategories?: string[]
 ): Promise<ProductProfile> => {
   const ai = new GoogleGenAI({ apiKey });
   const { model } = getModelConfig(settings.modelTier);
@@ -548,9 +573,9 @@ const _performIdentification = async (
     (profile as any).imageUrls = (profile as any).imageUrls;
   }
 
-  // Normalize entire profile to consistent formats
+  // Normalize entire profile to consistent formats, passing existingCategories
   try {
-    return normalizeProfile(profile);
+    return normalizeProfile(profile, existingCategories);
   } catch (e) {
     console.warn('Profile normalization failed', e);
   }
@@ -563,11 +588,12 @@ export const identifyProduct = async (
   apiKey: string,
   imageDatas: string[], // base64 strings
   inputUrl: string | undefined,
-  settings: AppSettings
+  settings: AppSettings,
+  existingCategories?: string[]
 ): Promise<ProductProfile> => {
   try {
     // First attempt with the original settings
-    return await _performIdentification(apiKey, imageDatas, inputUrl, settings);
+    return await _performIdentification(apiKey, imageDatas, inputUrl, settings, existingCategories);
   } catch (error) {
     console.error("Initial identification failed:", error);
 
@@ -576,7 +602,7 @@ export const identifyProduct = async (
       console.warn("Detailed model failed. Attempting fallback with Fast model...");
       try {
         const fallbackSettings: AppSettings = { ...settings, modelTier: ModelTier.FAST };
-        return await _performIdentification(apiKey, imageDatas, inputUrl, fallbackSettings);
+        return await _performIdentification(apiKey, imageDatas, inputUrl, fallbackSettings, existingCategories);
       } catch (fallbackError) {
         console.error("Fallback identification also failed:", fallbackError);
         // If the fallback also fails, return the standard error object.
