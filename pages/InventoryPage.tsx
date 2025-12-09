@@ -82,11 +82,46 @@ export const InventoryPage = () => {
                 // If we already have a cached image URL, reuse it
                 if (imageMap[p.id]) {
                   map[p.id] = imageMap[p.id];
-                } else {
-                  const imgBase64 = await db.getImage(p.referenceImageIds[0]).catch(() => undefined);
-                  if (imgBase64) map[p.id] = imgBase64;
-                  else map[p.id] = getPublicImageUrl(user.id, p.referenceImageIds[0]);
+                  continue;
                 }
+
+                const imageId = p.referenceImageIds[0];
+                let imgBase64: string | undefined;
+
+                try {
+                  imgBase64 = await db.getImage(imageId);
+                } catch (e) {
+                  console.debug('db.getImage failed for', imageId, e);
+                  imgBase64 = undefined;
+                }
+
+                if (imgBase64) {
+                  map[p.id] = imgBase64;
+                  continue;
+                }
+
+                // Fallback: try to fetch the public URL and convert to base64 client-side
+                const publicUrl = getPublicImageUrl(user.id, imageId);
+                try {
+                  const resp = await fetch(publicUrl);
+                  if (resp.ok) {
+                    const blob = await resp.blob();
+                    const reader = new FileReader();
+                    const dataUrl: string = await new Promise((res, rej) => {
+                      reader.onloadend = () => res(reader.result as string);
+                      reader.onerror = rej;
+                      reader.readAsDataURL(blob);
+                    });
+                    map[p.id] = dataUrl;
+                    continue;
+                  } else {
+                    console.debug('Public URL fetch failed', publicUrl, resp.status, resp.statusText);
+                  }
+                } catch (e) {
+                  console.debug('Public URL fetch error for', publicUrl, e);
+                }
+
+                // As last resort set nothing so UI shows placeholder
               }
             } catch (e) {
               console.error('Failed to load thumbnail for', p.id, e);
