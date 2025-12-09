@@ -393,7 +393,23 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         return { images: [], error };
       }
       
-      const metadata = await metadataResponse.json();
+      // Check if response is JSON before parsing
+      const contentType = metadataResponse.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const error = `Worker returned non-JSON response (Content-Type: ${contentType || 'not set'}). Please verify VITE_IMAGE_PROXY_URL is correctly configured and the Cloudflare Worker is deployed.`;
+        console.error('[Image Fetch]', error);
+        return { images: [], error };
+      }
+      
+      // Parse JSON response with error handling
+      let metadata;
+      try {
+        metadata = await metadataResponse.json();
+      } catch (parseError: any) {
+        const error = `Failed to parse worker response as JSON: ${parseError.message}. The worker may be misconfigured or returning an error page.`;
+        console.error('[Image Fetch]', error);
+        return { images: [], error };
+      }
       
       if (metadata.error) {
         const error = `Metadata endpoint error: ${metadata.error}`;
