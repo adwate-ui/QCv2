@@ -452,6 +452,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       
       console.log(`Generating ${sectionsWithIssues.length} comparison images for non-PASS sections:`, sectionsWithIssues.map(s => `${s.sectionName} (${s.grade})`));
       
+      // Limit observations shown in comparison images for better readability
+      const MAX_OBSERVATIONS_FOR_COMPARISON = 4;
+      
       // Generate all comparison images in parallel
       const comparisonPromises = sectionsWithIssues.map(async (section) => {
         try {
@@ -460,9 +463,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           const qcImageSrc = allQCRawImages[0]; // Use first QC image as representative
           const refImageSrc = referenceImages[0]; // Use first reference image
           
-          // Get observations for this section (limit to first 4 for better readability)
+          // Get observations for this section (limit for better readability)
           const observations = Array.isArray(section.observations) 
-            ? section.observations.slice(0, 4) 
+            ? section.observations.slice(0, MAX_OBSERVATIONS_FOR_COMPARISON) 
             : [];
           
           // Generate side-by-side comparison with observations highlighted
