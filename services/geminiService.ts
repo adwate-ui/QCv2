@@ -132,6 +132,105 @@ const cleanJson = (text: string) => {
   return text;
 };
 
+// Standard section names for different product categories
+const STANDARD_SECTION_NAMES: Record<string, string[]> = {
+  'watches': ['Dial & Hands', 'Case & Bezel', 'Crown & Pushers', 'Bracelet/Strap', 'Clasp', 'Movement', 'Case Back', 'Packaging', 'Documentation'],
+  'bags': ['Exterior Material', 'Interior Lining', 'Hardware & Zippers', 'Stitching', 'Handles/Straps', 'Logo & Stamps', 'Dust Bag', 'Authenticity Card', 'Packaging'],
+  'shoes': ['Upper Material', 'Sole', 'Stitching', 'Logo & Branding', 'Interior', 'Laces', 'Box & Packaging', 'Authenticity Card'],
+  'electronics': ['Display/Screen', 'Body/Casing', 'Ports & Buttons', 'Camera/Lens', 'Software/Interface', 'Accessories', 'Packaging', 'Documentation'],
+  'jewelry': ['Metal Quality', 'Gemstones', 'Clasp/Closure', 'Engravings', 'Finish/Polish', 'Chain/Band', 'Packaging', 'Certificate'],
+  'clothing': ['Fabric Quality', 'Stitching', 'Labels & Tags', 'Hardware', 'Construction', 'Finish', 'Packaging'],
+  'default': ['Overall Quality', 'Materials', 'Construction', 'Hardware', 'Branding', 'Finish', 'Packaging', 'Documentation']
+};
+
+// Calculate similarity between two strings (0-1)
+const stringSimilarity = (str1: string, str2: string): number => {
+  const s1 = str1.toLowerCase().trim();
+  const s2 = str2.toLowerCase().trim();
+  
+  if (s1 === s2) return 1.0;
+  
+  // Remove common words and punctuation for comparison
+  const normalize = (s: string) => s
+    .replace(/[&/\\#,+()$~%.'":*?<>{}]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+  
+  const n1 = normalize(s1);
+  const n2 = normalize(s2);
+  
+  if (n1 === n2) return 0.95;
+  
+  // Check for substring matches
+  if (n1.includes(n2) || n2.includes(n1)) return 0.85;
+  
+  // Token-based similarity
+  const tokens1 = new Set(n1.split(' ').filter(t => t.length > 2));
+  const tokens2 = new Set(n2.split(' ').filter(t => t.length > 2));
+  
+  if (tokens1.size === 0 || tokens2.size === 0) return 0;
+  
+  const intersection = new Set([...tokens1].filter(t => tokens2.has(t)));
+  const union = new Set([...tokens1, ...tokens2]);
+  
+  return intersection.size / union.size;
+};
+
+// Normalize a section name to match standard names
+const normalizeSectionName = (sectionName: string, category: string = 'default'): string => {
+  const trimmed = sectionName.trim();
+  
+  // Get standard names for this category
+  const standardNames = STANDARD_SECTION_NAMES[category.toLowerCase()] || STANDARD_SECTION_NAMES['default'];
+  
+  // Try to find a matching standard name
+  let bestMatch = trimmed;
+  let bestScore = 0.7; // Threshold for considering a match
+  
+  for (const standardName of standardNames) {
+    const similarity = stringSimilarity(trimmed, standardName);
+    if (similarity > bestScore) {
+      bestScore = similarity;
+      bestMatch = standardName;
+    }
+  }
+  
+  // Also check against watch-specific terms
+  if (category.toLowerCase().includes('watch') || category.toLowerCase().includes('timepiece')) {
+    for (const standardName of STANDARD_SECTION_NAMES['watches']) {
+      const similarity = stringSimilarity(trimmed, standardName);
+      if (similarity > bestScore) {
+        bestScore = similarity;
+        bestMatch = standardName;
+      }
+    }
+  }
+  
+  return bestMatch;
+};
+
+// Get standard sections prompt for a category
+const getStandardSectionsPrompt = (category: string): string => {
+  const cat = category.toLowerCase();
+  
+  if (cat.includes('watch') || cat.includes('timepiece')) {
+    return 'Dial & Hands, Case & Bezel, Crown & Pushers, Bracelet/Strap, Clasp, Movement, Case Back, Packaging, Documentation';
+  } else if (cat.includes('bag') || cat.includes('handbag') || cat.includes('purse')) {
+    return 'Exterior Material, Interior Lining, Hardware & Zippers, Stitching, Handles/Straps, Logo & Stamps, Dust Bag, Authenticity Card, Packaging';
+  } else if (cat.includes('shoe') || cat.includes('sneaker') || cat.includes('boot')) {
+    return 'Upper Material, Sole, Stitching, Logo & Branding, Interior, Laces, Box & Packaging, Authenticity Card';
+  } else if (cat.includes('electron') || cat.includes('phone') || cat.includes('tablet') || cat.includes('computer')) {
+    return 'Display/Screen, Body/Casing, Ports & Buttons, Camera/Lens, Software/Interface, Accessories, Packaging, Documentation';
+  } else if (cat.includes('jewelry') || cat.includes('necklace') || cat.includes('bracelet') || cat.includes('ring')) {
+    return 'Metal Quality, Gemstones, Clasp/Closure, Engravings, Finish/Polish, Chain/Band, Packaging, Certificate';
+  } else if (cat.includes('clothing') || cat.includes('apparel') || cat.includes('jacket') || cat.includes('shirt')) {
+    return 'Fabric Quality, Stitching, Labels & Tags, Hardware, Construction, Finish, Packaging';
+  }
+  
+  return 'Overall Quality, Materials, Construction, Hardware, Branding, Finish, Packaging, Documentation';
+};
+
 const getModelConfig = (tier: ModelTier) => {
   // User requested:
   // Fast: Gemini 2.5 Flash
@@ -477,6 +576,8 @@ export const runQCAnalysis = async (
       });
     }
 
+    const standardSections = getStandardSectionsPrompt(profile.category || 'default');
+    
     parts.push({
       text: `Perform a QC inspection comparing the CUMULATIVE SET of QC INSPECTION IMAGES (collected over multiple batches) against the REFERENCE IMAGES and PROFILE.
     
@@ -486,7 +587,8 @@ export const runQCAnalysis = async (
     - FAIL: <= 60 (Definite replica, damaged, or major defects)
     
     Output requirements:
-    - Break down analysis by sections (e.g., for a bag: Packaging, Exterior Leather, Interior Lining, Hardware & Zippers, Stitching, Straps & Handles, Logos & Brand Stamps, Dust Bag, Authenticity Card).
+    - Break down analysis by sections. Use these STANDARD SECTION NAMES consistently: ${standardSections}
+    - CRITICAL: Always use the exact section names provided above. Do NOT create variations like "luxury watches" vs "luxury timepiece" or "Exterior Leather" vs "Leather Exterior". Use the standard names exactly as given.
     - Use bullet points in observations.
     - Provide a specific score on a scale of 0-100 and a grade for each section and for the overall assessment.
     - Include a "requestForMoreInfo" section suggesting what additional images or information could improve the analysis.
@@ -580,6 +682,14 @@ export const runQCAnalysis = async (
       result = JSON.parse(cleanJson(response.text || "{}"));
     }
     
+    // Normalize section names to prevent duplicates
+    if (result.sections && Array.isArray(result.sections)) {
+      result.sections = result.sections.map((section: any) => ({
+        ...section,
+        sectionName: normalizeSectionName(section.sectionName, profile.category || 'default')
+      }));
+    }
+    
     return {
       id: generateUUID(),
       generatedAt: Date.now(),
@@ -637,11 +747,15 @@ export const runFinalQCAnalysis = async (
   parts.push({ text: `\n**PRELIMINARY QC REPORT:**\n${JSON.stringify(preliminaryReport, null, 2)}\n` });
   parts.push({ text: `\n**USER'S ADDITIONAL COMMENTS:**\n${userComments}\n` });
 
+  const standardSections = getStandardSectionsPrompt(profile.category || 'default');
+  
   parts.push({
     text: `Generate a FINAL QC REPORT based on all the provided information, including the preliminary report and the user's new comments.
     
     Output requirements:
     - Incorporate the user's feedback into your final analysis.
+    - Use these STANDARD SECTION NAMES consistently: ${standardSections}
+    - CRITICAL: Always use the exact section names provided above to maintain consistency with the preliminary report.
     - Provide a specific score (0-100) and grade for each section and Overall.
     - Include a "requestForMoreInfo" section suggesting what additional images or information could improve the analysis.
     - ALWAYS return your response as a valid, raw JSON object conforming to the QCReport schema.`
@@ -678,6 +792,14 @@ export const runFinalQCAnalysis = async (
 
   const response = await ai.models.generateContent({ model, contents: { parts }, config });
   const result = JSON.parse(cleanJson(response.text || "{}"));
+  
+  // Normalize section names to prevent duplicates
+  if (result.sections && Array.isArray(result.sections)) {
+    result.sections = result.sections.map((section: any) => ({
+      ...section,
+      sectionName: normalizeSectionName(section.sectionName, profile.category || 'default')
+    }));
+  }
   
   return {
     id: generateUUID(),
