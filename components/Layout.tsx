@@ -34,8 +34,11 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
     <div className="min-h-screen flex flex-col bg-gray-50 pb-20 md:pb-0">
       {/* Top Bar */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50 px-3 md:px-4 py-2.5 md:py-3 flex items-center justify-between shadow-sm flex-shrink-0">
-        <Link to="/inventory" className="text-lg md:text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-          AuthentiQC
+        <Link to="/inventory" className="flex items-center gap-2 group">
+          <img src="/logo.svg" alt="AuthentiQC Logo" className="w-7 h-7 md:w-8 md:h-8 transition-transform group-hover:scale-110" />
+          <span className="text-lg md:text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            AuthentiQC
+          </span>
         </Link>
         
         <div className="flex items-center gap-1.5 md:gap-2">

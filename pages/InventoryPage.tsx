@@ -7,6 +7,20 @@ import { Plus, Search, Tag, Filter, CheckCircle, XCircle, AlertTriangle, Clock, 
 
 type FilterType = 'ALL' | 'PASS' | 'FAIL' | 'CAUTION' | 'PENDING';
 
+// Normalize category names to group similar products together
+const normalizeCategory = (category: string | undefined): string => {
+  if (!category) return 'Uncategorized';
+  // Normalize: trim, lowercase, preserve hyphens and apostrophes, remove other special chars, normalize spacing
+  return category
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-zA-Z0-9\s'-]/g, '') // Keep alphanumeric, spaces, hyphens, and apostrophes
+    .replace(/\s+/g, ' ') // Normalize multiple spaces to single space
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Title case each word
+    .join(' ');
+};
+
 const GridButton = ({ key, size, isActive, onClick }: { key: number, size: number, isActive: boolean, onClick: () => void }) => {
     const gridTemplates = {
         2: 'grid-cols-2',
@@ -137,11 +151,11 @@ export const InventoryPage = () => {
       });
     }
 
-    // 2. Group products by category
+    // 2. Group products by category (normalize to avoid similar categories creating separate sections)
     const grouped = filteredList.reduce((acc, product) => {
-      const cat = product.profile.category || 'Uncategorized';
-      if (!acc[cat]) acc[cat] = [];
-      acc[cat].push(product);
+      const normalizedCat = normalizeCategory(product.profile.category);
+      if (!acc[normalizedCat]) acc[normalizedCat] = [];
+      acc[normalizedCat].push(product);
       return acc;
     }, {} as Record<string, Product[]>);
     setGroupedProducts(grouped);
