@@ -370,8 +370,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     const proxyBase = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
     if (!proxyBase) {
-      const error = 'Image proxy not configured. Please set VITE_IMAGE_PROXY_URL environment variable';
-      console.error(error);
+      const error = 'Image proxy not configured. Please set VITE_IMAGE_PROXY_URL in .env.local (for local development) or as a GitHub secret (for production). See IMAGE_FETCHING_GUIDE.md for details.';
+      console.error('[Image Fetch]', error);
+      return { images: [], error };
+    }
+
+    // Validate proxy URL format
+    try {
+      new URL(proxyBase);
+    } catch {
+      const error = `Invalid VITE_IMAGE_PROXY_URL format: "${proxyBase}". Must be a valid URL (e.g., https://your-worker.workers.dev)`;
+      console.error('[Image Fetch]', error);
       return { images: [], error };
     }
 
@@ -379,6 +388,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       // First, fetch metadata to get image URLs from the page
       const metadataUrl = `${proxyBase.replace(/\/$/, '')}/fetch-metadata?url=${encodeURIComponent(url)}`;
       console.log(`[Image Fetch] Attempt ${retryCount + 1}: Fetching metadata from:`, metadataUrl);
+      console.log(`[Image Fetch] Using worker URL: ${proxyBase}`);
       
       const metadataResponse = await fetch(metadataUrl, { 
         signal: AbortSignal.timeout(15000) // 15 second timeout
@@ -411,7 +421,21 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       // Check if response is JSON before parsing
       if (!isJsonResponse(metadataResponse)) {
         const contentType = metadataResponse.headers.get('content-type');
-        const error = `Worker returned non-JSON response (Content-Type: ${contentType || 'not set'}). Please verify VITE_IMAGE_PROXY_URL is correctly configured and the Cloudflare Worker is deployed.`;
+        
+        // Provide specific guidance based on the response type
+        const error = contentType?.includes('text/html') 
+          ? `Worker returned non-JSON response (Content-Type: ${contentType || 'not set'}).
+The worker URL (${proxyBase}) appears to be returning an HTML page instead of JSON. This usually means:
+1. The Cloudflare Worker is not deployed at this URL
+2. The URL is incorrect (make sure it points to your worker, not a generic Cloudflare page)
+3. The worker exists but is misconfigured
+
+To fix:
+- Deploy the worker: cd cloudflare-worker && npx wrangler@4 deploy index.mjs --name authentiqc-worker
+- Update VITE_IMAGE_PROXY_URL with the correct worker URL
+- See IMAGE_FETCHING_GUIDE.md for detailed instructions`
+          : `Worker returned non-JSON response (Content-Type: ${contentType || 'not set'}). Please verify VITE_IMAGE_PROXY_URL (${proxyBase}) is correctly configured and the Cloudflare Worker is deployed.`;
+        
         console.error('[Image Fetch]', error);
         return { images: [], error };
       }
@@ -595,7 +619,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                 const proxyBase = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
                 
                 if (!proxyBase) {
-                  console.error('[Identification] VITE_IMAGE_PROXY_URL not configured, cannot fetch AI-provided image URLs');
+                  console.error('[Identification] VITE_IMAGE_PROXY_URL not configured, cannot fetch AI-provided image URLs. See IMAGE_FETCHING_GUIDE.md for setup instructions.');
                 } else {
                   const fetchedImages = await Promise.allSettled(
                       profile.imageUrls.slice(0, MAX_IMAGES_FROM_URL).map(async (imageUrl, index) => {

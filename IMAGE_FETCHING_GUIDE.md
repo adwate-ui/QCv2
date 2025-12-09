@@ -72,6 +72,26 @@ The worker must be deployed and accessible. It provides two endpoints:
 2. Add: `VITE_IMAGE_PROXY_URL=<your-worker-url>`
 3. Restart the dev server (`npm run dev`)
 
+For detailed troubleshooting, see: [TROUBLESHOOTING_WORKER_ERROR.md](TROUBLESHOOTING_WORKER_ERROR.md)
+
+### Issue: "Worker returned non-JSON response"
+
+**Cause:** VITE_IMAGE_PROXY_URL is set but points to a location that returns HTML instead of JSON
+
+**Common reasons:**
+1. The Cloudflare Worker is not deployed at the configured URL
+2. The URL is incorrect or points to a 404 page
+3. The worker exists but is misconfigured
+
+**Solution:**
+See the comprehensive guide: [TROUBLESHOOTING_WORKER_ERROR.md](TROUBLESHOOTING_WORKER_ERROR.md)
+
+Quick fixes:
+1. Verify worker is deployed: Check Cloudflare Dashboard → Workers & Pages
+2. Test the worker directly: `curl "https://your-worker-url.workers.dev/fetch-metadata?url=https://example.com"`
+3. Use the diagnostics page: Navigate to `/diagnostics` in the app
+4. Check browser console for the exact worker URL being used
+
 ### Issue: "Request timed out"
 
 **Causes:**

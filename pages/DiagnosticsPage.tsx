@@ -78,13 +78,36 @@ export const DiagnosticsPage = () => {
       const startTime = Date.now();
       const response = await fetch(metadataUrl, { signal: AbortSignal.timeout(15000) });
       const elapsed = Date.now() - startTime;
+      const contentType = response.headers.get('content-type');
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        let errorDetails = 'Unknown error';
+        
+        // Try to parse as JSON if content-type suggests it
+        if (contentType?.includes('application/json')) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          errorDetails = JSON.stringify(errorData, null, 2);
+        } else {
+          // Worker might be returning HTML (404 page) instead of JSON
+          const received = contentType || 'not set';
+          errorDetails = `The worker may not be deployed or the URL is incorrect.\n\nExpected: application/json\nReceived: ${received}`;
+        }
+        
         updateResult('metadata-fetch', {
           status: 'error',
           message: `Metadata fetch failed (${response.status} ${response.statusText})`,
-          details: JSON.stringify(errorData, null, 2)
+          details: errorDetails
+        });
+        setIsRunning(false);
+        return;
+      }
+
+      // Check if response is JSON
+      if (!contentType?.includes('application/json')) {
+        updateResult('metadata-fetch', {
+          status: 'error',
+          message: 'Worker returned non-JSON response',
+          details: `Expected: application/json\nReceived: ${contentType || 'not set'}\n\nThis usually means:\n1. The Cloudflare Worker is not deployed\n2. The VITE_IMAGE_PROXY_URL points to the wrong location\n3. The worker URL is returning a 404 page\n\nCheck IMAGE_FETCHING_GUIDE.md for setup instructions.`
         });
         setIsRunning(false);
         return;
