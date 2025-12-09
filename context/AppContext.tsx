@@ -216,24 +216,29 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             let finalImages = images;
             if (images.length === 0 && profile.imageUrls && profile.imageUrls.length > 0) {
                 // If no images were provided, but the model returned some, fetch and save them.
+                const proxyBase = (import.meta as any).env?.VITE_IMAGE_PROXY_URL || '';
                 const fetchedImages = await Promise.all(
                     profile.imageUrls.slice(0, 5).map(async (imageUrl) => {
-                        try {
-                            const response = await fetch(imageUrl);
-                            if (!response.ok) return null;
-                            const blob = await response.blob();
-                            return new Promise<string>((resolve, reject) => {
-                                const reader = new FileReader();
-                                reader.onloadend = () => resolve(reader.result as string);
-                                reader.onerror = reject;
-                                reader.readAsDataURL(blob);
-                            });
-                        } catch (error) {
-                            console.error(`Failed to fetch image from URL ${imageUrl}:`, error);
-                            return null;
+                      try {
+                        const fetchUrl = proxyBase ? `${proxyBase.replace(/\/$/, '')}/proxy-image?url=${encodeURIComponent(imageUrl)}` : imageUrl;
+                        const response = await fetch(fetchUrl);
+                        if (!response.ok) {
+                          console.debug('Image fetch failed', fetchUrl, response.status, response.statusText);
+                          return null;
                         }
+                        const blob = await response.blob();
+                        return new Promise<string>((resolve, reject) => {
+                          const reader = new FileReader();
+                          reader.onloadend = () => resolve(reader.result as string);
+                          reader.onerror = reject;
+                          reader.readAsDataURL(blob);
+                        });
+                      } catch (error) {
+                        console.error(`Failed to fetch image from URL ${imageUrl}:`, error);
+                        return null;
+                      }
                     })
-                );
+                  );
                 finalImages = fetchedImages.filter(Boolean) as string[];
             }
             

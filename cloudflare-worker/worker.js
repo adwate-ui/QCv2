@@ -41,6 +41,39 @@ async function handleRequest(request) {
     }
   }
 
+  if (pathname.endsWith('/proxy-image')) {
+    const target = url.searchParams.get('url');
+    if (!target) return new Response(JSON.stringify({ error: 'missing url' }), { status: 400 });
+    try {
+      // Some hosts block non-browser user agents or require referer headers.
+      const fetchOpts = {
+        redirect: 'follow',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; AuthentiQC/1.0; +https://example.com)'
+        }
+      };
+
+      // If target is same-origin or allows it, this will succeed; otherwise host may still block.
+      const resp = await fetch(target, fetchOpts);
+      if (!resp.ok) return new Response(JSON.stringify({ error: 'fetch failed', status: resp.status, statusText: resp.statusText }), { status: 502 });
+
+      const contentType = resp.headers.get('content-type') || 'application/octet-stream';
+      const body = await resp.arrayBuffer();
+
+      const out = new Response(body, {
+        headers: {
+          'content-type': contentType,
+          'access-control-allow-origin': '*',
+          'cache-control': 'public, max-age=60'
+        }
+      });
+
+      return out;
+    } catch (e) {
+      return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+    }
+  }
+
   if (pathname.endsWith('/diff')) {
     // Query params: imageA, imageB (URLs)
     const imageA = url.searchParams.get('imageA');
