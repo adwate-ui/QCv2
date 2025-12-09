@@ -148,18 +148,19 @@ export const InventoryPage = () => {
 
     // 3. Load thumbnails (prefer base64 via DB.getImage to avoid public-bucket/CORS issues)
     if (user?.id) {
+      const userId = user.id; // Capture for safe use in async closure
       (async () => {
         const loadPromises = filteredList
           .filter(p => p.referenceImageIds && p.referenceImageIds.length > 0)
           .filter(p => !imageMapRef.current[p.id]) // Check ref to avoid re-loading
           .map(async (p) => {
             const imageId = p.referenceImageIds[0];
-            const dataUrl = await loadImage(p.id, imageId, user.id!);
+            const dataUrl = await loadImage(p.id, imageId, userId);
             return dataUrl ? { [p.id]: dataUrl } : null;
           });
 
         const results = await Promise.all(loadPromises);
-        const newImages = results.filter(Boolean).reduce((acc, img) => ({ ...acc, ...img }), {});
+        const newImages = results.filter(Boolean).reduce((acc, img) => ({ ...acc, ...img }), {} as Record<string, string>);
         
         // Only update state if we loaded new images
         if (Object.keys(newImages).length > 0) {
