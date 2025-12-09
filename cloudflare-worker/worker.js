@@ -578,7 +578,13 @@ async function handleRequest(request) {
     }
   }
 
-  return new Response('Not found', { status: 404 });
+  return new Response(JSON.stringify({ error: 'Not found' }), { 
+    status: 404,
+    headers: { 
+      'Content-Type': 'application/json', 
+      'Access-Control-Allow-Origin': '*' 
+    }
+  });
 }
 
 function extractImagesFromLd(obj) {
