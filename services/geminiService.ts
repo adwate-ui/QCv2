@@ -11,6 +11,45 @@ const isURL = (str: string): boolean => {
   }
 };
 
+// Normalize various price strings into a single `$<amount>` format.
+const normalizePriceEstimate = (raw?: string): string => {
+  if (!raw || typeof raw !== 'string') return '';
+  const s = raw.trim();
+
+  // Remove common prefixes/suffixes
+  let cleaned = s.replace(/(USD|US\$|eur|€|GBP|£|AUD|CAD)\b/gi, '')
+    .replace(/[,]/g, '')
+    .replace(/approx\.?/gi, '')
+    .replace(/msrp\:?/gi, '')
+    .replace(/~|≈/g, '')
+    .trim();
+
+  // If it's a range like "100-200" or "100 to 200", take the average
+  const rangeMatch = cleaned.match(/(-?\d+(?:\.\d+)?)\s*(?:-|to|–|—)\s*(-?\d+(?:\.\d+)?)/i);
+  if (rangeMatch) {
+    const a = parseFloat(rangeMatch[1]);
+    const b = parseFloat(rangeMatch[2]);
+    if (!isNaN(a) && !isNaN(b)) {
+      const avg = Math.round((a + b) / 2);
+      return `$${avg}`;
+    }
+  }
+
+  // Extract first number
+  const numMatch = cleaned.match(/-?\d+(?:\.\d+)?/);
+  if (numMatch) {
+    const val = parseFloat(numMatch[0]);
+    if (!isNaN(val)) {
+      // Round to nearest whole dollar
+      const rounded = Math.round(val);
+      return `$${rounded}`;
+    }
+  }
+
+  // If nothing numeric found, fall back to original trimmed string
+  return s;
+};
+
 // Helper to clean JSON string if md block is present
 const cleanJson = (text: string) => {
   // Catch ```json ... ``` with potential spaces/newlines
@@ -200,6 +239,15 @@ const _performIdentification = async (
   // If model returned imageUrls, attach them (frontend can fetch thumbnails)
   if ((profile as any).imageUrls && Array.isArray((profile as any).imageUrls)) {
     (profile as any).imageUrls = (profile as any).imageUrls;
+  }
+
+  // Normalize price field to a consistent $<amount> format
+  if (profile.priceEstimate) {
+    try {
+      profile.priceEstimate = normalizePriceEstimate(profile.priceEstimate as string);
+    } catch (e) {
+      console.warn('Price normalization failed for', profile.priceEstimate, e);
+    }
   }
 
   return profile;
