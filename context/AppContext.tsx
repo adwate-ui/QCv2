@@ -399,13 +399,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       
       if (product.profile.imageUrls && product.profile.imageUrls.length > 0) {
         // Download and convert original images from internet in parallel
-        const proxyBase = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
+        const proxyBaseRaw = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
+        const proxyBase = normalizeWorkerUrl(proxyBaseRaw);
         const imagePromises = product.profile.imageUrls.map(async (imageUrl) => {
           try {
             let fetchUrl: string;
             if (proxyBase) {
-              // Use URL constructor for safe URL building
-              const proxyUrl = new URL('/proxy-image', proxyBase.replace(/\/$/, ''));
+              // Use URL constructor for safe URL building - proxyBase is normalized
+              const proxyUrl = new URL('/proxy-image', proxyBase);
               proxyUrl.searchParams.set('url', imageUrl);
               fetchUrl = proxyUrl.toString();
             } else {
@@ -497,6 +498,26 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return contentType !== null && contentType.toLowerCase().includes('application/json');
   };
 
+  // Helper function to normalize the worker URL by removing endpoint paths if they exist
+  // This handles cases where VITE_IMAGE_PROXY_URL incorrectly includes endpoint paths
+  const normalizeWorkerUrl = (workerUrl: string): string => {
+    if (!workerUrl) return workerUrl;
+    
+    // Remove trailing slash
+    let normalized = workerUrl.replace(/\/$/, '');
+    
+    // Remove common endpoint paths if they exist
+    const endpointPaths = ['/fetch-metadata', '/proxy-image', '/proxy'];
+    for (const path of endpointPaths) {
+      if (normalized.endsWith(path)) {
+        normalized = normalized.slice(0, -path.length);
+        break;
+      }
+    }
+    
+    return normalized;
+  };
+
   // Helper function to fetch images from a product URL with retry logic and better error handling
   const fetchImagesFromUrl = async (url: string, retryCount: number = 0): Promise<{ images: string[]; error?: string }> => {
     const MAX_RETRIES = 2;
@@ -511,7 +532,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       return { images: [], error };
     }
 
-    const proxyBase = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
+    const proxyBase = normalizeWorkerUrl(import.meta.env?.VITE_IMAGE_PROXY_URL as string || '');
     if (!proxyBase) {
       const error = 'Image proxy not configured. Please set VITE_IMAGE_PROXY_URL in .env.local (for local development) or as a GitHub secret (for production). See IMAGE_FETCHING_GUIDE.md for details.';
       console.error('[Image Fetch]', error);
@@ -529,7 +550,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     try {
       // First, fetch metadata to get image URLs from the page
-      const metadataUrl = `${proxyBase.replace(/\/$/, '')}/fetch-metadata?url=${encodeURIComponent(url)}`;
+      // proxyBase is now normalized (endpoint paths removed), so we append /fetch-metadata
+      const metadataUrl = `${proxyBase}/fetch-metadata?url=${encodeURIComponent(url)}`;
       console.log(`[Image Fetch] Attempt ${retryCount + 1}: Fetching metadata from:`, metadataUrl);
       console.log(`[Image Fetch] Using worker URL: ${proxyBase}`);
       
@@ -613,8 +635,8 @@ To fix:
       const fetchedImages = await Promise.all(
         imageUrls.map(async (imageUrl: string, index: number) => {
           try {
-            // Build proxy URL
-            const proxyUrl = new URL('/proxy-image', proxyBase.replace(/\/$/, ''));
+            // Build proxy URL - proxyBase is normalized, so we append /proxy-image
+            const proxyUrl = new URL('/proxy-image', proxyBase);
             proxyUrl.searchParams.set('url', imageUrl);
             
             console.log(`[Image Fetch] (${index + 1}/${imageUrls.length}) Fetching:`, imageUrl);
@@ -759,7 +781,8 @@ To fix:
                   meta: { ...t.meta, subtitle: `Downloading ${profile.imageUrls.length} AI-discovered images...` } 
                 } : t));
                 
-                const proxyBase = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
+                const proxyBaseRaw = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
+                const proxyBase = normalizeWorkerUrl(proxyBaseRaw);
                 
                 if (!proxyBase) {
                   console.error('[Identification] VITE_IMAGE_PROXY_URL not configured, cannot fetch AI-provided image URLs. See IMAGE_FETCHING_GUIDE.md for setup instructions.');
@@ -767,8 +790,8 @@ To fix:
                   const fetchedImages = await Promise.allSettled(
                       profile.imageUrls.slice(0, MAX_IMAGES_FROM_URL).map(async (imageUrl, index) => {
                         try {
-                          // Use URL constructor for safe URL building
-                          const proxyUrl = new URL('/proxy-image', proxyBase.replace(/\/$/, ''));
+                          // Use URL constructor for safe URL building - proxyBase is normalized
+                          const proxyUrl = new URL('/proxy-image', proxyBase);
                           proxyUrl.searchParams.set('url', imageUrl);
                           const fetchUrl = proxyUrl.toString();
                           

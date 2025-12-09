@@ -8,6 +8,25 @@ interface TestResult {
   details?: string;
 }
 
+// Helper function to normalize the worker URL by removing endpoint paths if they exist
+const normalizeWorkerUrl = (workerUrl: string): string => {
+  if (!workerUrl) return workerUrl;
+  
+  // Remove trailing slash
+  let normalized = workerUrl.replace(/\/$/, '');
+  
+  // Remove common endpoint paths if they exist
+  const endpointPaths = ['/fetch-metadata', '/proxy-image', '/proxy'];
+  for (const path of endpointPaths) {
+    if (normalized.endsWith(path)) {
+      normalized = normalized.slice(0, -path.length);
+      break;
+    }
+  }
+  
+  return normalized;
+};
+
 export const DiagnosticsPage = () => {
   const [testUrl, setTestUrl] = useState('');
   const [results, setResults] = useState<TestResult[]>([]);
@@ -40,8 +59,8 @@ export const DiagnosticsPage = () => {
 
     // Test 1: Check if VITE_IMAGE_PROXY_URL is configured
     updateResult('proxy-config', { status: 'running', message: 'Checking proxy configuration...' });
-    const proxyUrl = import.meta.env?.VITE_IMAGE_PROXY_URL;
-    if (!proxyUrl) {
+    const proxyUrlRaw = import.meta.env?.VITE_IMAGE_PROXY_URL;
+    if (!proxyUrlRaw) {
       updateResult('proxy-config', {
         status: 'error',
         message: 'VITE_IMAGE_PROXY_URL is not configured',
@@ -49,12 +68,14 @@ export const DiagnosticsPage = () => {
       });
       setIsRunning(false);
       return;
-    } else {
-      updateResult('proxy-config', {
-        status: 'success',
-        message: `Proxy configured: ${proxyUrl}`
-      });
     }
+    
+    // Normalize the worker URL to remove any endpoint paths
+    const proxyUrl = normalizeWorkerUrl(proxyUrlRaw);
+    updateResult('proxy-config', {
+      status: 'success',
+      message: `Proxy configured: ${proxyUrl}`
+    });
 
     // Test 2: Check if URL is valid
     updateResult('url-validation', { status: 'running', message: 'Validating URL...' });
@@ -73,7 +94,8 @@ export const DiagnosticsPage = () => {
 
     // Test 3: Fetch metadata
     updateResult('metadata-fetch', { status: 'running', message: 'Fetching page metadata...' });
-    const metadataUrl = `${proxyUrl.replace(/\/$/, '')}/fetch-metadata?url=${encodeURIComponent(testUrl)}`;
+    // proxyUrl is normalized, so we append /fetch-metadata
+    const metadataUrl = `${proxyUrl}/fetch-metadata?url=${encodeURIComponent(testUrl)}`;
     try {
       const startTime = Date.now();
       const response = await fetch(metadataUrl, { signal: AbortSignal.timeout(15000) });
@@ -144,7 +166,8 @@ export const DiagnosticsPage = () => {
       // Test 4: Try fetching first image
       updateResult('image-fetch', { status: 'running', message: 'Fetching first image...' });
       const firstImageUrl = metadata.images[0];
-      const proxyImageUrl = new URL('/proxy-image', proxyUrl.replace(/\/$/, ''));
+      // proxyUrl is normalized, so we can use it directly with /proxy-image
+      const proxyImageUrl = new URL('/proxy-image', proxyUrl);
       proxyImageUrl.searchParams.set('url', firstImageUrl);
 
       const imageStartTime = Date.now();

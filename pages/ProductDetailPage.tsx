@@ -27,7 +27,7 @@ const useDebounce = <T,>(value: T, delay: number): T => {
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, products, settings, startQCTask, tasks, deleteProduct, finalizeQCTask } = useApp();
+  const { user, products, settings, startQCTask, tasks, deleteProduct, finalizeQCTask, dismissTask } = useApp();
 
   const product = useMemo(() => products.find(p => p.id === id), [products, id]);
   const [refImages, setRefImages] = useState<string[]>([]);
@@ -125,6 +125,14 @@ export const ProductDetailPage: React.FC = () => {
   const handleFinalizeQC = () => {
     if (!feedbackTask || !user?.apiKey) return;
     finalizeQCTask(user.apiKey, feedbackTask, additionalComments);
+    setAdditionalComments('');
+    setFeedbackTask(null);
+  };
+  
+  const handleCancelPreliminaryReport = () => {
+    if (!feedbackTask) return;
+    // Dismiss the task to purge the preliminary report from state
+    dismissTask(feedbackTask.id);
     setAdditionalComments('');
     setFeedbackTask(null);
   };
@@ -348,7 +356,7 @@ export const ProductDetailPage: React.FC = () => {
               />
             </div>
             <div className="mt-3 md:mt-4 flex flex-col md:flex-row justify-end gap-2">
-              <button onClick={() => setFeedbackTask(null)} className="w-full md:w-auto px-4 py-2.5 md:py-2 bg-gray-200 rounded text-base md:text-sm">Cancel</button>
+              <button onClick={handleCancelPreliminaryReport} className="w-full md:w-auto px-4 py-2.5 md:py-2 bg-gray-200 rounded text-base md:text-sm">Cancel</button>
               <button onClick={handleFinalizeQC} className="w-full md:w-auto px-4 py-2.5 md:py-2 bg-primary text-white rounded text-base md:text-sm">Submit for Final Report</button>
             </div>
           </div>
