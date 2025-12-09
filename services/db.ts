@@ -386,6 +386,35 @@ export class DBService {
 
     return await blobToBase64(blob);
   }
+
+  // Return a temporary signed URL for a stored image (expiresIn seconds)
+  async getSignedUrl(id: string, expiresIn = 60): Promise<string | undefined> {
+    if (!isSupabaseConfigured()) return undefined;
+
+    // First get path from DB
+    const { data, error } = await supabase
+      .from('images')
+      .select('storage_path')
+      .eq('id', id)
+      .single();
+
+    if (error || !data) return undefined;
+
+    try {
+      const { data: signed, error: sErr } = await supabase.storage
+        .from('images')
+        .createSignedUrl(data.storage_path, expiresIn);
+
+      if (sErr || !signed) return undefined;
+      // signed.signedUrl may be the property depending on Supabase client version
+      // normalize possible shapes
+      // @ts-ignore
+      return signed.signedUrl || signed.signedURL || undefined;
+    } catch (e) {
+      console.error('Failed to create signed URL for', id, e);
+      return undefined;
+    }
+  }
 }
 
 export const db = new DBService();

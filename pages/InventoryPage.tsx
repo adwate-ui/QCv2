@@ -100,6 +100,29 @@ export const InventoryPage = () => {
                   continue;
                 }
 
+                // Fallback: try to get a signed URL via the DB service and fetch that
+                try {
+                  const signed = await db.getSignedUrl(imageId, 60);
+                  if (signed) {
+                    const resp = await fetch(signed);
+                    if (resp.ok) {
+                      const blob = await resp.blob();
+                      const reader = new FileReader();
+                      const dataUrl: string = await new Promise((res, rej) => {
+                        reader.onloadend = () => res(reader.result as string);
+                        reader.onerror = rej;
+                        reader.readAsDataURL(blob);
+                      });
+                      map[p.id] = dataUrl;
+                      continue;
+                    } else {
+                      console.debug('Signed URL fetch failed', signed, resp.status, resp.statusText);
+                    }
+                  }
+                } catch (e) {
+                  console.debug('Signed URL fetch error for', imageId, e);
+                }
+
                 // Fallback: try to fetch the public URL and convert to base64 client-side
                 const publicUrl = getPublicImageUrl(user.id, imageId);
                 try {
