@@ -90,7 +90,7 @@ export const ProductDetailPage: React.FC = () => {
   const executeQC = () => {
     if (!product || !user?.apiKey) return;
     const useSettings = { modelTier: localModelTier, expertMode: localExpertMode };
-    startQCTask(user.apiKey, product, refImages, qcImages, useSettings, qcUserComments);
+    startQCTask(user.apiKey, product, qcImages, useSettings, qcUserComments);
     setQcImages([]);
   };
 

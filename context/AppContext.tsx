@@ -230,7 +230,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         });
   };
 
-  const startQCTask = async (apiKey: string, product: Product, refImages: string[], qcImages: string[], settings: AppSettings, qcUserComments: string) => {
+  const startQCTask = async (apiKey: string, product: Product, qcImages: string[], settings: AppSettings, qcUserComments: string) => {
     const taskId = generateUUID();
     const task: BackgroundTask = {
        id: taskId,
@@ -264,9 +264,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
        const allQCRawImages = [...validPrevImages, ...qcImages];
        const allQCImageIds = [...previousBatchIds, ...newImageIds];
 
-      // 3. Convert reference image URLs to base64 for the API
+       // Fetch reference images from Supabase
+       const refImageIds = product.referenceImageIds || [];
+       const refImages = await Promise.all(refImageIds.map(id => db.getImage(id)));
+       const validRefImages = refImages.filter(Boolean) as string[];
+
+       // Convert reference image URLs to base64 for the API
        const refImagesAsBase64 = await Promise.all(
-         refImages.map(async (url) => {
+         validRefImages.map(async (url) => {
            try {
              const response = await fetch(url);
              if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
@@ -284,11 +289,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
            }
          })
        );
-       const validRefImages = refImagesAsBase64.filter(Boolean);
+       const validRefImagesAsBase64 = refImagesAsBase64.filter(Boolean);
 
 
        // 4. Run the analysis
-       const report = await runQCAnalysis(apiKey, product.profile, validRefImages, allQCRawImages, allQCImageIds, settings, qcUserComments);
+       const report = await runQCAnalysis(apiKey, product.profile, validRefImagesAsBase64, allQCRawImages, allQCImageIds, settings, qcUserComments);
 
       // 3b. Post-process: for specific sections (tag/label/logo) attempt to fetch authoritative images via Cloudflare Worker
       try {

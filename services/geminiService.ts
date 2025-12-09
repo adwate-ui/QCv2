@@ -1,6 +1,15 @@
 import { GoogleGenAI, Type, Schema, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { AppSettings, ExpertMode, ModelTier, ProductProfile, QCReport } from "../types";
-import { generateUUID } from "./utils";
+import { generateUUID, fetchAndEncodeImage } from "./utils";
+
+const isURL = (str: string): boolean => {
+  try {
+    new URL(str);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 // Helper to clean JSON string if md block is present
 const cleanJson = (text: string) => {
@@ -82,15 +91,22 @@ const getSystemInstruction = (mode: ExpertMode, tier: ModelTier, task: 'ID' | 'Q
 // Core identification logic, now separated for clarity and fallback purposes.
 const _performIdentification = async (
   apiKey: string,
-  imageDatas: string[], // base64 strings
+  imageDatas: string[], // base64 strings or URLs
   inputUrl: string | undefined,
   settings: AppSettings
 ): Promise<ProductProfile> => {
   const ai = new GoogleGenAI({ apiKey });
   const { model } = getModelConfig(settings.modelTier);
 
-  const parts: any[] = imageDatas.map(data => ({
-    inlineData: { mimeType: 'image/jpeg', data: data.split(',')[1] || data }
+  const processedImageDatas = await Promise.all(imageDatas.map(async (data) => {
+    if (isURL(data)) {
+      return await fetchAndEncodeImage(data);
+    }
+    return data.split(',')[1] || data;
+  }));
+
+  const parts: any[] = processedImageDatas.map(data => ({
+    inlineData: { mimeType: 'image/jpeg', data }
   }));
 
   let prompt = `Identify the **AUTHENTIC** product profile corresponding to this input. 
@@ -241,14 +257,20 @@ export const runQCAnalysis = async (
     const parts: any[] = [];
 
     // Add Ref Images
-    refImages.forEach((img, idx) => {
+    for (const [idx, img] of refImages.entries()) {
       parts.push({
         text: `REFERENCE IMAGE ${idx + 1} (Authentic):`
       });
+      let processedImgData;
+      if (isURL(img)) {
+        processedImgData = await fetchAndEncodeImage(img);
+      } else {
+        processedImgData = img.split(',')[1] || img;
+      }
       parts.push({
-        inlineData: { mimeType: 'image/jpeg', data: img.split(',')[1] || img }
+        inlineData: { mimeType: 'image/jpeg', data: processedImgData }
       });
-    });
+    }
 
     // Add Product Context
     parts.push({
@@ -256,14 +278,20 @@ export const runQCAnalysis = async (
     });
 
     // Add QC Images
-    qcImages.forEach((img, idx) => {
+    for (const [idx, img] of qcImages.entries()) {
       parts.push({
         text: `QC INSPECTION IMAGE ${idx + 1} (To be analyzed):`
       });
+      let processedImgData;
+      if (isURL(img)) {
+        processedImgData = await fetchAndEncodeImage(img);
+      } else {
+        processedImgData = img.split(',')[1] || img;
+      }
       parts.push({
-        inlineData: { mimeType: 'image/jpeg', data: img.split(',')[1] || img }
+        inlineData: { mimeType: 'image/jpeg', data: processedImgData }
       });
-    });
+    }
 
     // Add user comments if provided
     if (qcUserComments) {
