@@ -46,10 +46,15 @@ async function handleRequest(request) {
     if (!target) return new Response(JSON.stringify({ error: 'missing url' }), { status: 400 });
     try {
       // Some hosts block non-browser user agents or require referer headers.
+      const targetUrl = new URL(target);
       const fetchOpts = {
         redirect: 'follow',
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; AuthentiQC/1.0; +https://example.com)'
+          'User-Agent': 'Mozilla/5.0 (compatible; AuthentiQC/1.0; +https://example.com)',
+          'Accept': 'image/*,*/*;q=0.8',
+          // Some hosts require a Referer header that looks like a normal browser page to permit hotlinking.
+          // Use the origin of the target URL as a reasonable referer value.
+          'Referer': targetUrl.origin
         }
       };
 
