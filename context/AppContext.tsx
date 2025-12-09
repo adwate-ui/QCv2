@@ -348,67 +348,101 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   // Maximum number of images to fetch from a product URL
   const MAX_IMAGES_FROM_URL = 5;
 
-  // Helper function to fetch images from a product URL
-  const fetchImagesFromUrl = async (url: string): Promise<string[]> => {
+  // Helper function to fetch images from a product URL with retry logic and better error handling
+  const fetchImagesFromUrl = async (url: string, retryCount: number = 0): Promise<{ images: string[]; error?: string }> => {
+    const MAX_RETRIES = 2;
+    const RETRY_DELAY = 1000; // 1 second
+    
     // Validate URL format
     try {
       new URL(url);
     } catch {
-      console.error('Invalid URL format:', url);
-      return [];
+      const error = 'Invalid URL format provided';
+      console.error(error, url);
+      return { images: [], error };
     }
 
     const proxyBase = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
     if (!proxyBase) {
-      console.warn('VITE_IMAGE_PROXY_URL not configured, cannot fetch images from URL');
-      return [];
+      const error = 'Image proxy not configured. Please set VITE_IMAGE_PROXY_URL environment variable';
+      console.error(error);
+      return { images: [], error };
     }
 
     try {
       // First, fetch metadata to get image URLs from the page
       const metadataUrl = `${proxyBase.replace(/\/$/, '')}/fetch-metadata?url=${encodeURIComponent(url)}`;
-      console.log('Fetching metadata from:', metadataUrl);
+      console.log(`[Image Fetch] Attempt ${retryCount + 1}: Fetching metadata from:`, metadataUrl);
       
-      const metadataResponse = await fetch(metadataUrl);
+      const metadataResponse = await fetch(metadataUrl, { 
+        signal: AbortSignal.timeout(15000) // 15 second timeout
+      });
       
       if (!metadataResponse.ok) {
         const errorData = await metadataResponse.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('Failed to fetch metadata from URL', url, 'Status:', metadataResponse.status, 'Error:', errorData);
-        return [];
+        const error = `Failed to fetch metadata (Status ${metadataResponse.status}): ${errorData.error || errorData.message || 'Unknown error'}`;
+        console.error('[Image Fetch]', error);
+        
+        // Retry on server errors (5xx) or rate limits (429)
+        if ((metadataResponse.status >= 500 || metadataResponse.status === 429) && retryCount < MAX_RETRIES) {
+          console.log(`[Image Fetch] Retrying in ${RETRY_DELAY}ms...`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (retryCount + 1)));
+          return fetchImagesFromUrl(url, retryCount + 1);
+        }
+        
+        return { images: [], error };
       }
       
       const metadata = await metadataResponse.json();
       
       if (metadata.error) {
-        console.error('Metadata endpoint returned error:', metadata.error);
-        return [];
+        const error = `Metadata endpoint error: ${metadata.error}`;
+        console.error('[Image Fetch]', error);
+        return { images: [], error };
       }
       
       if (!metadata.images || metadata.images.length === 0) {
-        console.warn('No images found on the page', url);
-        return [];
+        const error = 'No images found on the product page. Will try AI-powered image search as fallback.';
+        console.warn('[Image Fetch]', error);
+        return { images: [], error };
       }
 
-      console.log(`Found ${metadata.images.length} images on page, fetching up to ${MAX_IMAGES_FROM_URL}`);
+      console.log(`[Image Fetch] Found ${metadata.images.length} images on page, fetching up to ${MAX_IMAGES_FROM_URL}`);
 
       // Fetch up to MAX_IMAGES_FROM_URL images from the page through the proxy
       const imageUrls = metadata.images.slice(0, MAX_IMAGES_FROM_URL);
       const fetchedImages = await Promise.all(
-        imageUrls.map(async (imageUrl: string) => {
+        imageUrls.map(async (imageUrl: string, index: number) => {
           try {
             // Build proxy URL
             const proxyUrl = new URL('/proxy-image', proxyBase.replace(/\/$/, ''));
             proxyUrl.searchParams.set('url', imageUrl);
             
-            console.log('Fetching image through proxy:', imageUrl);
-            const response = await fetch(proxyUrl.toString());
+            console.log(`[Image Fetch] (${index + 1}/${imageUrls.length}) Fetching:`, imageUrl);
+            const response = await fetch(proxyUrl.toString(), {
+              signal: AbortSignal.timeout(10000) // 10 second timeout per image
+            });
+            
             if (!response.ok) {
-              console.debug('Image fetch failed', imageUrl, 'Status:', response.status);
+              console.debug(`[Image Fetch] Image ${index + 1} failed (Status ${response.status}):`, imageUrl);
               return null;
             }
             
             const blob = await response.blob();
-            console.log('Successfully fetched image:', imageUrl, 'Size:', blob.size);
+            
+            // Validate that we actually got an image
+            if (!blob.type.startsWith('image/')) {
+              console.debug(`[Image Fetch] Image ${index + 1} is not an image (${blob.type}):`, imageUrl);
+              return null;
+            }
+            
+            // Skip very small images (likely tracking pixels)
+            if (blob.size < 1024) {
+              console.debug(`[Image Fetch] Image ${index + 1} too small (${blob.size} bytes):`, imageUrl);
+              return null;
+            }
+            
+            console.log(`[Image Fetch] Image ${index + 1} success:`, imageUrl, `(${Math.round(blob.size / 1024)}KB)`);
             
             return new Promise<string>((resolve, reject) => {
               const reader = new FileReader();
@@ -417,18 +451,36 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
               reader.readAsDataURL(blob);
             });
           } catch (error) {
-            console.error(`Failed to fetch image ${imageUrl}:`, error);
+            console.error(`[Image Fetch] Image ${index + 1} error:`, imageUrl, error);
             return null;
           }
         })
       );
       
       const validImages = fetchedImages.filter(Boolean) as string[];
-      console.log(`Successfully fetched ${validImages.length} out of ${imageUrls.length} images`);
-      return validImages;
-    } catch (error) {
-      console.error('Error fetching images from URL:', error);
-      return [];
+      console.log(`[Image Fetch] Successfully fetched ${validImages.length} out of ${imageUrls.length} images`);
+      
+      if (validImages.length === 0) {
+        const error = 'All images failed to download. Will try AI-powered image search as fallback.';
+        return { images: [], error };
+      }
+      
+      return { images: validImages };
+    } catch (error: any) {
+      const errorMsg = error.name === 'TimeoutError' 
+        ? 'Request timed out. The website may be slow or blocking requests.'
+        : `Error fetching images: ${error.message || error}`;
+      
+      console.error('[Image Fetch]', errorMsg, error);
+      
+      // Retry on network errors
+      if (retryCount < MAX_RETRIES && error.name !== 'AbortError') {
+        console.log(`[Image Fetch] Retrying in ${RETRY_DELAY}ms...`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (retryCount + 1)));
+        return fetchImagesFromUrl(url, retryCount + 1);
+      }
+      
+      return { images: [], error: errorMsg };
     }
   };
 
@@ -451,17 +503,42 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     // If URL is provided and no images, try to fetch images from the URL first
     let imagesToUse = images;
+    let scrapingError: string | undefined;
+    
     if (url && images.length === 0) {
       try {
-        const scrapedImages = await fetchImagesFromUrl(url);
-        if (scrapedImages.length > 0) {
-          imagesToUse = scrapedImages;
+        // Update task to show we're scraping
+        setTasks(prev => prev.map(t => t.id === taskId ? { 
+          ...t, 
+          meta: { ...t.meta, subtitle: 'Fetching images from URL...' } 
+        } : t));
+        
+        const result = await fetchImagesFromUrl(url);
+        
+        if (result.images.length > 0) {
+          console.log(`[Identification] Successfully scraped ${result.images.length} images from URL`);
+          imagesToUse = result.images;
           // Update task meta with scraped images
-          setTasks(prev => prev.map(t => t.id === taskId ? { ...t, meta: { ...t.meta, images: imagesToUse } } : t));
+          setTasks(prev => prev.map(t => t.id === taskId ? { 
+            ...t, 
+            meta: { ...t.meta, images: imagesToUse, subtitle: `Analyzing ${imagesToUse.length} scraped images...` } 
+          } : t));
+        } else {
+          scrapingError = result.error || 'No images found';
+          console.warn(`[Identification] URL scraping failed: ${scrapingError}. Will rely on AI image search.`);
+          // Update task to show we're falling back to AI
+          setTasks(prev => prev.map(t => t.id === taskId ? { 
+            ...t, 
+            meta: { ...t.meta, subtitle: 'AI searching for product images...' } 
+          } : t));
         }
-      } catch (error) {
-        console.error('Failed to fetch images from URL:', error);
-        // Continue with identification even if scraping fails
+      } catch (error: any) {
+        scrapingError = error.message || 'Unknown error during scraping';
+        console.error('[Identification] Failed to fetch images from URL:', error);
+        setTasks(prev => prev.map(t => t.id === taskId ? { 
+          ...t, 
+          meta: { ...t.meta, subtitle: 'AI searching for product images...' } 
+        } : t));
       }
     }
 
@@ -473,52 +550,92 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             // Fallback: If we still have no images but the model returned imageUrls, fetch them
             // This handles the case where URL scraping failed but the AI found images via Google Search
             if (finalImages.length === 0 && profile.imageUrls && profile.imageUrls.length > 0) {
-                console.log(`No images scraped from URL, but AI found ${profile.imageUrls.length} image URLs via search. Fetching them...`);
+                console.log(`[Identification] No images from URL scraping${scrapingError ? ` (${scrapingError})` : ''}. AI found ${profile.imageUrls.length} image URLs via search. Fetching them...`);
+                
+                // Update task to show we're fetching AI-found images
+                setTasks(prev => prev.map(t => t.id === taskId ? { 
+                  ...t, 
+                  meta: { ...t.meta, subtitle: `Downloading ${profile.imageUrls.length} AI-discovered images...` } 
+                } : t));
+                
                 const proxyBase = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
                 
                 if (!proxyBase) {
-                  console.warn('VITE_IMAGE_PROXY_URL not configured, cannot fetch images from AI-provided URLs');
+                  console.error('[Identification] VITE_IMAGE_PROXY_URL not configured, cannot fetch AI-provided image URLs');
                 } else {
-                  const fetchedImages = await Promise.all(
-                      profile.imageUrls.slice(0, MAX_IMAGES_FROM_URL).map(async (imageUrl) => {
+                  const fetchedImages = await Promise.allSettled(
+                      profile.imageUrls.slice(0, MAX_IMAGES_FROM_URL).map(async (imageUrl, index) => {
                         try {
                           // Use URL constructor for safe URL building
                           const proxyUrl = new URL('/proxy-image', proxyBase.replace(/\/$/, ''));
                           proxyUrl.searchParams.set('url', imageUrl);
                           const fetchUrl = proxyUrl.toString();
                           
-                          console.log('Fetching AI-provided image:', imageUrl);
-                          const response = await fetch(fetchUrl);
+                          console.log(`[Identification] Fetching AI image ${index + 1}/${profile.imageUrls.length}:`, imageUrl);
+                          const response = await fetch(fetchUrl, {
+                            signal: AbortSignal.timeout(10000) // 10 second timeout
+                          });
+                          
                           if (!response.ok) {
-                            console.debug('Image fetch failed', fetchUrl, response.status, response.statusText);
+                            console.debug(`[Identification] AI image ${index + 1} fetch failed (Status ${response.status}):`, fetchUrl);
                             return null;
                           }
+                          
                           const blob = await response.blob();
-                          console.log('Successfully fetched AI-provided image:', imageUrl, 'Size:', blob.size);
+                          
+                          // Validate image
+                          if (!blob.type.startsWith('image/') || blob.size < 1024) {
+                            console.debug(`[Identification] AI image ${index + 1} invalid:`, imageUrl, blob.type, blob.size);
+                            return null;
+                          }
+                          
+                          console.log(`[Identification] AI image ${index + 1} success:`, imageUrl, `(${Math.round(blob.size / 1024)}KB)`);
                           return new Promise<string>((resolve, reject) => {
                             const reader = new FileReader();
                             reader.onloadend = () => resolve(reader.result as string);
                             reader.onerror = reject;
                             reader.readAsDataURL(blob);
                           });
-                        } catch (error) {
-                          console.error(`Failed to fetch image from URL ${imageUrl}:`, error);
+                        } catch (error: any) {
+                          console.error(`[Identification] Failed to fetch AI image ${index + 1} from ${imageUrl}:`, error);
                           return null;
                         }
                       })
-                    );
-                  finalImages = fetchedImages.filter(Boolean) as string[];
-                  console.log(`Successfully fetched ${finalImages.length} images from AI-provided URLs`);
+                  );
+                  
+                  finalImages = fetchedImages
+                    .filter(result => result.status === 'fulfilled' && result.value !== null)
+                    .map(result => (result as PromiseFulfilledResult<string>).value);
+                    
+                  console.log(`[Identification] Successfully fetched ${finalImages.length} out of ${profile.imageUrls.length} AI-provided images`);
+                  
+                  if (finalImages.length === 0) {
+                    console.warn('[Identification] All AI-provided images failed to download');
+                  }
                 }
             } else if (finalImages.length === 0) {
-                console.warn('No images available after all attempts (URL scraping failed and AI did not provide image URLs)');
+                console.warn('[Identification] No images available after all attempts (URL scraping failed and AI did not provide image URLs)');
             }
             
-            setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'COMPLETED', result: profile, meta: { ...t.meta, images: finalImages } } : t));
+            setTasks(prev => prev.map(t => t.id === taskId ? { 
+              ...t, 
+              status: 'COMPLETED', 
+              result: profile, 
+              meta: { 
+                ...t.meta, 
+                images: finalImages,
+                subtitle: finalImages.length > 0 ? `Identified with ${finalImages.length} images` : 'Identified (no images found)'
+              } 
+            } : t));
         })
         .catch(err => {
-            console.error("ID Task Failed", err);
-            setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'FAILED', error: err.message || "Identification failed" } : t));
+            console.error("[Identification] Task Failed", err);
+            const errorMessage = err.message || "Identification failed";
+            setTasks(prev => prev.map(t => t.id === taskId ? { 
+              ...t, 
+              status: 'FAILED', 
+              error: `${errorMessage}${scrapingError ? ` (Image scraping: ${scrapingError})` : ''}` 
+            } : t));
         });
   };
 

@@ -548,7 +548,7 @@ export const AddProductPage = () => {
                                       {task.status === 'COMPLETED' && task.result?.name ? task.result.name : task.meta.subtitle || 'Identifying Product...'}
                                   </h4>
                                   <p className="text-xs text-slate-500 truncate mt-0.5">
-                                      {task.status === 'PROCESSING' ? 'AI is analyzing images...' : 
+                                      {task.status === 'PROCESSING' ? (task.meta.subtitle || 'AI is analyzing images...') : 
                                        task.status === 'COMPLETED' ? 'Click to review and save' : task.error}
                                   </p>
                               </div>
