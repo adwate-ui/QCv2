@@ -23,10 +23,10 @@ interface AppContextType {
   toggleExpertMode: () => void;
   refreshProducts: () => Promise<void>;
   startIdentificationTask: (apiKey: string, images: string[], url: string | undefined, settings: AppSettings) => void;
-  startQCTask: (apiKey: string, product: Product, refImages: string[], qcImages: string[], settings: AppSettings, qcUserComments: string) => void;
+  startQCTask: (apiKey: string, product: Product, qcImages: string[], settings: AppSettings, qcUserComments: string) => void;
+  finalizeQCTask: (apiKey: string, task: BackgroundTask, userComments: string) => void;
   dismissTask: (taskId: string) => void;
   bulkDeleteProducts: (ids: string[]) => Promise<void>;
-  finalizeQCTask: (apiKey: string, task: BackgroundTask, userComments: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -68,8 +68,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     // This listener handles auth changes that happen *after* the initial load.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        // To prevent re-fetching data we already have, we can be more intelligent here,
-        // but for now, we'll just ensure the user state is correct.
         if (!user || user.email !== session.user.email) {
           db.getUser(session.user.email!).then(profileUser => {
             setUser(profileUser || { email: session.user.email!, passwordHash: '', apiKey: '' });
@@ -153,7 +151,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const logout = async () => {
-    // Optimistically clear state immediately to prevent UI hanging
     setUser(null);
     setProducts([]);
     setTasks([]);
@@ -169,21 +166,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     if (!user) return;
     
     try {
-        // Attempt backend deletion
         await db.deleteUser(user.email);
     } catch (e: any) {
-        // Log the specific backend error but proceed to cleanup locally
         console.error("Backend delete failed:", e);
     } finally {
-        // ALWAYS clean up local session and redirect
-        // This ensures the user feels "deleted" even if backend has RLS issues
         setUser(null);
         setProducts([]);
         try {
             await supabase.auth.signOut();
         } catch (ignored) {}
         
-        // Hard reload to reset application state fully
         window.location.href = '/'; 
     }
   };
@@ -201,8 +193,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       expertMode: p.expertMode === ExpertMode.NORMAL ? ExpertMode.EXPERT : ExpertMode.NORMAL
     }));
   };
-
-  // --- Background Tasks ---
 
   const startIdentificationTask = (apiKey: string, images: string[], url: string | undefined, settings: AppSettings) => {
     const taskId = generateUUID();
@@ -242,7 +232,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
            title: `QC Inspection: ${product.profile.name}`,
            subtitle: 'Generating Preliminary Report...',
            targetId: product.id,
-           images: qcImages, // Pass images for UI
+           images: qcImages,
            settings: settings
        }
    };
@@ -311,7 +301,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
      }
    })();
   };
-  
+
   const finalizeQCTask = async (apiKey: string, task: BackgroundTask, userComments: string) => {
     if (!task || !task.preliminaryReport) return;
 
@@ -326,16 +316,36 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         const refImages = await Promise.all(refImageIds.map(id => db.getImage(id)));
         const validRefImages = refImages.filter(Boolean) as string[];
 
-        const allQCRawImages = task.meta.images || [];
+        const refImagesAsBase64 = await Promise.all(
+          validRefImages.map(async (url) => {
+            try {
+              const response = await fetch(url);
+              if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
+              const blob = await response.blob();
+              return new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+            } catch (error) {
+              console.error(`Could not convert image URL ${url} to base64:`, error);
+              return ''; 
+            }
+          })
+        );
+        const validRefImagesAsBase64 = refImagesAsBase64.filter(Boolean);
+
+        const allQCRawImages = task.meta.allQCRawImages || [];
         const allQCImageIds = task.meta.allQCImageIds || [];
 
         const finalReport = await runFinalQCAnalysis(
           apiKey,
           product.profile,
-          validRefImages,
+          validRefImagesAsBase64,
           allQCRawImages,
           allQCImageIds,
-          task.meta.settings,
+          task.meta.settings!,
           task.preliminaryReport,
           userComments
         );

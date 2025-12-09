@@ -24,7 +24,7 @@ export const ProductDetailPage: React.FC = () => {
   const [localModelTier, setLocalModelTier] = useState<ModelTier>(settings.modelTier);
   const [localExpertMode, setLocalExpertMode] = useState<ExpertMode>(settings.expertMode);
   const [qcUserComments, setQcUserComments] = useState<string>('');
-
+  
   const [feedbackTask, setFeedbackTask] = useState<BackgroundTask | null>(null);
   const [additionalComments, setAdditionalComments] = useState('');
 
@@ -38,10 +38,18 @@ export const ProductDetailPage: React.FC = () => {
     );
 
     if (product.reports && product.reports.length > 0) {
-      // default to latest
       setSelectedReportId(product.reports[product.reports.length - 1].id);
     }
   }, [product, user?.id]);
+  
+  useEffect(() => {
+    const awaitingFeedback = tasks.find(t => t.type === 'QC' && t.meta.targetId === id && t.status === 'AWAITING_FEEDBACK');
+    if (awaitingFeedback) {
+      setFeedbackTask(awaitingFeedback);
+    } else {
+      setFeedbackTask(null);
+    }
+  }, [tasks, id]);
 
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
@@ -97,6 +105,13 @@ export const ProductDetailPage: React.FC = () => {
     setQcImages([]);
   };
 
+  const handleFinalizeQC = () => {
+    if (!feedbackTask || !user?.apiKey) return;
+    finalizeQCTask(user.apiKey, feedbackTask, additionalComments);
+    setAdditionalComments('');
+    setFeedbackTask(null);
+  };
+  
   const handleDelete = async () => {
     if (!product) return;
     if (!confirm('Delete this product and all related data?')) return;
@@ -104,28 +119,11 @@ export const ProductDetailPage: React.FC = () => {
     navigate('/inventory');
   };
 
-  useEffect(() => {
-    const awaitingFeedback = tasks.find(t => t.type === 'QC' && t.meta.targetId === id && t.status === 'AWAITING_FEEDBACK');
-    if (awaitingFeedback) {
-      setFeedbackTask(awaitingFeedback);
-    } else {
-      setFeedbackTask(null);
-    }
-  }, [tasks, id]);
-
-  const handleFinalizeQC = () => {
-    if (!feedbackTask || !user?.apiKey) return;
-    finalizeQCTask(user.apiKey, feedbackTask, additionalComments);
-    setAdditionalComments('');
-    setFeedbackTask(null);
-  };
-
   if (!product) return <div>Loading...</div>;
 
   const sortedReports = (product.reports || []).slice().sort((a, b) => b.generatedAt - a.generatedAt);
   const currentReport = sortedReports.find(r => r.id === selectedReportId) || sortedReports[0];
-  const previousReport = currentReport ? sortedReports[sortedReports.indexOf(currentReport) + 1] : undefined;
-
+  
   const ReportCard: React.FC<{ report: QCReport; previous?: QCReport; refImages: string[]; expanded?: boolean; onToggle?: (id: string) => void }> = ({ report, previous, refImages, expanded = false, onToggle }) => {
     const [imgs, setImgs] = useState<string[]>([]);
     const { user } = useApp();
@@ -148,14 +146,15 @@ export const ProductDetailPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-3">
               <button onClick={() => onToggle?.(report.id)} className="font-bold text-left">
-                QC Analysis Report
+                Final QC Analysis Report
               </button>
               <div className="text-xs text-gray-400">{new Date(report.generatedAt).toLocaleString()}</div>
             </div>
             <div className="flex items-center gap-2 mt-1 text-xs">
                 <span className="bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">{report.modelTier === 'FAST' ? 'Flash 2.5' : 'Pro 3.0'}</span>
                 <span className="bg-purple-100 text-purple-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">{report.expertMode}</span>
-            </div>          </div>
+            </div>
+          </div>
           <div className="text-right">
             {(() => {
               const cls = gradeToClasses(report.overallGrade);
@@ -169,8 +168,14 @@ export const ProductDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Collapsible body */}
         <div className="overflow-hidden transition-[max-height,opacity]" style={{ maxHeight: expanded ? '2000px' : '0px', opacity: expanded ? 1 : 0, transition: 'max-height 350ms ease, opacity 300ms ease' }}>
+          {report.userComments && (
+            <div className="mb-4 p-3 bg-indigo-50 border border-indigo-100 rounded-lg">
+              <h4 className="text-sm font-bold text-indigo-800 mb-1">User Comments Considered</h4>
+              <p className="text-sm text-indigo-700 italic">"{report.userComments}"</p>
+            </div>
+          )}
+
           {imgs.length > 0 && (
             <div className="mb-4">
               <div className="flex gap-2 flex-wrap">
@@ -183,20 +188,14 @@ export const ProductDetailPage: React.FC = () => {
             </div>
           )}
 
-        <div className="mb-4">
-          <div className="text-sm text-gray-700 whitespace-pre-line">{report.summary}</div>
-        </div>
+          <div className="mb-4">
+            <div className="text-sm text-gray-700 whitespace-pre-line">{report.summary}</div>
+          </div>
 
           <div className="grid gap-3">
             {report.sections.map((s, idx) => {
               const cls = gradeToClasses(s.grade);
               const observations = Array.isArray(s.observations) ? s.observations : parseObservations(s.observations as any);
-              // Map optional imageIds to loaded imgs
-              const imgMap: Record<string,string> = {};
-              if (report.qcImageIds && report.qcImageIds.length === imgs.length) {
-                report.qcImageIds.forEach((id, i) => { if (imgs[i]) imgMap[id] = imgs[i]; });
-              }
-
               return (
                 <div key={idx} className="p-3 border rounded-lg bg-gray-50">
                   <div className="flex justify-between items-start mb-2">
@@ -204,42 +203,26 @@ export const ProductDetailPage: React.FC = () => {
                     <div className={`text-sm font-semibold px-2 py-0.5 rounded ${cls.bg} ${cls.text}`}>{s.score} — {s.grade}</div>
                   </div>
                   <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
-                    {observations.map((o, i) => {
-                      const linkedImageId = s.imageIds && s.imageIds[i] ? s.imageIds[i] : undefined;
-                      const linkedSrc = linkedImageId ? imgMap[linkedImageId] : undefined;
-                      return (
-                        <li key={i} className={`${linkedSrc ? 'cursor-pointer text-blue-700 hover:underline' : ''}`} onClick={() => linkedSrc && setSelectedImage(linkedSrc)}>
-                          {o}
-                        </li>
-                      );
-                    })}
+                    {observations.map((o, i) => (<li key={i}>{o}</li>))}
                   </ul>
                 </div>
               );
             })}
           </div>
-        </div>
 
-        {/* Highlight differences with images for caution/fail */}
-        {(report.overallGrade === 'FAIL' || report.overallGrade === 'CAUTION') && (
-          <div className="mt-4 p-3 border rounded bg-white">
-            <h4 className="text-sm font-bold mb-2">Comparison Images</h4>
-            <div className="flex gap-3 overflow-auto">
-              {imgs.map((qc, i) => (
-                <div key={i} className="flex flex-col items-center gap-2">
-                  <div className="text-xs text-gray-500">QC Image</div>
-                  <img src={qc} className="h-28 w-28 object-cover rounded border" />
-                  <div className="text-xs text-gray-500">Reference</div>
-                  <img src={refImages[i] || refImages[0] || qc} className="h-28 w-28 object-cover rounded border" />
-                </div>
-              ))}
+          {report.requestForMoreInfo && report.requestForMoreInfo.length > 0 && (
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-100 rounded-lg">
+              <h4 className="text-sm font-bold text-yellow-800 mb-1">For a More Accurate QC</h4>
+              <ul className="list-disc pl-5 text-sm text-yellow-700 space-y-1">
+                {report.requestForMoreInfo.map((req, i) => (<li key={i}>{req}</li>))}
+              </ul>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     );
+  };
 
-  // Expand behavior: default expand latest
   useEffect(() => {
     if (currentReport) setExpandedReportId(currentReport.id);
   }, [currentReport]);
@@ -252,6 +235,31 @@ export const ProductDetailPage: React.FC = () => {
             <X size={28} />
           </button>
           <img src={selectedImage} className="max-w-full max-h-[90vh] object-contain rounded" onClick={e => e.stopPropagation()} />
+        </div>
+      )}
+      
+      {feedbackTask && feedbackTask.preliminaryReport && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
+            <h2 className="text-xl font-bold mb-4">Preliminary Report - Provide Feedback</h2>
+            <div className="max-h-[60vh] overflow-y-auto p-4 bg-gray-50 rounded">
+              <ReportCard report={feedbackTask.preliminaryReport} refImages={refImages} expanded={true} />
+            </div>
+            <div className="mt-4">
+              <label className="text-sm font-medium text-gray-700">Additional Comments</label>
+              <textarea
+                value={additionalComments}
+                onChange={(e) => setAdditionalComments(e.target.value)}
+                rows={3}
+                className="w-full mt-1 p-2 border border-gray-300 rounded-md"
+                placeholder="e.g., The lighting was poor in the photos, please focus on the stitching."
+              />
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setFeedbackTask(null)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+              <button onClick={handleFinalizeQC} className="px-4 py-2 bg-primary text-white rounded">Submit for Final Report</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -332,26 +340,14 @@ export const ProductDetailPage: React.FC = () => {
         </button>
       </div>
 
-      {showHistory && sortedReports.length > 0 && (
-        <div className="mb-6 flex gap-3 overflow-x-auto pb-4">
-          {sortedReports.map(r => (
-            <div key={r.id} onClick={() => setSelectedReportId(r.id)} className="min-w-[200px] p-3 border rounded">
-              <div className="text-xs text-gray-500">{new Date(r.generatedAt).toLocaleDateString()}</div>
-              <div className="font-bold">Score: {r.overallScore}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {currentReport ? (
-        <ReportCard report={currentReport} previous={previousReport} refImages={refImages} expanded={expandedReportId === currentReport.id} onToggle={(id) => setExpandedReportId(prev => prev === id ? null : id)} />
+        <ReportCard report={currentReport} refImages={refImages} expanded={expandedReportId === currentReport.id} onToggle={(id) => setExpandedReportId(prev => prev === id ? null : id)} />
       ) : (
         <div className="text-center py-10 bg-white rounded border-dashed border">
           <div className="text-gray-500">No QC reports generated yet.</div>
         </div>
       )}
 
-      {/* Running indicator placed near report area for clarity */}
       {isRunningQC && (
         <div className="bg-blue-50 p-3 rounded mb-6 flex items-center gap-3">
           <Activity className="text-blue-600" />
@@ -362,32 +358,18 @@ export const ProductDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* History (previous reports) below the latest report, descending order */}
-      {sortedReports.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-sm font-semibold text-gray-600 mb-2">Previous Inspections</h3>
-          <div className="space-y-3">
-            {sortedReports.filter(r => r.id !== currentReport?.id).map(r => (
-              <div key={r.id} onClick={() => setExpandedReportId(r.id)}>
-                <ReportCard report={r} previous={undefined} refImages={refImages} expanded={expandedReportId === r.id} onToggle={(id) => setExpandedReportId(prev => prev === id ? null : id)} />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="bg-white p-6 rounded shadow mt-6">
         <h3 className="font-bold mb-2">Run New Inspection</h3>
         <p className="text-sm text-gray-500 mb-4">Drag, paste, or upload images to run a new inspection.</p>
 
         <div className="mb-4">
-              <label className="text-sm font-medium text-gray-700">User Comments</label>
+              <label className="text-sm font-medium text-gray-700">Initial Comments</label>
               <textarea
                 value={qcUserComments}
                 onChange={(e) => setQcUserComments(e.target.value)}
                 rows={3}
                 className="w-full mt-1 p-2 border border-gray-300 rounded-md"
-                placeholder="Enter any specific comments or instructions for the QC inspection..."
+                placeholder="e.g., Check authenticity of the clasp..."
               />
             </div>
 
@@ -400,13 +382,6 @@ export const ProductDetailPage: React.FC = () => {
                   value={localModelTier === ModelTier.DETAILED}
                   onChange={(isDetailed) => setLocalModelTier(isDetailed ? ModelTier.DETAILED : ModelTier.FAST)}
                 />
-                <div className="relative group">
-                  <Info size={16} className="text-gray-400 cursor-pointer" />
-                  <div className="absolute bottom-full mb-2 w-64 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <p><span className="font-semibold">Flash 2.5:</span> Faster, more cost-effective model.</p>
-                    <p className="mt-1"><span className="font-semibold">Pro 3.0:</span> More powerful model for higher accuracy.</p>
-                  </div>
-                </div>
               </div>
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium text-gray-700">Persona</label>
@@ -416,13 +391,6 @@ export const ProductDetailPage: React.FC = () => {
                   value={localExpertMode === ExpertMode.EXPERT}
                   onChange={(isExpert) => setLocalExpertMode(isExpert ? ExpertMode.EXPERT : ExpertMode.NORMAL)}
                 />
-                <div className="relative group">
-                  <Info size={16} className="text-gray-400 cursor-pointer" />
-                  <div className="absolute bottom-full mb-2 w-64 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <p><span className="font-semibold">Normal:</span> A knowledgeable enthusiast's perspective.</p>
-                    <p className="mt-1"><span className="font-semibold">Expert:</span> A forensic analysis for microscopic flaws.</p>
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -446,44 +414,10 @@ export const ProductDetailPage: React.FC = () => {
           disabled={qcImages.length === 0 || isRunningQC}
           className={`mt-4 w-full py-2 rounded font-semibold flex items-center justify-center gap-2 ${qcImages.length === 0 || isRunningQC ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-primary text-white hover:bg-indigo-700'}`}
         >
-          {isRunningQC ? (
-            <>
-              <Loader2 className="animate-spin" size={18} />
-              <span>Running...</span>
-            </>
-          ) : (
-            <>
-              <Zap size={16} />
-              <span>Start Background Analysis</span>
-            </>
-          )}
+          {isRunningQC ? <Loader2 className="animate-spin" size={18} /> : <Zap size={16} />}
+          <span>{isRunningQC ? 'Running...' : 'Start Background Analysis'}</span>
         </button>
       </div>
-
-      {feedbackTask && feedbackTask.preliminaryReport && (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
-        <h2 className="text-xl font-bold mb-4">Preliminary Report - Provide Feedback</h2>
-        <div className="max-h-[60vh] overflow-y-auto p-4 bg-gray-50 rounded">
-          <ReportCard report={feedbackTask.preliminaryReport} refImages={refImages} expanded={true} />
-        </div>
-        <div className="mt-4">
-          <label className="text-sm font-medium text-gray-700">Additional Comments</label>
-          <textarea
-            value={additionalComments}
-            onChange={(e) => setAdditionalComments(e.target.value)}
-            rows={3}
-            className="w-full mt-1 p-2 border border-gray-300 rounded-md"
-            placeholder="e.g., The lighting was poor in the photos, please focus on the stitching."
-          />
-        </div>
-        <div className="mt-4 flex justify-end gap-2">
-          <button onClick={() => setFeedbackTask(null)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
-          <button onClick={handleFinalizeQC} className="px-4 py-2 bg-primary text-white rounded">Submit for Final Report</button>
-        </div>
-      </div>
-    </div>
-  )}
     </div>
   );
 };
