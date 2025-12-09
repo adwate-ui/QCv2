@@ -27,6 +27,9 @@ jobs:
 
       - name: Build Project
         run: npm run build
+        env:
+          # Environment variables starting with VITE_ are embedded in the build
+          VITE_IMAGE_PROXY_URL: ${{ secrets.VITE_IMAGE_PROXY_URL }}
         # This usually creates a 'dist' folder. If your app outputs to 'build', update the 'directory' below.
 
       - name: Publish to Cloudflare Pages
