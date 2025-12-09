@@ -382,6 +382,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }));
   };
 
+  // Constants for image fetching and comparison
+  const FETCH_TIMEOUT_MS = 10000;
+  const MIN_IMAGE_SIZE_BYTES = 1024;
+
   const generateAndStoreComparisonImages = async (
     apiKey: string,
     product: Product,
@@ -444,12 +448,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                     const fetchUrl = proxyUrl.toString();
                     
                     const response = await fetch(fetchUrl, {
-                      signal: AbortSignal.timeout(10000)
+                      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
                     });
                     
                     if (response.ok) {
                       const blob = await response.blob();
-                      if (blob.type.startsWith('image/') && blob.size > 1024) {
+                      if (blob.type.startsWith('image/') && blob.size > MIN_IMAGE_SIZE_BYTES) {
                         // Convert to data URL
                         const dataUrl = await new Promise<string>((resolve, reject) => {
                           const reader = new FileReader();
@@ -487,12 +491,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                   const fetchUrl = proxyUrl.toString();
                   
                   const response = await fetch(fetchUrl, {
-                    signal: AbortSignal.timeout(10000)
+                    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
                   });
                   
                   if (response.ok) {
                     const blob = await response.blob();
-                    if (blob.type.startsWith('image/') && blob.size > 1024) {
+                    if (blob.type.startsWith('image/') && blob.size > MIN_IMAGE_SIZE_BYTES) {
                       const dataUrl = await new Promise<string>((resolve, reject) => {
                         const reader = new FileReader();
                         reader.onloadend = () => resolve(reader.result as string);
@@ -740,7 +744,7 @@ To fix:
             
             console.log(`[Image Fetch] (${index + 1}/${imageUrls.length}) Fetching:`, imageUrl);
             const response = await fetch(proxyUrl.toString(), {
-              signal: AbortSignal.timeout(10000) // 10 second timeout per image
+              signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) // 10 second timeout per image
             });
             
             if (!response.ok) {
@@ -896,7 +900,7 @@ To fix:
                           
                           console.log(`[Identification] Fetching AI image ${index + 1}/${profile.imageUrls.length}:`, imageUrl);
                           const response = await fetch(fetchUrl, {
-                            signal: AbortSignal.timeout(10000) // 10 second timeout
+                            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) // 10 second timeout
                           });
                           
                           if (!response.ok) {
@@ -1067,7 +1071,7 @@ To fix:
     if (!product) return;
 
     // Check if user provided additional comments at the preliminary report stage
-    const hasAdditionalComments = userComments && userComments.trim().length > 0;
+    const hasAdditionalComments = userComments?.trim().length > 0;
 
     if (!hasAdditionalComments) {
       // No additional comments: save preliminary report directly as final report

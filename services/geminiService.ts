@@ -951,7 +951,12 @@ Return 3-5 relevant image URLs that would be useful for quality control comparis
       config
     });
 
-    const responseText = response.text || "";
+    if (!response || !response.text) {
+      console.warn(`[Image Search] No response text received for ${sectionName}`);
+      return [];
+    }
+
+    const responseText = response.text;
     
     // Extract URLs from the response text
     // Look for URLs in the format http:// or https://
