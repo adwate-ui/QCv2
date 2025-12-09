@@ -456,11 +456,26 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const MAX_OBSERVATIONS_FOR_COMPARISON = 4;
       
       // Generate all comparison images in parallel
-      const comparisonPromises = sectionsWithIssues.map(async (section) => {
+      const comparisonPromises = sectionsWithIssues.map(async (section, sectionIndex) => {
         try {
           // Try to find the most relevant QC image for this section
-          // For now, use all available images to maximize coverage
-          const qcImageSrc = allQCRawImages[0]; // Use first QC image as representative
+          // Strategy:
+          // 1. If section has imageIds and they reference available images, use the first one
+          // 2. Otherwise, distribute QC images across sections using round-robin
+          // 3. Fallback to first image if only one available
+          let qcImageSrc: string;
+          if (section.imageIds && section.imageIds.length > 0 && allQCRawImages.length > 0) {
+            // Try to use section-specific image if available (future compatibility)
+            const sectionImageIndex = Math.min(section.imageIds.length - 1, 0);
+            qcImageSrc = allQCRawImages[sectionImageIndex] || allQCRawImages[0];
+          } else if (allQCRawImages.length > 1) {
+            // Distribute images across sections using round-robin for better coverage
+            qcImageSrc = allQCRawImages[sectionIndex % allQCRawImages.length];
+          } else {
+            // Use first (and likely only) QC image
+            qcImageSrc = allQCRawImages[0];
+          }
+          
           const refImageSrc = referenceImages[0]; // Use first reference image
           
           // Get observations for this section (limit for better readability)
