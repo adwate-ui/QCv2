@@ -6,20 +6,20 @@ async function handleRequest(request) {
   const url = new URL(request.url);
   const pathname = url.pathname.replace(/\/+$/, '');
 
-  // Handle CORS preflight requests
-  if (request.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Max-Age': '86400'
-      }
-    });
-  }
-
   // Handle /proxy endpoint - proxy external resources with CORS
   if (pathname.endsWith('/proxy')) {
+    // Handle CORS preflight requests for this endpoint
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Max-Age': '86400'
+        }
+      });
+    }
+
     const target = url.searchParams.get('url');
     if (!target) return new Response(JSON.stringify({ error: 'missing url parameter' }), { 
       status: 400,
@@ -27,35 +27,96 @@ async function handleRequest(request) {
     });
     
     // Validate URL to prevent SSRF attacks
-    try {
-      const targetUrl = new URL(target);
-      // Only allow http and https protocols
-      if (!['http:', 'https:'].includes(targetUrl.protocol)) {
-        return new Response(JSON.stringify({ error: 'invalid protocol' }), {
-          status: 400,
-          headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
-        });
+    const isInternalUrl = (urlString) => {
+      try {
+        const parsedUrl = new URL(urlString);
+        // Only allow http and https protocols
+        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+          return true;
+        }
+        // Block access to localhost and private IP ranges
+        const hostname = parsedUrl.hostname.toLowerCase();
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || 
+            hostname.startsWith('192.168.') || hostname.startsWith('10.') || 
+            hostname === '[::1]' || hostname === '0.0.0.0') {
+          return true;
+        }
+        // Check for 172.16.0.0/12 range (172.16.0.0 - 172.31.255.255)
+        const ip172Match = hostname.match(/^172\.(\d+)\./);
+        if (ip172Match) {
+          const secondOctet = parseInt(ip172Match[1], 10);
+          if (secondOctet >= 16 && secondOctet <= 31) {
+            return true;
+          }
+        }
+        return false;
+      } catch (e) {
+        return true; // Treat invalid URLs as internal
       }
-      // Block access to localhost and private IP ranges
-      const hostname = targetUrl.hostname.toLowerCase();
-      if (hostname === 'localhost' || hostname === '127.0.0.1' || 
-          hostname.startsWith('192.168.') || hostname.startsWith('10.') || 
-          hostname.startsWith('172.16.') || hostname === '[::1]' || hostname === '0.0.0.0') {
-        return new Response(JSON.stringify({ error: 'access to internal resources not allowed' }), {
-          status: 403,
-          headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
-        });
-      }
-    } catch (e) {
-      return new Response(JSON.stringify({ error: 'invalid url' }), {
-        status: 400,
+    };
+    
+    if (isInternalUrl(target)) {
+      return new Response(JSON.stringify({ error: 'access to internal resources not allowed' }), {
+        status: 403,
         headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
       });
     }
     
     try {
-      // Follow redirects with automatic handling (Cloudflare Workers limits this by default)
-      const resp = await fetch(target, { redirect: 'follow' });
+      // Use manual redirect to validate each redirect destination
+      const resp = await fetch(target, { redirect: 'manual' });
+      
+      // Handle redirects manually to prevent SSRF
+      if (resp.status >= 300 && resp.status < 400) {
+        const location = resp.headers.get('location');
+        if (!location) {
+          return new Response(JSON.stringify({ error: 'redirect without location header' }), {
+            status: 502,
+            headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+          });
+        }
+        
+        // Resolve relative redirects
+        const redirectUrl = new URL(location, target).toString();
+        
+        // Validate redirect destination
+        if (isInternalUrl(redirectUrl)) {
+          return new Response(JSON.stringify({ error: 'redirect to internal resources not allowed' }), {
+            status: 403,
+            headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+          });
+        }
+        
+        // Follow the redirect (limited to one redirect for simplicity and security)
+        const redirectResp = await fetch(redirectUrl, { redirect: 'manual' });
+        
+        // If there's another redirect, don't follow it
+        if (redirectResp.status >= 300 && redirectResp.status < 400) {
+          return new Response(JSON.stringify({ error: 'multiple redirects not supported' }), {
+            status: 502,
+            headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+          });
+        }
+        
+        if (!redirectResp.ok) {
+          return new Response(JSON.stringify({ error: 'fetch failed', status: redirectResp.status, statusText: redirectResp.statusText }), {
+            status: 502,
+            headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+          });
+        }
+        
+        const contentType = redirectResp.headers.get('content-type') || 'application/octet-stream';
+        const body = await redirectResp.arrayBuffer();
+
+        return new Response(body, {
+          headers: {
+            'content-type': contentType,
+            'access-control-allow-origin': '*',
+            'cache-control': 'public, max-age=3600'
+          }
+        });
+      }
+      
       if (!resp.ok) {
         return new Response(JSON.stringify({ error: 'fetch failed', status: resp.status, statusText: resp.statusText }), {
           status: 502,
