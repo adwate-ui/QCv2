@@ -19,7 +19,7 @@ jobs:
       - name: Install worker dependencies
         run: |
           cd cloudflare-worker
-          npm ci
+          npm install
 
       - name: Publish worker
         env:
