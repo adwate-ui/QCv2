@@ -2,38 +2,249 @@ import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 import jpeg from 'jpeg-js';
 
+// Validate URL to prevent SSRF attacks
+function isInternalUrl(urlString) {
+  try {
+    const parsedUrl = new URL(urlString);
+    // Only allow http and https protocols
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return true;
+    }
+    // Block access to localhost and private/reserved IP ranges
+    let hostname = parsedUrl.hostname.toLowerCase();
+    
+    // Remove brackets from IPv6 addresses
+    if (hostname.startsWith('[') && hostname.endsWith(']')) {
+      hostname = hostname.slice(1, -1);
+    }
+    
+    // Check for localhost
+    if (hostname === 'localhost' || hostname === '::1') {
+      return true;
+    }
+    
+    // Check for IPv4 patterns
+    const ipv4Pattern = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+    const ipv4Match = hostname.match(ipv4Pattern);
+    
+    if (ipv4Match) {
+      const octets = [1, 2, 3, 4].map(i => parseInt(ipv4Match[i], 10));
+      if (octets.some(o => o > 255)) {
+        return true;
+      }
+      
+      const [a, b, c, d] = octets;
+      
+      if (a === 127) return true; // loopback
+      if (a === 10) return true; // 10.0.0.0/8
+      if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
+      if (a === 192 && b === 168) return true; // 192.168.0.0/16
+      if (a === 169 && b === 254) return true; // link-local
+      if (a >= 224 && a <= 239) return true; // multicast
+      if (a === 0) return true;
+      if (a === 255) return true;
+    }
+    
+    // Check for IPv6 private/reserved ranges
+    if (hostname.includes(':')) {
+      if (hostname.startsWith('fc') || hostname.startsWith('fd')) return true;
+      if (hostname.startsWith('fe80:')) return true;
+      if (hostname.startsWith('ff')) return true;
+    }
+    
+    return false;
+  } catch (e) {
+    return true;
+  }
+}
+
 async function handleRequest(request) {
   const url = new URL(request.url);
   const pathname = url.pathname.replace(/\/+$/, '');
 
+  // Handle CORS preflight for all endpoints
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Max-Age': '86400'
+      }
+    });
+  }
+
   if (pathname.endsWith('/fetch-metadata')) {
     const target = url.searchParams.get('url');
-    if (!target) return new Response(JSON.stringify({ error: 'missing url' }), { status: 400 });
+    if (!target) {
+      return new Response(JSON.stringify({ error: 'missing url' }), { 
+        status: 400,
+        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+      });
+    }
+    
+    // Validate URL to prevent SSRF
+    if (isInternalUrl(target)) {
+      return new Response(JSON.stringify({ error: 'access to internal resources not allowed' }), {
+        status: 403,
+        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+      });
+    }
+    
     try {
       const resp = await fetch(target, { redirect: 'follow' });
+      if (!resp.ok) {
+        return new Response(JSON.stringify({ error: 'fetch failed', status: resp.status }), { 
+          status: 502,
+          headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+        });
+      }
+      
       const text = await resp.text();
-      // Simple parsing: extract og:image and JSON-LD and img srcs by regex to avoid DOMParser dependency
-      const ogImgRe = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/ig;
-      const metaImgRe = /<meta[^>]+name=["']image["'][^>]+content=["']([^"']+)["']/ig;
-      const imgTagRe = /<img[^>]+src=["']([^"']+)["']/ig;
-      const ldRe = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/ig;
-
-      const images = [];
-      let m;
-      while ((m = ogImgRe.exec(text))) images.push(m[1]);
-      while ((m = metaImgRe.exec(text))) images.push(m[1]);
-      while ((m = imgTagRe.exec(text))) images.push(m[1]);
-      while ((m = ldRe.exec(text))) {
+      
+      // Use regex-based parsing (DOMParser doesn't exist in Cloudflare Workers)
+      const ogImgs = [];
+      const ogImageRegex = /<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/gi;
+      let match;
+      while ((match = ogImageRegex.exec(text)) !== null) {
+        ogImgs.push(match[1]);
+      }
+      
+      // Also try reverse order (content before property)
+      const ogImageRegex2 = /<meta\s+content=["']([^"']+)["']\s+property=["']og:image["']/gi;
+      while ((match = ogImageRegex2.exec(text)) !== null) {
+        ogImgs.push(match[1]);
+      }
+      
+      // JSON-LD images
+      const ldImgs = [];
+      const jsonldRegex = /<script\s+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+      while ((match = jsonldRegex.exec(text)) !== null) {
         try {
-          const parsed = JSON.parse(m[1]);
-          collectImagesFromLd(parsed, images);
-        } catch (e) {}
+          const parsed = JSON.parse(match[1]);
+          const images = extractImagesFromLd(parsed);
+          ldImgs.push(...images);
+        } catch (e) {
+          // ignore invalid JSON
+        }
+      }
+      
+      // img tags - extract src attribute
+      const imgTags = [];
+      const imgRegex = /<img\s+[^>]*src=["']([^"']+)["'][^>]*>/gi;
+      while ((match = imgRegex.exec(text)) !== null) {
+        imgTags.push(match[1]);
+      }
+      
+      // Resolve relative URLs to absolute URLs
+      const targetUrl = new URL(target);
+      const resolveUrl = (urlString) => {
+        if (!urlString) return null;
+        try {
+          // Handle protocol-relative URLs
+          if (urlString.startsWith('//')) {
+            return targetUrl.protocol + urlString;
+          }
+          // Handle absolute URLs
+          if (urlString.startsWith('http://') || urlString.startsWith('https://')) {
+            return urlString;
+          }
+          // Handle root-relative URLs
+          if (urlString.startsWith('/')) {
+            return targetUrl.origin + urlString;
+          }
+          // Handle relative URLs
+          return new URL(urlString, target).href;
+        } catch (e) {
+          return null;
+        }
+      };
+      
+      // Resolve and filter images
+      const allImages = [...ogImgs, ...ldImgs, ...imgTags]
+        .map(resolveUrl)
+        .filter(Boolean)
+        .filter(url => {
+          // Filter out common tracking pixels and small images
+          const lower = url.toLowerCase();
+          return !lower.includes('1x1') && 
+                 !lower.includes('tracking') && 
+                 !lower.includes('pixel') &&
+                 !lower.includes('spacer.gif');
+        });
+      
+      const images = Array.from(new Set(allImages)).slice(0, 12);
+      
+      return new Response(JSON.stringify({ images }), { 
+        headers: { 
+          'content-type': 'application/json',
+          'access-control-allow-origin': '*',
+          'cache-control': 'public, max-age=300'
+        } 
+      });
+    } catch (e) {
+      return new Response(JSON.stringify({ error: String(e), message: 'Failed to fetch or parse metadata' }), { 
+        status: 500,
+        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+      });
+    }
+  }
+
+  if (pathname.endsWith('/proxy-image')) {
+    const target = url.searchParams.get('url');
+    if (!target) {
+      return new Response(JSON.stringify({ error: 'missing url' }), { 
+        status: 400,
+        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+      });
+    }
+    
+    // Validate URL to prevent SSRF
+    if (isInternalUrl(target)) {
+      return new Response(JSON.stringify({ error: 'access to internal resources not allowed' }), {
+        status: 403,
+        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+      });
+    }
+    
+    try {
+      const targetUrl = new URL(target);
+      const refererOverride = url.searchParams.get('referer');
+      const uaOverride = url.searchParams.get('ua');
+      const acceptOverride = url.searchParams.get('accept');
+
+      const fetchOpts = {
+        redirect: 'follow',
+        headers: {
+          'User-Agent': uaOverride || 'Mozilla/5.0 (compatible; AuthentiQC/1.0; +https://example.com)',
+          'Accept': acceptOverride || 'image/*,*/*;q=0.8',
+          'Referer': refererOverride || targetUrl.origin
+        }
+      };
+
+      const resp = await fetch(target, fetchOpts);
+      if (!resp.ok) {
+        return new Response(JSON.stringify({ error: 'fetch failed', status: resp.status, statusText: resp.statusText }), { 
+          status: 502,
+          headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+        });
       }
 
-      const out = Array.from(new Set(images)).slice(0, 12);
-      return new Response(JSON.stringify({ images: out }), { headers: { 'content-type': 'application/json' } });
+      const contentType = resp.headers.get('content-type') || 'application/octet-stream';
+      const body = await resp.arrayBuffer();
+
+      return new Response(body, {
+        headers: {
+          'content-type': contentType,
+          'access-control-allow-origin': '*',
+          'cache-control': 'public, max-age=3600'
+        }
+      });
     } catch (e) {
-      return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+      return new Response(JSON.stringify({ error: String(e), message: 'Failed to fetch image' }), { 
+        status: 500,
+        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+      });
     }
   }
 
@@ -80,17 +291,22 @@ async function handleRequest(request) {
   return new Response('Not found', { status: 404 });
 }
 
-function collectImagesFromLd(obj, out) {
-  if (!obj) return;
-  if (Array.isArray(obj)) return obj.forEach(v => collectImagesFromLd(v, out));
+function extractImagesFromLd(obj) {
+  const results = [];
+  if (!obj) return results;
+  if (Array.isArray(obj)) {
+    for (const v of obj) results.push(...extractImagesFromLd(v));
+    return results;
+  }
   if (typeof obj === 'object') {
     if (obj.image) {
-      if (typeof obj.image === 'string') out.push(obj.image);
-      else if (Array.isArray(obj.image)) out.push(...obj.image.filter(Boolean));
-      else if (obj.image.url) out.push(obj.image.url);
+      if (typeof obj.image === 'string') results.push(obj.image);
+      else if (Array.isArray(obj.image)) results.push(...obj.image.filter(Boolean));
+      else if (obj.image['@type'] && obj.image['@type'] === 'ImageObject' && obj.image.url) results.push(obj.image.url);
     }
-    Object.keys(obj).forEach(k => collectImagesFromLd(obj[k], out));
+    for (const k of Object.keys(obj)) results.push(...extractImagesFromLd(obj[k]));
   }
+  return results.filter(Boolean);
 }
 
 function decodeImage(buffer) {
