@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Product, AppSettings, ModelTier, ExpertMode, BackgroundTask, QCBatch } from '../types';
+import { User, Product, AppSettings, ModelTier, ExpertMode, BackgroundTask, QCBatch, QCReport } from '../types';
 import { db } from '../services/db';
 import { supabase } from '../services/supabase';
 import { identifyProduct, runQCAnalysis, runFinalQCAnalysis } from '../services/geminiService';
