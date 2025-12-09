@@ -17,7 +17,6 @@ This version includes:
 - **index.mjs**: The main worker code (ES Module format with nodejs_compat)
 - **package.json**: Worker dependencies (pixelmatch, pngjs, jpeg-js)
 - **wrangler.toml**: The worker configuration file used for deployment
-- **worker.js**: Legacy service worker format (kept for reference, not used in deployment)
 
 ## Deployment
 
@@ -46,13 +45,17 @@ cd cloudflare-worker
 ## Important Notes
 
 - Only `wrangler.toml` in this directory is used for worker deployment
-- The root `wrangler.jsonc` is NOT used for worker deployment (it's for Pages)
+- The root `wrangler.toml` is NOT used for worker deployment (it's for Pages)
+- Worker name: **authentiqc-worker** (must match name in wrangler.toml)
+- Worker URL: **https://authentiqc-worker.adwate.workers.dev**
 - All endpoints include CORS headers: `'Access-Control-Allow-Origin': '*'`
 - All endpoints include version header: `'X-Worker-Version': '1.2.0'`
 - The worker uses `nodejs_compat` compatibility flag for Node.js built-ins (pixelmatch, pngjs, jpeg-js)
 - Worker dependencies are managed in `cloudflare-worker/package.json`
 - Global error handler ensures CORS headers are present even on unhandled errors
 - 404 responses include CORS headers to prevent cross-origin errors
+
+**CRITICAL:** If you get 404 errors with NO CORS headers, the worker is likely NOT deployed. See [WORKER_NOT_DEPLOYED.md](../WORKER_NOT_DEPLOYED.md) for diagnosis.
 
 ## Endpoints
 
