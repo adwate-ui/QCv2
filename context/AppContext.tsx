@@ -447,40 +447,62 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         return sectionComparisons;
       }
 
-      // Generate comparison only for sections with discrepancies (not PASS)
+      // Generate comparison only for sections with issues (CAUTION or FAIL)
       const sectionsWithIssues = report.sections.filter(s => s.grade !== 'PASS');
       
+      console.log(`Generating ${sectionsWithIssues.length} comparison images for non-PASS sections:`, sectionsWithIssues.map(s => `${s.sectionName} (${s.grade})`));
+      
       // Generate all comparison images in parallel
-      const comparisonPromises = sectionsWithIssues.map(async (section, i) => {
-        // Use corresponding QC image or first available
-        const qcImageSrc = allQCRawImages[Math.min(i, allQCRawImages.length - 1)];
-        const refImageSrc = referenceImages[0]; // Use first reference image
-        
-        // Get observations for this section
-        const observations = Array.isArray(section.observations) ? section.observations : [];
-        
-        // Generate side-by-side comparison with observations
-        const comparisonImageData = await generateComparisonImage(refImageSrc, qcImageSrc, undefined, observations);
-        
-        // Save comparison image
-        const comparisonImageId = generateUUID();
-        await db.saveImage(comparisonImageId, comparisonImageData);
-        
-        return {
-          sectionName: section.sectionName,
-          comparison: {
-            authImageId: product.referenceImageIds[0],
-            diffImageId: comparisonImageId
-          }
-        };
+      const comparisonPromises = sectionsWithIssues.map(async (section) => {
+        try {
+          // Try to find the most relevant QC image for this section
+          // For now, use all available images to maximize coverage
+          const qcImageSrc = allQCRawImages[0]; // Use first QC image as representative
+          const refImageSrc = referenceImages[0]; // Use first reference image
+          
+          // Get observations for this section (limit to first 4 for better readability)
+          const observations = Array.isArray(section.observations) 
+            ? section.observations.slice(0, 4) 
+            : [];
+          
+          // Generate side-by-side comparison with observations highlighted
+          const comparisonImageData = await generateComparisonImage(
+            refImageSrc, 
+            qcImageSrc, 
+            undefined, // No bounding boxes available from AI model
+            observations
+          );
+          
+          // Save comparison image
+          const comparisonImageId = generateUUID();
+          await db.saveImage(comparisonImageId, comparisonImageData);
+          
+          console.log(`Generated comparison image for ${section.sectionName} (${section.grade})`);
+          
+          return {
+            sectionName: section.sectionName,
+            comparison: {
+              authImageId: product.referenceImageIds[0],
+              diffImageId: comparisonImageId
+            }
+          };
+        } catch (error) {
+          console.error(`Failed to generate comparison for ${section.sectionName}:`, error);
+          return null;
+        }
       });
       
-      const comparisonResults = await Promise.all(comparisonPromises);
+      const comparisonResults = (await Promise.all(comparisonPromises)).filter(Boolean) as Array<{
+        sectionName: string;
+        comparison: { authImageId?: string; diffImageId?: string; diffScore?: number }
+      }>;
       
       // Map results to sectionComparisons
       comparisonResults.forEach(result => {
         sectionComparisons[result.sectionName] = result.comparison;
       });
+      
+      console.log(`Successfully generated ${comparisonResults.length} comparison images`);
     } catch (error) {
       console.error('Error generating comparison images:', error);
       // Return partial results or empty object if generation fails
