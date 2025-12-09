@@ -18,7 +18,7 @@ async function handleRequest(request) {
     });
   }
 
-  // Handle /proxy endpoint - simple image/blob proxy with CORS
+  // Handle /proxy endpoint - proxy external resources with CORS
   if (pathname.endsWith('/proxy')) {
     const target = url.searchParams.get('url');
     if (!target) return new Response(JSON.stringify({ error: 'missing url parameter' }), { 
@@ -26,7 +26,35 @@ async function handleRequest(request) {
       headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
     });
     
+    // Validate URL to prevent SSRF attacks
     try {
+      const targetUrl = new URL(target);
+      // Only allow http and https protocols
+      if (!['http:', 'https:'].includes(targetUrl.protocol)) {
+        return new Response(JSON.stringify({ error: 'invalid protocol' }), {
+          status: 400,
+          headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+        });
+      }
+      // Block access to localhost and private IP ranges
+      const hostname = targetUrl.hostname.toLowerCase();
+      if (hostname === 'localhost' || hostname === '127.0.0.1' || 
+          hostname.startsWith('192.168.') || hostname.startsWith('10.') || 
+          hostname.startsWith('172.16.') || hostname === '[::1]' || hostname === '0.0.0.0') {
+        return new Response(JSON.stringify({ error: 'access to internal resources not allowed' }), {
+          status: 403,
+          headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+        });
+      }
+    } catch (e) {
+      return new Response(JSON.stringify({ error: 'invalid url' }), {
+        status: 400,
+        headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
+      });
+    }
+    
+    try {
+      // Follow redirects with automatic handling (Cloudflare Workers limits this by default)
       const resp = await fetch(target, { redirect: 'follow' });
       if (!resp.ok) {
         return new Response(JSON.stringify({ error: 'fetch failed', status: resp.status, statusText: resp.statusText }), {
