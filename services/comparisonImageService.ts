@@ -73,16 +73,18 @@ const drawHighlight = (
 };
 
 /**
- * Generates a side-by-side comparison image
+ * Generates a side-by-side comparison image with text annotations
  * @param referenceImageSrc - URL or data URL of the reference (authentic) image
  * @param qcImageSrc - URL or data URL of the QC image
  * @param discrepancies - Optional array of bounding boxes to highlight on the QC image
+ * @param observations - Optional array of text observations to display below the images
  * @returns Promise resolving to a data URL of the comparison image
  */
 export const generateComparisonImage = async (
   referenceImageSrc: string,
   qcImageSrc: string,
-  discrepancies?: BoundingBox[]
+  discrepancies?: BoundingBox[],
+  observations?: string[]
 ): Promise<string> => {
   try {
     // Load both images
@@ -107,11 +109,14 @@ export const generateComparisonImage = async (
     const finalRefWidth = finalHeight * refAspect;
     const finalQcWidth = finalHeight * qcAspect;
 
+    // Calculate space needed for observations
+    const observationsHeight = observations && observations.length > 0 ? Math.min(200, observations.length * 25 + 40) : 0;
+
     // Create canvas with padding between images
     const padding = 40;
     const canvas = document.createElement('canvas');
     canvas.width = finalRefWidth + finalQcWidth + padding * 3;
-    canvas.height = finalHeight + padding * 2;
+    canvas.height = finalHeight + padding * 2 + observationsHeight;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) {
@@ -141,6 +146,53 @@ export const generateComparisonImage = async (
       discrepancies.forEach(bbox => {
         drawHighlight(ctx, bbox, finalQcWidth, finalHeight, qcOffsetX);
       });
+    }
+
+    // Draw observations text below images if provided
+    if (observations && observations.length > 0) {
+      const observationsY = finalHeight + padding * 2 + 10;
+      
+      // Draw observations box background
+      ctx.fillStyle = '#FEF3C7'; // Light yellow background
+      ctx.fillRect(padding, observationsY, canvas.width - padding * 2, observationsHeight - 10);
+      
+      // Draw observations border
+      ctx.strokeStyle = '#F59E0B'; // Orange border
+      ctx.lineWidth = 2;
+      ctx.strokeRect(padding, observationsY, canvas.width - padding * 2, observationsHeight - 10);
+      
+      // Draw title
+      ctx.fillStyle = '#B45309'; // Dark orange
+      ctx.font = 'bold 14px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText('⚠ Discrepancies Detected:', padding + 10, observationsY + 20);
+      
+      // Draw observations
+      ctx.fillStyle = '#78350F'; // Brown text
+      ctx.font = '12px Arial';
+      observations.slice(0, 6).forEach((obs, i) => {
+        const text = `• ${obs}`;
+        const maxWidth = canvas.width - padding * 2 - 20;
+        
+        // Truncate text if too long
+        let displayText = text;
+        const metrics = ctx.measureText(text);
+        if (metrics.width > maxWidth) {
+          let truncated = text;
+          while (ctx.measureText(truncated + '...').width > maxWidth && truncated.length > 10) {
+            truncated = truncated.slice(0, -1);
+          }
+          displayText = truncated + '...';
+        }
+        
+        ctx.fillText(displayText, padding + 15, observationsY + 40 + i * 20);
+      });
+      
+      if (observations.length > 6) {
+        ctx.fillStyle = '#92400E';
+        ctx.font = 'italic 11px Arial';
+        ctx.fillText(`... and ${observations.length - 6} more`, padding + 15, observationsY + 40 + 6 * 20);
+      }
     }
 
     // Convert to data URL
