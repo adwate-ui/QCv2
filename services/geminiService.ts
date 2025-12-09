@@ -130,7 +130,6 @@ const normalizeCategory = (category: string, existingCategories?: string[]): str
   
   // If existingCategories provided, check if there's a close match
   if (existingCategories && existingCategories.length > 0) {
-    const CATEGORY_SIMILARITY_THRESHOLD = 0.75;
     let bestMatch = titleCased;
     let bestScore = CATEGORY_SIMILARITY_THRESHOLD;
     
@@ -246,6 +245,7 @@ const STANDARD_SECTION_NAMES: Record<string, string[]> = {
 // Constants for string similarity comparison
 const MIN_TOKEN_LENGTH = 2;
 const SIMILARITY_THRESHOLD = 0.7;
+const CATEGORY_SIMILARITY_THRESHOLD = 0.75;
 
 // Calculate similarity between two strings (0-1)
 const stringSimilarity = (str1: string, str2: string): number => {
@@ -272,6 +272,18 @@ const stringSimilarity = (str1: string, str2: string): number => {
   // Token-based Jaccard similarity
   const tokens1 = new Set(n1.split(' ').filter(t => t.length > MIN_TOKEN_LENGTH));
   const tokens2 = new Set(n2.split(' ').filter(t => t.length > MIN_TOKEN_LENGTH));
+  
+  // Handle short strings: if both token sets are empty (due to short strings),
+  // fall back to character-based comparison
+  if (tokens1.size === 0 && tokens2.size === 0) {
+    // For very short strings, use simple character overlap
+    const chars1 = new Set(n1.split('').filter(c => c !== ' '));
+    const chars2 = new Set(n2.split('').filter(c => c !== ' '));
+    if (chars1.size === 0 || chars2.size === 0) return 0;
+    const charIntersection = new Set([...chars1].filter(c => chars2.has(c)));
+    const charUnion = new Set([...chars1, ...chars2]);
+    return charIntersection.size / charUnion.size;
+  }
   
   if (tokens1.size === 0 || tokens2.size === 0) return 0;
   

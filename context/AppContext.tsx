@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, ReactNode } from 'react';
 import { User, Product, AppSettings, ModelTier, ExpertMode, BackgroundTask, QCBatch, QCReport } from '../types';
 import { db } from '../services/db';
 import { supabase } from '../services/supabase';
@@ -73,6 +73,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     expertMode: ExpertMode.NORMAL
   });
   const [tasks, setTasks] = useState<BackgroundTask[]>([]);
+
+  // Memoize existing categories to avoid recalculating on every identification
+  const existingCategories = useMemo(() => {
+    return [...new Set(products.map(p => p.profile.category).filter(Boolean))];
+  }, [products]);
 
   // Helper function to strip large image data from tasks before persisting
   const sanitizeTasksForStorage = (tasksToSave: BackgroundTask[]): BackgroundTask[] => {
@@ -868,9 +873,7 @@ To fix:
       }
     }
 
-    // Get existing categories from products
-    const existingCategories = [...new Set(products.map(p => p.profile.category).filter(Boolean))];
-
+    // Use memoized existing categories for better performance
     identifyProduct(apiKey, imagesToUse, url, settings, existingCategories)
         .then(async (profile) => {
             // Use imagesToUse which may contain scraped images
