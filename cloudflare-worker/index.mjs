@@ -5,7 +5,7 @@ import jpeg from 'jpeg-js';
 // Constants for retry and validation
 const BASE_RETRY_DELAY_MS = 1000;
 const MIN_VALID_IMAGE_SIZE = 100;
-const WORKER_VERSION = '1.1.0-cors-fix';
+const WORKER_VERSION = '1.1.0';
 
 // Helper to create standard CORS headers
 function getCorsHeaders(additionalHeaders = {}) {
@@ -541,11 +541,18 @@ export default {
     } catch (error) {
       // Global error handler to ensure CORS headers are always present
       console.error('Unhandled error in worker:', error);
-      return new Response(JSON.stringify({ 
+      
+      const errorResponse = { 
         error: 'Internal server error',
-        message: error?.message || String(error),
-        stack: error?.stack
-      }), { 
+        message: error?.message || String(error)
+      };
+      
+      // Only include stack trace in development (when env.ENVIRONMENT is not 'production')
+      if (env?.ENVIRONMENT !== 'production') {
+        errorResponse.stack = error?.stack;
+      }
+      
+      return new Response(JSON.stringify(errorResponse), { 
         status: 500,
         headers: getCorsHeaders({ 
           'Content-Type': 'application/json'
