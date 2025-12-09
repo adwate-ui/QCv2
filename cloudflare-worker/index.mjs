@@ -5,6 +5,16 @@ import jpeg from 'jpeg-js';
 // Constants for retry and validation
 const BASE_RETRY_DELAY_MS = 1000;
 const MIN_VALID_IMAGE_SIZE = 100;
+const WORKER_VERSION = '1.1.0-cors-fix';
+
+// Helper to create standard CORS headers
+function getCorsHeaders(additionalHeaders = {}) {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'X-Worker-Version': WORKER_VERSION,
+    ...additionalHeaders
+  };
+}
 
 // Validate URL to prevent SSRF attacks
 function isInternalUrl(urlString) {
@@ -70,7 +80,7 @@ async function handleRequest(request) {
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
-        'Access-Control-Allow-Origin': '*',
+        ...getCorsHeaders(),
         'Access-Control-Allow-Methods': 'GET, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Max-Age': '86400'
@@ -82,7 +92,7 @@ async function handleRequest(request) {
   if (pathname === '' || pathname === '/') {
     return new Response(JSON.stringify({
       name: 'AuthentiqC Image Proxy Worker',
-      version: '1.0.0',
+      version: WORKER_VERSION,
       status: 'ok',
       endpoints: [
         { path: '/fetch-metadata', method: 'GET', description: 'Extract image URLs from a webpage' },
@@ -91,10 +101,7 @@ async function handleRequest(request) {
       ]
     }), {
       status: 200,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
+      headers: getCorsHeaders({ 'Content-Type': 'application/json' })
     });
   }
 
@@ -103,7 +110,7 @@ async function handleRequest(request) {
     if (!target) {
       return new Response(JSON.stringify({ error: 'missing url' }), { 
         status: 400,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        headers: getCorsHeaders({ 'Content-Type': 'application/json' })
       });
     }
     
@@ -111,7 +118,7 @@ async function handleRequest(request) {
     if (isInternalUrl(target)) {
       return new Response(JSON.stringify({ error: 'access to internal resources not allowed' }), {
         status: 403,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        headers: getCorsHeaders({ 'Content-Type': 'application/json' })
       });
     }
     
@@ -147,7 +154,7 @@ async function handleRequest(request) {
             message: `Failed to fetch page metadata. Server returned ${resp.status}.`
           }), { 
             status: 502,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            headers: getCorsHeaders({ 'Content-Type': 'application/json' })
           });
         }
         
@@ -256,11 +263,10 @@ async function handleRequest(request) {
         const images = [...ogTwitterImages, ...otherImages].slice(0, 12);
         
         return new Response(JSON.stringify({ images }), { 
-          headers: { 
+          headers: getCorsHeaders({ 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
             'Cache-Control': 'public, max-age=300'
-          } 
+          })
         });
       } catch (e) {
         lastError = e;
@@ -276,7 +282,7 @@ async function handleRequest(request) {
           message: `Failed to fetch or parse metadata after ${attempt + 1} attempts: ${e.message || String(e)}`
         }), { 
           status: 500,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          headers: getCorsHeaders({ 'Content-Type': 'application/json' })
         });
       }
     }
@@ -288,7 +294,7 @@ async function handleRequest(request) {
       lastError: lastError ? String(lastError) : 'unknown'
     }), { 
       status: 502,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      headers: getCorsHeaders({ 'Content-Type': 'application/json' })
     });
   }
 
@@ -297,7 +303,7 @@ async function handleRequest(request) {
     if (!target) {
       return new Response(JSON.stringify({ error: 'missing url' }), { 
         status: 400,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        headers: getCorsHeaders({ 'Content-Type': 'application/json' })
       });
     }
     
@@ -305,7 +311,7 @@ async function handleRequest(request) {
     if (isInternalUrl(target)) {
       return new Response(JSON.stringify({ error: 'access to internal resources not allowed' }), {
         status: 403,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        headers: getCorsHeaders({ 'Content-Type': 'application/json' })
       });
     }
     
@@ -350,7 +356,7 @@ async function handleRequest(request) {
             message: `Failed to fetch image from ${targetUrl.hostname}. The server returned ${resp.status} ${resp.statusText}. This may be due to rate limiting, authentication requirements, or the image being unavailable.`
           }), { 
             status: 502,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            headers: getCorsHeaders({ 'Content-Type': 'application/json' })
           });
         }
 
@@ -364,17 +370,16 @@ async function handleRequest(request) {
             message: `Expected image data but received ${contentType} with ${body.byteLength} bytes`
           }), { 
             status: 502,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            headers: getCorsHeaders({ 'Content-Type': 'application/json' })
           });
         }
 
         return new Response(body, {
-          headers: {
+          headers: getCorsHeaders({
             'Content-Type': contentType,
-            'Access-Control-Allow-Origin': '*',
             'Cache-Control': 'public, max-age=3600',
             'X-Proxy-Status': 'success'
-          }
+          })
         });
       } catch (e) {
         lastError = e;
@@ -392,7 +397,7 @@ async function handleRequest(request) {
           target: target
         }), { 
           status: 500,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          headers: getCorsHeaders({ 'Content-Type': 'application/json' })
         });
       }
     }
@@ -404,7 +409,7 @@ async function handleRequest(request) {
       lastError: lastError ? String(lastError) : 'unknown'
     }), { 
       status: 502,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      headers: getCorsHeaders({ 'Content-Type': 'application/json' })
     });
   }
 
@@ -413,14 +418,14 @@ async function handleRequest(request) {
     const imageB = url.searchParams.get('imageB');
     if (!imageA || !imageB) return new Response(JSON.stringify({ error: 'missing images' }), { 
       status: 400,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      headers: getCorsHeaders({ 'Content-Type': 'application/json' })
     });
 
     try {
       const [ra, rb] = await Promise.all([fetch(imageA), fetch(imageB)]);
       if (!ra.ok || !rb.ok) return new Response(JSON.stringify({ error: 'failed fetching images' }), { 
         status: 502,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        headers: getCorsHeaders({ 'Content-Type': 'application/json' })
       });
       const [ab, bb] = await Promise.all([ra.arrayBuffer(), rb.arrayBuffer()]);
 
@@ -449,15 +454,14 @@ async function handleRequest(request) {
       const diffScore = Math.round((diffPixels / (width * height)) * 100);
 
       return new Response(JSON.stringify({ diffScore, diffImage: diffBase64, imageA: aBase64, imageB: bBase64 }), { 
-        headers: { 
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        } 
+        headers: getCorsHeaders({ 
+          'Content-Type': 'application/json'
+        })
       });
     } catch (e) {
       return new Response(JSON.stringify({ error: String(e) }), { 
         status: 500,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        headers: getCorsHeaders({ 'Content-Type': 'application/json' })
       });
     }
   }
@@ -469,10 +473,9 @@ async function handleRequest(request) {
     availableEndpoints: ['/fetch-metadata', '/proxy-image', '/diff']
   }), { 
     status: 404,
-    headers: { 
-      'Content-Type': 'application/json', 
-      'Access-Control-Allow-Origin': '*' 
-    }
+    headers: getCorsHeaders({ 
+      'Content-Type': 'application/json'
+    })
   });
 }
 
@@ -544,10 +547,9 @@ export default {
         stack: error?.stack
       }), { 
         status: 500,
-        headers: { 
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
+        headers: getCorsHeaders({ 
+          'Content-Type': 'application/json'
+        })
       });
     }
   }
