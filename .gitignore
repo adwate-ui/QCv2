@@ -26,3 +26,7 @@ dist-ssr
 # Unused/backup config files
 *.unused
 wrangler.jsonc.unused
+
+# Worker configuration should only exist in cloudflare-worker/
+# Root wrangler.toml causes deployment conflicts
+/wrangler.toml
