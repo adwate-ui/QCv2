@@ -1,7 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { QCAnalysisResult, BoundingBox, Discrepancy } from "../../types";
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+import { fetchAndEncodeImage } from "../../services/utils";
 
 interface FeatureIdentificationResult {
   isDetail: boolean;
@@ -18,42 +17,13 @@ interface DefectDetectionResult {
 }
 
 /**
- * Fetches an image from a URL and converts it to a Base64 string.
- * @param url The URL of the image to fetch.
- * @returns A Promise that resolves to the Base64 string of the image.
- */
-const fetchAndEncodeImage = async (url: string): Promise<string> => {
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image from ${url}: ${response.statusText}`);
-    }
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          resolve(reader.result.split(',')[1]); // Extract Base64 part
-        } else {
-          reject(new Error("Failed to read image as Data URL."));
-        }
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  } catch (error) {
-    console.error("Error fetching and encoding image:", error);
-    throw error;
-  }
-};
-
-/**
  * Identifies whether the QC image is a full product photo or a specific detail.
+ * @param apiKey The Gemini API key.
  * @param qcImageUrl The URL of the QC image to analyze.
  * @returns A Promise that resolves to the feature identification result.
  */
-const identifyFeature = async (qcImageUrl: string): Promise<FeatureIdentificationResult> => {
-  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+const identifyFeature = async (apiKey: string, qcImageUrl: string): Promise<FeatureIdentificationResult> => {
+  const ai = new GoogleGenAI({ apiKey });
   const model = 'gemini-2.5-flash';
 
   const imageData = await fetchAndEncodeImage(qcImageUrl);
@@ -76,22 +46,29 @@ const identifyFeature = async (qcImageUrl: string): Promise<FeatureIdentificatio
   });
 
   const responseText = response.text || '{}';
-  const result: FeatureIdentificationResult = JSON.parse(responseText);
   
-  return result;
+  try {
+    const result: FeatureIdentificationResult = JSON.parse(responseText);
+    return result;
+  } catch (error) {
+    console.error('Failed to parse feature identification response:', error);
+    throw new Error('Invalid response format from Gemini API');
+  }
 };
 
 /**
  * Checks if the main reference URL clearly shows a specific feature.
+ * @param apiKey The Gemini API key.
  * @param mainReferenceUrl The URL of the main reference image.
  * @param featureKeyword The keyword describing the feature to look for.
  * @returns A Promise that resolves to true if the feature is visible, false otherwise.
  */
 const checkFeatureInReference = async (
+  apiKey: string,
   mainReferenceUrl: string, 
   featureKeyword: string
 ): Promise<boolean> => {
-  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
   const model = 'gemini-2.5-flash';
 
   const imageData = await fetchAndEncodeImage(mainReferenceUrl);
@@ -114,10 +91,16 @@ const checkFeatureInReference = async (
   });
 
   const responseText = response.text || '{}';
-  const result: { isVisible: boolean; confidence: string } = JSON.parse(responseText);
   
-  // Consider the feature missing if it's not visible or confidence is low
-  return result.isVisible && result.confidence !== 'low';
+  try {
+    const result: { isVisible: boolean; confidence: string } = JSON.parse(responseText);
+    // Consider the feature missing if it's not visible or confidence is low
+    return result.isVisible && result.confidence !== 'low';
+  } catch (error) {
+    console.error('Failed to parse feature check response:', error);
+    // Assume feature is not visible on parse error
+    return false;
+  }
 };
 
 /**
@@ -153,15 +136,17 @@ const searchAndDownloadReference = async (
 
 /**
  * Performs defect detection by comparing the comparison URL and QC image.
+ * @param apiKey The Gemini API key.
  * @param comparisonUrl The URL of the reference image to compare against.
  * @param qcImageUrl The URL of the QC image to analyze.
  * @returns A Promise that resolves to the defect detection result.
  */
 const detectDefects = async (
+  apiKey: string,
   comparisonUrl: string,
   qcImageUrl: string
 ): Promise<QCAnalysisResult> => {
-  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
   const model = 'gemini-2.5-flash';
 
   const [referenceData, qcData] = await Promise.all([
@@ -209,34 +194,42 @@ If no defects are found, return an empty discrepancies array and a high score.`
   });
 
   const responseText = response.text || '{}';
-  const rawResult: DefectDetectionResult = JSON.parse(responseText);
   
-  // Convert the raw result to QCAnalysisResult format
-  const discrepancies: Discrepancy[] = rawResult.discrepancies.map(d => ({
-    description: d.description,
-    boundingBox: {
-      ymin: d.boundingBox[0],
-      xmin: d.boundingBox[1],
-      ymax: d.boundingBox[2],
-      xmax: d.boundingBox[3]
-    }
-  }));
+  try {
+    const rawResult: DefectDetectionResult = JSON.parse(responseText);
+    
+    // Convert the raw result to QCAnalysisResult format
+    const discrepancies: Discrepancy[] = (rawResult.discrepancies || []).map(d => ({
+      description: d.description,
+      boundingBox: {
+        ymin: d.boundingBox[0],
+        xmin: d.boundingBox[1],
+        ymax: d.boundingBox[2],
+        xmax: d.boundingBox[3]
+      }
+    }));
 
-  return {
-    score: rawResult.score,
-    summary: rawResult.summary,
-    discrepancies
-  };
+    return {
+      score: rawResult.score || 0,
+      summary: rawResult.summary || 'Failed to analyze images',
+      discrepancies
+    };
+  } catch (error) {
+    console.error('Failed to parse defect detection response:', error);
+    throw new Error('Invalid response format from Gemini API');
+  }
 };
 
 /**
  * Main function that performs smart QC analysis with feature identification and reference checking.
+ * @param apiKey The Gemini API key.
  * @param productName The name of the product being inspected.
  * @param mainReferenceUrl The URL of the main reference image.
  * @param qcImageUrl The URL of the QC image to analyze.
  * @returns A Promise that resolves to the QC analysis result.
  */
 export async function performSmartQC(
+  apiKey: string,
   productName: string,
   mainReferenceUrl: string,
   qcImageUrl: string
@@ -244,7 +237,7 @@ export async function performSmartQC(
   try {
     // Step 1: Feature Identification
     console.log('Step 1: Identifying feature type...');
-    const featureInfo = await identifyFeature(qcImageUrl);
+    const featureInfo = await identifyFeature(apiKey, qcImageUrl);
     console.log('Feature identification result:', featureInfo);
 
     // Step 2: Reference Check
@@ -256,6 +249,7 @@ export async function performSmartQC(
       
       // Check if the main reference shows this feature
       const featureVisible = await checkFeatureInReference(
+        apiKey,
         mainReferenceUrl, 
         featureInfo.featureKeyword
       );
@@ -284,7 +278,7 @@ export async function performSmartQC(
 
     // Step 3: Defect Detection
     console.log('Step 3: Performing defect detection...');
-    const result = await detectDefects(comparisonUrl, qcImageUrl);
+    const result = await detectDefects(apiKey, comparisonUrl, qcImageUrl);
     console.log('Defect detection complete. Score:', result.score);
 
     return result;
