@@ -391,11 +391,17 @@ async function handleRequest(request) {
   if (pathname.endsWith('/diff')) {
     const imageA = url.searchParams.get('imageA');
     const imageB = url.searchParams.get('imageB');
-    if (!imageA || !imageB) return new Response(JSON.stringify({ error: 'missing images' }), { status: 400 });
+    if (!imageA || !imageB) return new Response(JSON.stringify({ error: 'missing images' }), { 
+      status: 400,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
 
     try {
       const [ra, rb] = await Promise.all([fetch(imageA), fetch(imageB)]);
-      if (!ra.ok || !rb.ok) return new Response(JSON.stringify({ error: 'failed fetching images' }), { status: 502 });
+      if (!ra.ok || !rb.ok) return new Response(JSON.stringify({ error: 'failed fetching images' }), { 
+        status: 502,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
       const [ab, bb] = await Promise.all([ra.arrayBuffer(), rb.arrayBuffer()]);
 
       const imgA = decodeImage(Buffer.from(ab));
@@ -422,9 +428,17 @@ async function handleRequest(request) {
 
       const diffScore = Math.round((diffPixels / (width * height)) * 100);
 
-      return new Response(JSON.stringify({ diffScore, diffImage: diffBase64, imageA: aBase64, imageB: bBase64 }), { headers: { 'content-type': 'application/json' } });
+      return new Response(JSON.stringify({ diffScore, diffImage: diffBase64, imageA: aBase64, imageB: bBase64 }), { 
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        } 
+      });
     } catch (e) {
-      return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+      return new Response(JSON.stringify({ error: String(e) }), { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
     }
   }
 
