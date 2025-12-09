@@ -78,9 +78,9 @@ export const DiagnosticsPage = () => {
       const startTime = Date.now();
       const response = await fetch(metadataUrl, { signal: AbortSignal.timeout(15000) });
       const elapsed = Date.now() - startTime;
+      const contentType = response.headers.get('content-type');
 
       if (!response.ok) {
-        const contentType = response.headers.get('content-type');
         let errorDetails = 'Unknown error';
         
         // Try to parse as JSON if content-type suggests it
@@ -102,7 +102,6 @@ export const DiagnosticsPage = () => {
       }
 
       // Check if response is JSON
-      const contentType = response.headers.get('content-type');
       if (!contentType?.includes('application/json')) {
         updateResult('metadata-fetch', {
           status: 'error',
