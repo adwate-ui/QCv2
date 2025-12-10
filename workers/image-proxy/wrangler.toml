@@ -1,16 +1,16 @@
 # ============================================================================
 # CLOUDFLARE WORKER CONFIGURATION (Image Proxy API)
 # ============================================================================
-# This wrangler.toml is ONLY for deploying the worker (API endpoints)
-# It is NOT used for Pages deployment (that uses root wrangler.jsonc)
+# This is the ONLY wrangler.toml file used for worker deployment.
+# There is NO root wrangler.toml to avoid name conflicts.
 #
 # DO NOT change the name from "authentiqc-worker" - the frontend expects this URL
 #
 # Deployment:
 #   - Worker name: authentiqc-worker
 #   - Worker URL: https://authentiqc-worker.adwate.workers.dev
-#   - GitHub Actions: .github/workflows/deploy-worker.yml
-#   - Manual deploy: cd cloudflare-worker && npx wrangler@4 deploy
+#   - GitHub Actions: .github/workflows/deploy-workers.yml
+#   - Manual deploy: cd workers/image-proxy && npx wrangler@4 deploy
 #
 # The frontend (Pages) uses VITE_IMAGE_PROXY_URL to connect to this worker
 # ============================================================================
