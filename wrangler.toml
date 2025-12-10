@@ -8,7 +8,7 @@
 # IMPORTANT:
 # - This configuration deploys ASSETS (static files from dist/)
 # - It does NOT deploy a Worker (no JavaScript code)
-# - Worker deployment is handled separately in cloudflare-worker/wrangler.toml
+# - Worker deployment is handled separately in worker/wrangler.toml
 #
 # Deployment Methods:
 # 1. PRIMARY: GitHub Actions via cloudflare/pages-action@v1 (recommended)
@@ -27,4 +27,4 @@ workers_dev = false
 directory = "./dist"
 
 # Ensure this doesn't conflict with the worker deployment
-# The authentiqc-worker is deployed separately from cloudflare-worker/wrangler.toml
+# The authentiqc-worker is deployed separately from worker/wrangler.toml

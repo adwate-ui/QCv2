@@ -10,7 +10,7 @@
 #   - Worker name: authentiqc-worker
 #   - Worker URL: https://authentiqc-worker.adwate.workers.dev
 #   - GitHub Actions: .github/workflows/deploy-worker.yml
-#   - Manual deploy: cd cloudflare-worker && npx wrangler@4 deploy
+#   - Manual deploy: cd worker && npx wrangler@4 deploy
 #
 # The frontend (Pages) uses VITE_IMAGE_PROXY_URL to connect to this worker
 # ============================================================================

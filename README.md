@@ -53,7 +53,7 @@ If you're seeing CORS errors, the worker is likely not deployed. This is the #1 
 To deploy the worker for local development:
 1. Install Wrangler CLI: `npm install -g wrangler`
 2. Login to Cloudflare: `wrangler login`
-3. Deploy the worker: `cd cloudflare-worker && wrangler deploy`
+3. Deploy the worker: `cd worker && wrangler deploy`
 4. Copy the worker URL and set it as `VITE_IMAGE_PROXY_URL` in your `.env.local`
 5. Verify: `./verify-worker-setup.sh`
 

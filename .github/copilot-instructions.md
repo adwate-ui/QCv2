@@ -32,7 +32,7 @@
 │   ├── smartQCService.ts    # QC analysis logic
 │   ├── comparisonImageService.ts  # Image comparison
 │   └── utils.ts             # Utility functions
-├── cloudflare-worker/   # Image proxy worker for fetching external images
+├── worker/              # Image proxy worker for fetching external images
 ├── src/                 # Additional source files
 ├── types.ts             # TypeScript type definitions
 ├── App.tsx              # Main application component
@@ -111,7 +111,7 @@ The application requires the following environment variables:
    - Set as GitHub secret for production deployment
 
 2. **VITE_IMAGE_PROXY_URL**: Cloudflare Worker URL for fetching external images (optional but recommended)
-   - Deploy worker from `/cloudflare-worker` directory
+   - Deploy worker from `/worker` directory
    - Format: `https://authentiqc-worker.your-subdomain.workers.dev`
    - App auto-normalizes URLs, so both base URL and with endpoints work
 
@@ -161,7 +161,7 @@ npm run preview
 The image proxy worker is required for fetching images from external product URLs.
 
 ```bash
-cd cloudflare-worker
+cd worker
 npx wrangler@4 deploy index.mjs --name authentiqc-worker
 ```
 

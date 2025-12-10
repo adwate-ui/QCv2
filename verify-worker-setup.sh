@@ -42,7 +42,7 @@ else
     echo ""
     echo "Deploy it now:"
     echo "  Option 1: GitHub Actions - https://github.com/adwate-ui/QCv2/actions/workflows/deploy-worker.yml"
-    echo "  Option 2: Manual - cd cloudflare-worker && npx wrangler@4 deploy"
+    echo "  Option 2: Manual - cd worker && npx wrangler@4 deploy"
     echo ""
     exit 1
 fi
@@ -88,7 +88,7 @@ else
     echo -e "${RED}✗ CORS headers missing${NC}"
     echo ""
     echo "Worker needs to return 'Access-Control-Allow-Origin: *' header"
-    echo "Check cloudflare-worker/index.mjs - getCorsHeaders() function"
+    echo "Check worker/index.mjs - getCorsHeaders() function"
     exit 1
 fi
 
@@ -112,7 +112,7 @@ elif [ "$METADATA_CODE" = "404" ]; then
     echo -e "${RED}✗ fetch-metadata endpoint returned 404${NC}"
     echo ""
     echo "This endpoint is missing. Worker code may be outdated."
-    echo "Redeploy the worker from cloudflare-worker/index.mjs"
+    echo "Redeploy the worker from worker/index.mjs"
     exit 1
 else
     echo -e "${YELLOW}⚠ Unexpected status: $METADATA_CODE${NC}"

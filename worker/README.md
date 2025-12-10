@@ -33,7 +33,7 @@ The worker directory has its own package.json with required dependencies:
 
 ### Manual deployment:
 ```bash
-cd cloudflare-worker
+cd worker
 npm ci  # Install dependencies first
 export CLOUDFLARE_API_TOKEN="your-token-here"
 npx wrangler@4 deploy
@@ -41,7 +41,7 @@ npx wrangler@4 deploy
 
 Or use the deploy script:
 ```bash
-cd cloudflare-worker
+cd worker
 ./deploy.sh
 ```
 
@@ -54,7 +54,7 @@ cd cloudflare-worker
 - All endpoints include CORS headers: `'Access-Control-Allow-Origin': '*'`
 - All endpoints include version header: `'X-Worker-Version': '1.3.0'`
 - The worker uses `nodejs_compat` compatibility flag for Node.js built-ins
-- Worker dependencies are managed in `cloudflare-worker/package.json`
+- Worker dependencies are managed in `worker/package.json`
 - Global error handler ensures CORS headers are present even on unhandled errors
 - 404 responses include CORS headers to prevent cross-origin errors
 
@@ -94,7 +94,7 @@ All endpoints support CORS preflight (OPTIONS) requests and return JSON (except 
 
 **Fix:**
 ```bash
-cd cloudflare-worker
+cd worker
 export CLOUDFLARE_API_TOKEN="your-token"
 npm ci
 npx wrangler@4 deploy

@@ -29,5 +29,5 @@ wrangler.jsonc.unused
 
 # Root wrangler.toml is NOW REQUIRED for Pages deployment
 # It configures static asset deployment when Cloudflare Pages runs "npx wrangler deploy"
-# This does NOT conflict with cloudflare-worker/wrangler.toml (different names: qcv2 vs authentiqc-worker)
+# This does NOT conflict with worker/wrangler.toml (different names: qcv2 vs authentiqc-worker)
 # See DEPLOY_COMMAND_FIX_FINAL.md for details

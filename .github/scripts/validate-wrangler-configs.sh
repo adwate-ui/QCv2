@@ -1,7 +1,7 @@
 #!/bin/bash
 # Validate wrangler configurations to prevent name conflicts
 # This script ensures that if a root wrangler config exists, it doesn't conflict
-# with the cloudflare-worker/wrangler.toml configuration
+# with the worker/wrangler.toml configuration
 
 set -e
 
@@ -31,11 +31,11 @@ else
   echo "ℹ No root wrangler config found"
 fi
 
-# Extract name from cloudflare-worker/wrangler.toml (supports both quoted and unquoted values)
+# Extract name from worker/wrangler.toml (supports both quoted and unquoted values)
 WORKER_NAME=""
-if [ -f "cloudflare-worker/wrangler.toml" ]; then
+if [ -f "worker/wrangler.toml" ]; then
   # Handle both quoted and unquoted TOML values
-  WORKER_NAME=$(grep '^name[[:space:]]*=' cloudflare-worker/wrangler.toml | sed 's/^name[[:space:]]*=[[:space:]]*[\"]*\([^\"]*\)[\"]*$/\1/' | tr -d ' ' || echo "")
+  WORKER_NAME=$(grep '^name[[:space:]]*=' worker/wrangler.toml | sed 's/^name[[:space:]]*=[[:space:]]*[\"]*\([^\"]*\)[\"]*$/\1/' | tr -d ' ' || echo "")
   
   if [ -n "$WORKER_NAME" ]; then
     echo "✓ Found worker wrangler.toml with name: $WORKER_NAME"
