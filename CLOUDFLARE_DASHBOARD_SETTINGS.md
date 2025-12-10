@@ -1,5 +1,23 @@
 # Cloudflare Dashboard Settings Reference
 
+## 🚨 CRITICAL: Deploy Command Must Be Empty
+
+**If you're seeing "Missing entry-point to Worker script" error during deployment:**
+
+The most common cause is having a **deploy command configured in Cloudflare Pages dashboard**. This MUST be removed:
+
+1. Go to **Dashboard → Workers & Pages → qcv2 → Settings → Builds & deployments**
+2. Find **"Deploy command"** field
+3. If it contains **ANY value** (especially `npx wrangler deploy`), **DELETE IT**
+4. **Save** the settings
+5. Retry your deployment
+
+**Why?** The deploy command runs from the root directory where there's no wrangler configuration. This causes wrangler to fail. Pages deployment is handled by GitHub Actions - no deploy command is needed.
+
+**See:** [CLOUDFLARE_PAGES_DEPLOY_COMMAND_FIX.md](CLOUDFLARE_PAGES_DEPLOY_COMMAND_FIX.md) for detailed explanation and troubleshooting.
+
+---
+
 ## ⚠️ Critical: Correct Configuration for This Repository
 
 This repository uses **GitHub Actions for ALL deployments**. The Cloudflare dashboard should have **minimal configuration**.

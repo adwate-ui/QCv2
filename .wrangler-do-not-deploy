@@ -1,0 +1,73 @@
+# ============================================================================
+# DO NOT DEPLOY WORKER FROM ROOT DIRECTORY
+# ============================================================================
+#
+# This file serves as a safeguard to prevent accidental worker deployments
+# from the repository root.
+#
+# ❌ ERROR: If you're seeing this, wrangler was invoked from the wrong location!
+#
+# IMPORTANT:
+# - The Cloudflare Worker MUST be deployed from the cloudflare-worker/ directory
+# - Pages deployment is handled by GitHub Actions, NOT by wrangler
+# - If you see "Missing entry-point to Worker script" error, this is why!
+#
+# ============================================================================
+# CORRECT DEPLOYMENT METHODS:
+# ============================================================================
+#
+# FOR PAGES (Frontend):
+#   - Deployment: Automatic via GitHub Actions
+#   - Workflow: .github/workflows/deploy.yml
+#   - Method: cloudflare/pages-action@v1
+#   - NO wrangler command needed
+#   - NO deploy command in Cloudflare Pages dashboard
+#
+# FOR WORKER (Image Proxy API):
+#   - Deployment: Automatic via GitHub Actions
+#   - Workflow: .github/workflows/deploy-worker.yml
+#   - Manual: cd cloudflare-worker && npx wrangler@4 deploy
+#   - Config: cloudflare-worker/wrangler.toml
+#
+# ============================================================================
+# CLOUDFLARE PAGES DASHBOARD CONFIGURATION:
+# ============================================================================
+#
+# If you're seeing this error during Cloudflare Pages build, it means you have
+# a custom "deploy command" configured in the Cloudflare Pages dashboard.
+#
+# TO FIX:
+# 1. Go to Cloudflare Dashboard → Workers & Pages → qcv2
+# 2. Go to Settings → Builds & deployments
+# 3. Find "Build configurations" section
+# 4. Look for "Deploy command" field
+# 5. If it shows "npx wrangler deploy" or similar, DELETE IT
+# 6. Leave the field EMPTY
+# 7. Save settings
+# 8. Retry deployment
+#
+# WHY:
+# - GitHub Actions handles deployment automatically
+# - Custom deploy commands are not needed
+# - The deploy command runs from root where there's no wrangler config
+# - This causes the "Missing entry-point" error
+#
+# ============================================================================
+# BUILD CONFIGURATION (Cloudflare Pages Dashboard):
+# ============================================================================
+#
+# ✅ CORRECT SETTINGS:
+#   Build command:              npm run build
+#   Build output directory:     dist
+#   Deploy command:             (LEAVE EMPTY)
+#   Root directory:             /
+#
+# ============================================================================
+# FOR MORE INFORMATION:
+# ============================================================================
+#
+# See: CLOUDFLARE_PAGES_DEPLOY_COMMAND_FIX.md
+# See: PAGES_DEPLOYMENT_FIX_README.md
+# See: PREVENT_WORKER_CONFLICTS.md
+#
+# ============================================================================

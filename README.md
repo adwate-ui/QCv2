@@ -25,13 +25,22 @@ View your app in AI Studio: https://ai.studio/apps/drive/1pShI4np7Qntn9U9CTnSQ8B
 
 The app requires both a Cloudflare Pages deployment (for the frontend) and a Cloudflare Worker deployment (for the image proxy).
 
-### 🚨 Build Error? "Workers-specific command in Pages project"?
+### 🚨 Build Error? "Missing entry-point to Worker script"?
 
-**See:** [CLOUDFLARE_PAGES_DASHBOARD_FIX.md](CLOUDFLARE_PAGES_DASHBOARD_FIX.md) - Complete fix for Pages dashboard misconfiguration
+**See:** [CLOUDFLARE_PAGES_DEPLOY_COMMAND_FIX.md](CLOUDFLARE_PAGES_DEPLOY_COMMAND_FIX.md) - **CRITICAL FIX** for worker deployment failure
 
-**Quick Fix:** The Cloudflare Pages dashboard has an incorrect "deploy command" (`npx wrangler deploy`) that must be removed. Pages deployments are handled automatically after build - no deploy command is needed.
+**Issue:** The Cloudflare Pages dashboard has a custom "deploy command" that runs `npx wrangler deploy` from the root directory. This causes the error because there's no wrangler config at the root (which is correct).
 
-**Also see:** [CLOUDFLARE_DASHBOARD_SETTINGS.md](CLOUDFLARE_DASHBOARD_SETTINGS.md) - Reference for correct dashboard configuration
+**Solution:** Remove the deploy command from Cloudflare Pages dashboard settings:
+1. Go to Dashboard → Workers & Pages → qcv2 → Settings → Builds & deployments
+2. Find "Deploy command" field and **DELETE IT** (leave it empty)
+3. Save and retry deployment
+
+**Verify Configuration:** Run `./check-cloudflare-config.sh` to validate your setup
+
+**Also see:**
+- [PAGES_DEPLOYMENT_FIX_README.md](PAGES_DEPLOYMENT_FIX_README.md) - Background on Pages deployment
+- [CLOUDFLARE_DASHBOARD_SETTINGS.md](CLOUDFLARE_DASHBOARD_SETTINGS.md) - Reference for correct dashboard configuration
 
 ### 🚨 CORS Error? Worker Not Working?
 
