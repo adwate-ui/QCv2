@@ -27,8 +27,6 @@ const envKey = getEnv('VITE_SUPABASE_ANON_KEY');
 export const supabaseUrl = storedUrl || envUrl || '';
 const supabaseKey = storedKey || envKey || '';
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
-
 // Helper to check if we are using real credentials
 export const isSupabaseConfigured = () => {
   return supabaseUrl !== 'https://placeholder-project.supabase.co' && 
@@ -36,6 +34,14 @@ export const isSupabaseConfigured = () => {
          supabaseKey !== 'placeholder-key' &&
          supabaseKey !== '';
 };
+
+// Only create client if credentials are configured to avoid "supabaseUrl is required" error
+// Note: App.tsx checks isSupabaseConfigured() before mounting AppProvider, so supabase
+// will never be null when actually used by components. The null case only exists during
+// initial module load when credentials haven't been set up yet.
+export const supabase = isSupabaseConfigured() 
+  ? createClient(supabaseUrl, supabaseKey)
+  : null as any; // Type assertion for backwards compatibility, but won't be used when not configured
 
 export const saveSupabaseConfig = (url: string, key: string) => {
   localStorage.setItem('VITE_SUPABASE_URL', url);
