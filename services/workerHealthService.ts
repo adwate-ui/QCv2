@@ -32,6 +32,9 @@ const HEALTH_CHECK_TIMEOUT_MS = 5000; // 5 second timeout for health checks
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 
+// Error messages
+const ERROR_WORKER_URL_NOT_CONFIGURED = 'Worker URL (VITE_IMAGE_PROXY_URL) is not configured. Set this environment variable to enable image fetching from URLs. See URGENT_FIX_CORS_ISSUE.md or CORS_FIX_NOW.md for setup instructions.';
+
 class WorkerHealthService {
   private healthStatus: WorkerHealthStatus | null = null;
   private circuitBreaker: CircuitBreakerState = {
@@ -165,12 +168,12 @@ class WorkerHealthService {
   async checkHealth(forceRefresh: boolean = false): Promise<WorkerHealthStatus> {
     const workerUrl = this.getWorkerUrl();
     
-    if (!workerUrl) {
+    if (!workerUrl || workerUrl.trim() === '') {
       return {
         isHealthy: false,
         lastChecked: Date.now(),
         workerVersion: null,
-        error: 'VITE_IMAGE_PROXY_URL is not configured. Please set the Cloudflare Worker URL in your environment variables.',
+        error: ERROR_WORKER_URL_NOT_CONFIGURED,
         consecutiveFailures: 0,
       };
     }
@@ -271,21 +274,37 @@ class WorkerHealthService {
     // All retries failed
     this.recordFailure();
     
-    const errorMessage = lastError?.name === 'AbortError'
-      ? `Worker health check timed out after ${HEALTH_CHECK_TIMEOUT_MS / 1000}s. The worker may be down or unreachable.`
-      : lastError?.message?.includes('fetch')
-      ? `Cannot reach worker at ${workerUrl}. Network error: ${lastError.message}. Please check if the worker is deployed and the URL is correct.`
-      : `Worker health check failed: ${lastError?.message || 'Unknown error'}`;
+    // Determine specific error message based on failure type
+    let errorMessage: string;
+    let troubleshootingHint = '';
+    
+    if (lastError?.name === 'AbortError') {
+      errorMessage = `Worker health check timed out after ${HEALTH_CHECK_TIMEOUT_MS / 1000}s.`;
+      troubleshootingHint = 'The worker may be down, overloaded, or unreachable.';
+    } else if (lastError?.message?.includes('Failed to fetch') || lastError?.message?.includes('NetworkError')) {
+      errorMessage = `Cannot reach worker at ${workerUrl}.`;
+      troubleshootingHint = 'This usually means: (1) Worker is not deployed, (2) DNS is not resolving, or (3) Worker URL is incorrect.';
+    } else if (lastError?.message?.includes('CORS')) {
+      errorMessage = `CORS error when accessing ${workerUrl}.`;
+      troubleshootingHint = 'Worker may be deployed but missing CORS headers, or not deployed at all (browsers show CORS error for network failures).';
+    } else {
+      errorMessage = `Worker health check failed: ${lastError?.message || 'Unknown error'}`;
+      troubleshootingHint = 'Check worker deployment status and logs.';
+    }
+    
+    const fullError = `${errorMessage} ${troubleshootingHint}\n\nTo fix: Deploy the worker using GitHub Actions or run 'cd cloudflare-worker && npx wrangler@4 deploy'`;
 
     this.healthStatus = {
       isHealthy: false,
       lastChecked: now,
       workerVersion: null,
-      error: errorMessage,
+      error: fullError,
       consecutiveFailures: this.circuitBreaker.failureCount,
     };
 
     console.error('[WorkerHealth] Health check failed:', errorMessage);
+    console.error('[WorkerHealth] Troubleshooting:', troubleshootingHint);
+    console.error('[WorkerHealth] Worker URL:', workerUrl);
     return this.healthStatus;
   }
 
@@ -342,6 +361,9 @@ class WorkerHealthService {
 
 // Singleton instance
 export const workerHealthService = new WorkerHealthService();
+
+// Export constants and types for use in components
+export { ERROR_WORKER_URL_NOT_CONFIGURED };
 
 // Export for testing
 export type { WorkerHealthStatus, CircuitBreakerState };

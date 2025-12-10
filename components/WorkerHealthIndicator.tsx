@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { workerHealthService, type WorkerHealthStatus } from '@/services/workerHealthService';
+import { workerHealthService, ERROR_WORKER_URL_NOT_CONFIGURED, type WorkerHealthStatus } from '@/services/workerHealthService';
 import { AlertCircle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 
 /**
@@ -17,6 +17,20 @@ export const WorkerHealthIndicator: React.FC = () => {
   const checkHealth = async () => {
     setIsChecking(true);
     try {
+      // Check if worker URL is configured
+      const workerUrl = workerHealthService.getWorkerUrl();
+      if (!workerUrl || workerUrl.trim() === '') {
+        setHealth({
+          isHealthy: false,
+          lastChecked: Date.now(),
+          workerVersion: null,
+          error: ERROR_WORKER_URL_NOT_CONFIGURED,
+          consecutiveFailures: 0,
+        });
+        setIsChecking(false);
+        return;
+      }
+      
       const status = await workerHealthService.checkHealth(true); // Force refresh
       setHealth(status);
       setLastChecked(new Date());
@@ -167,6 +181,14 @@ export const WorkerHealthBadge: React.FC = () => {
 
   useEffect(() => {
     const checkHealth = async () => {
+      // Only check if worker URL is configured
+      const workerUrl = workerHealthService.getWorkerUrl();
+      if (!workerUrl || workerUrl.trim() === '') {
+        // Don't show badge if worker URL is not configured
+        setHealth(null);
+        return;
+      }
+      
       const status = await workerHealthService.checkHealth();
       setHealth(status);
     };
@@ -176,6 +198,7 @@ export const WorkerHealthBadge: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Don't render if no health status or URL not configured
   if (!health) return null;
 
   return (
@@ -186,7 +209,7 @@ export const WorkerHealthBadge: React.FC = () => {
           <span>Worker Online</span>
         </div>
       ) : (
-        <div className="flex items-center gap-1 text-red-600 text-xs">
+        <div className="flex items-center gap-1 text-red-600 text-xs" title={health.error || 'Worker is offline'}>
           <div className="w-2 h-2 bg-red-500 rounded-full" />
           <span>Worker Offline</span>
         </div>

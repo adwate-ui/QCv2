@@ -25,6 +25,12 @@ View your app in AI Studio: https://ai.studio/apps/drive/1pShI4np7Qntn9U9CTnSQ8B
 
 The app requires both a Cloudflare Pages deployment (for the frontend) and a Cloudflare Worker deployment (for the image proxy).
 
+### 🚨 CORS Error? Worker Not Working?
+
+**See:** [CORS_FIX_NOW.md](CORS_FIX_NOW.md) - 2-minute quick fix guide
+
+If you're seeing CORS errors, the worker is likely not deployed. This is the #1 issue.
+
 ### Quick Start (Local Development)
 
 To deploy the worker for local development:
@@ -32,6 +38,7 @@ To deploy the worker for local development:
 2. Login to Cloudflare: `wrangler login`
 3. Deploy the worker: `cd cloudflare-worker && wrangler deploy`
 4. Copy the worker URL and set it as `VITE_IMAGE_PROXY_URL` in your `.env.local`
+5. Verify: `./verify-worker-setup.sh`
 
 ### Production Deployment
 
@@ -47,6 +54,12 @@ This guide covers:
 - Troubleshooting common deployment issues
 
 **Important:** The `VITE_IMAGE_PROXY_URL` environment variable must be set during the build process for the image fetching feature to work in production.
+
+### Troubleshooting
+
+- **CORS errors**: See [CORS_FIX_NOW.md](CORS_FIX_NOW.md)
+- **Detailed diagnosis**: See [URGENT_FIX_CORS_ISSUE.md](URGENT_FIX_CORS_ISSUE.md)
+- **Verify setup**: Run `./verify-worker-setup.sh`
 
 ### Troubleshooting Image Fetching
 
