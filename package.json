@@ -5,13 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "npm run build:pages && npm run build:workers",
+    "build:pages": "tsc --project tsconfig.pages.json && node build-pages.mjs",
+    "build:workers": "node build-workers.mjs",
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,css,md}\"",
-    "type-check": "tsc --noEmit"
+    "type-check": "npm run typecheck",
+    "typecheck": "tsc --project tsconfig.pages.json --noEmit && tsc --project workers/tsconfig.json --noEmit && tsc --project packages/shared/tsconfig.json --noEmit"
   },
   "dependencies": {
     "react": "^19.2.1",
@@ -26,12 +29,14 @@
     "jspdf": "^2.5.2"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
     "@types/node": "^22.14.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "esbuild": "^0.24.2",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.33.0",
     "eslint-plugin-react-hooks": "^4.6.0",

@@ -1,0 +1,28 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "baseUrl": "..",
+    "paths": {
+      "@/*": ["../*"],
+      "@shared/*": ["../packages/shared/*"]
+    }
+  },
+  "include": [
+    "../src/**/*",
+    "../pages/**/*",
+    "../components/**/*",
+    "../context/**/*",
+    "../services/**/*",
+    "../types.ts",
+    "../App.tsx",
+    "../vite.config.ts",
+    "../vite-env.d.ts",
+    "../packages/shared/**/*.ts"
+  ],
+  "exclude": [
+    "../node_modules",
+    "../dist",
+    "../workers"
+  ]
+}
