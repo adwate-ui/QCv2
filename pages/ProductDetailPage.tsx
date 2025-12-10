@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { getPublicImageUrl } from '../services/db';
 import { Product, QCReport, ModelTier, ExpertMode, BackgroundTask } from '../types';
-import { Loader2, CheckCircle, XCircle, Upload, History, ExternalLink, X, ZoomIn, Zap, Brain, Activity, Trash2, Info, ChevronDown } from 'lucide-react';
-import { parseObservations } from '../services/utils';
+import { Loader2, CheckCircle, XCircle, Upload, History, ExternalLink, X, ZoomIn, Zap, Brain, Activity, Trash2, Info, ChevronDown, Clock } from 'lucide-react';
+import { parseObservations, formatEstimatedTime } from '../services/utils';
 import { Toggle } from '../components/Toggle';
 
 // Debounce hook to prevent flickering
@@ -450,10 +450,18 @@ export const ProductDetailPage: React.FC = () => {
 
       {isRunningQC && (
         <div className="bg-blue-50 p-3 rounded mb-6 flex items-center gap-3">
-          <Activity className="text-blue-600" />
+          <Activity className="text-blue-600 animate-pulse" />
           <div className="flex-1">
             <div className="font-semibold text-blue-800">Analysis running in background</div>
-            <div className="text-sm text-blue-600">The inspection is processing and will appear in history when complete.</div>
+            <div className="text-sm text-blue-600">
+              The inspection is processing and will appear in history when complete.
+              {activeQCTask?.estimatedCompletionTime && (
+                <span className="ml-2 inline-flex items-center gap-1">
+                  <Clock size={12} />
+                  Est. ~{formatEstimatedTime(activeQCTask.estimatedCompletionTime)}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       )}

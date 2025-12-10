@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Product, ProductProfile, AppSettings, ModelTier, ExpertMode, BackgroundTask } from '../types';
 import { db } from '../services/db';
-import { generateUUID } from '../services/utils';
+import { generateUUID, formatEstimatedTime } from '../services/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Upload, Loader2, Sparkles, X, ImagePlus, Globe, RotateCcw, Save, Trash2, ExternalLink, ZoomIn, Edit2, CheckCircle, AlertTriangle, Info } from 'lucide-react';
+import { Upload, Loader2, Sparkles, X, ImagePlus, Globe, RotateCcw, Save, Trash2, ExternalLink, ZoomIn, Edit2, CheckCircle, AlertTriangle, Info, Clock } from 'lucide-react';
 import { Toggle } from '../components/Toggle';
 
 const STORAGE_KEY = 'authentiqc_temp_product';
@@ -548,8 +548,17 @@ export const AddProductPage = () => {
                                       {task.status === 'COMPLETED' && task.result?.name ? task.result.name : task.meta.subtitle || 'Identifying Product...'}
                                   </h4>
                                   <p className="text-xs text-slate-500 truncate mt-0.5">
-                                      {task.status === 'PROCESSING' ? (task.meta.subtitle || 'AI is analyzing images...') : 
-                                       task.status === 'COMPLETED' ? 'Click to review and save' : task.error}
+                                      {task.status === 'PROCESSING' ? (
+                                        <>
+                                          {task.meta.subtitle || 'AI is analyzing images...'}
+                                          {task.estimatedCompletionTime && (
+                                            <span className="ml-2 inline-flex items-center gap-1">
+                                              <Clock size={12} />
+                                              ~{formatEstimatedTime(task.estimatedCompletionTime)}
+                                            </span>
+                                          )}
+                                        </>
+                                      ) : task.status === 'COMPLETED' ? 'Click to review and save' : task.error}
                                   </p>
                               </div>
 
