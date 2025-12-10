@@ -6,6 +6,7 @@ import jpeg from 'jpeg-js';
 const BASE_RETRY_DELAY_MS = 1000;
 const MIN_VALID_IMAGE_SIZE = 100;
 const WORKER_VERSION = '1.4.0'; // Updated with improved browser-like headers and 403 retry
+const BROWSER_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 // Helper to create standard CORS headers
 function getCorsHeaders(additionalHeaders = {}) {
@@ -136,7 +137,7 @@ async function handleRequest(request) {
         const fetchOpts = {
           redirect: 'follow',
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'User-Agent': BROWSER_USER_AGENT,
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9',
             'Accept-Encoding': 'gzip, deflate, br',
@@ -339,7 +340,7 @@ async function handleRequest(request) {
         const fetchOpts = {
           redirect: 'follow',
           headers: {
-            'User-Agent': uaOverride || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'User-Agent': uaOverride || BROWSER_USER_AGENT,
             'Accept': acceptOverride || 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9',
             'Accept-Encoding': 'gzip, deflate, br',

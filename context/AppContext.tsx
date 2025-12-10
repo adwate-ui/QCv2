@@ -6,6 +6,7 @@ import { identifyProduct, runQCAnalysis, runFinalQCAnalysis, searchSectionSpecif
 import { generateUUID, calculateTaskEstimate, normalizeWorkerUrl } from '../services/utils';
 import { generateComparisonImage } from '../services/comparisonImageService';
 import { TIME, STORAGE, QC_GRADING } from '../services/constants';
+import { log } from '../services/logger';
 
 interface AppContextType {
   user: User | null;
@@ -540,16 +541,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             
             if (imageIndex >= 0 && imageIndex < allQCRawImages.length) {
               qcImageSrc = allQCRawImages[imageIndex];
-              console.log(`[Comparison] Using section-assigned image ${imageIndex} for ${section.sectionName}`);
+              log.debug(`[Comparison] Using section-assigned image ${imageIndex} for ${section.sectionName}`);
             } else {
               // Fallback if image ID not found
               qcImageSrc = allQCRawImages[sectionIndex % allQCRawImages.length];
-              console.log(`[Comparison] Image ID not found, using fallback for ${section.sectionName}`);
+              log.debug(`[Comparison] Image ID not found, using fallback for ${section.sectionName}`);
             }
           } else if (allQCRawImages.length > 1) {
             // Fallback: Distribute images across sections using round-robin for better coverage
             qcImageSrc = allQCRawImages[sectionIndex % allQCRawImages.length];
-            console.log(`[Comparison] No section assignment, using round-robin for ${section.sectionName}`);
+            log.debug(`[Comparison] No section assignment, using round-robin for ${section.sectionName}`);
           } else {
             // Use first (and likely only) QC image
             qcImageSrc = allQCRawImages[0];

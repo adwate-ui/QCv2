@@ -743,8 +743,9 @@ Now analyze the following QC inspection images:`
       ]
     };
 
+    const THINKING_BUDGET_IMAGE_ASSIGNMENT = 8192;
     if (modelTier === ModelTier.FAST) {
-      config.thinkingConfig = { thinkingBudget: 8192 };
+      config.thinkingConfig = { thinkingBudget: THINKING_BUDGET_IMAGE_ASSIGNMENT };
     }
 
     const response = await ai.models.generateContent({
@@ -761,7 +762,7 @@ Now analyze the following QC inspection images:`
     for (const [sectionName, indices] of Object.entries(mapping)) {
       if (Array.isArray(indices)) {
         sectionToImageIds[sectionName] = indices
-          .map((idx: any) => {
+          .map((idx: number | string) => {
             const index = typeof idx === 'number' ? idx : parseInt(String(idx), 10);
             return isNaN(index) || index < 0 || index >= qcImageIds.length ? null : qcImageIds[index];
           })
