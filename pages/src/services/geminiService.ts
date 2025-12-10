@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type, Schema, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { AppSettings, ExpertMode, ModelTier, ProductProfile, QCReport } from "../types";
 import { generateUUID, fetchAndEncodeImage } from "./utils";
-import { SIMILARITY, QC_SECTIONS } from "./constants";
+import { SIMILARITY, QC_SECTIONS, IMAGE_SEARCH } from "./constants";
 import { log } from "./logger";
 
 const isURL = (str: string): boolean => {
@@ -1245,24 +1245,12 @@ Prioritize official brand websites, authorized retailers, and e-commerce sites w
 
     // Filter and validate URLs
     // Exclude problematic domains that commonly block proxy requests
-    const problematicDomains = [
-      'pinimg.com', // Pinterest - blocks proxy requests with 403/502
-      'pinterest.com',
-      'instagram.com',
-      'fbcdn.net', // Facebook CDN
-      'cdninstagram.com',
-      'facebook.com',
-      'twitter.com',
-      'twimg.com', // Twitter images
-      'tiktok.com'
-    ];
-    
     const validUrls = matches
       .filter((url, index, self) => self.indexOf(url) === index) // Remove duplicates
       .filter(url => {
         try {
           const hostname = new URL(url).hostname.toLowerCase();
-          const isProblematic = problematicDomains.some(domain => hostname.includes(domain));
+          const isProblematic = IMAGE_SEARCH.PROBLEMATIC_DOMAINS.some(domain => hostname.includes(domain));
           if (isProblematic) {
             log.debug(`Image Search: Filtering out problematic domain: ${hostname}`);
           }
@@ -1272,7 +1260,7 @@ Prioritize official brand websites, authorized retailers, and e-commerce sites w
           return false; // Invalid URL
         }
       })
-      .slice(0, 8); // Increase limit to 8 to account for filtering
+      .slice(0, IMAGE_SEARCH.MAX_URLS); // Limit to configured maximum
 
     if (validUrls.length === 0 && matches.length > 0) {
       log.warn(`Image Search: All ${matches.length} URLs were filtered out as problematic for ${sectionName}`);

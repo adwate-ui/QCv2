@@ -5,7 +5,7 @@ import { supabase } from '../services/supabase';
 import { identifyProduct, runQCAnalysis, runFinalQCAnalysis, searchSectionSpecificImages } from '../services/geminiService';
 import { generateUUID, calculateTaskEstimate, normalizeWorkerUrl } from '../services/utils';
 import { generateComparisonImage } from '../services/comparisonImageService';
-import { TIME, STORAGE, QC_GRADING } from '../services/constants';
+import { TIME, STORAGE, QC_GRADING, IMAGE_SEARCH } from '../services/constants';
 import { log } from '../services/logger';
 
 interface AppContextType {
@@ -472,15 +472,29 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                         
                         referenceImageUrl = dataUrl;
                         downloadedCount++;
-                        console.log(`[Comparison] ✓ Successfully downloaded close-up image for ${section.sectionName} from ${new URL(imageUrl).hostname}`);
+                        try {
+                          const hostname = new URL(imageUrl).hostname;
+                          console.log(`[Comparison] ✓ Successfully downloaded close-up image for ${section.sectionName} from ${hostname}`);
+                        } catch {
+                          console.log(`[Comparison] ✓ Successfully downloaded close-up image for ${section.sectionName}`);
+                        }
                         break;
                       } else {
                         failedUrls.push({ url: imageUrl, reason: `Invalid blob: type=${blob.type}, size=${blob.size}` });
                       }
                     } else {
                       // Log the specific HTTP error
-                      const errorText = await response.text().catch(() => response.statusText);
-                      failedUrls.push({ url: imageUrl, reason: `HTTP ${response.status}: ${errorText.substring(0, 100)}` });
+                      // Limit error text length to avoid large responses
+                      const contentType = response.headers.get('content-type') || '';
+                      let errorText = response.statusText;
+                      
+                      // Only read text if it's a text response
+                      if (contentType.includes('text/') || contentType.includes('json')) {
+                        errorText = await response.text().catch(() => response.statusText);
+                        errorText = errorText.substring(0, IMAGE_SEARCH.MAX_ERROR_TEXT_LENGTH);
+                      }
+                      
+                      failedUrls.push({ url: imageUrl, reason: `HTTP ${response.status}: ${errorText}` });
                       console.warn(`[Comparison] ✗ Failed to download ${imageUrl}: HTTP ${response.status}`);
                     }
                   } catch (imgError: any) {
@@ -495,7 +509,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                 if (downloadedCount === 0 && failedUrls.length > 0) {
                   console.error(`[Comparison] All ${failedUrls.length} image URLs failed for ${section.sectionName}:`);
                   failedUrls.forEach(({ url, reason }, idx) => {
-                    console.error(`  ${idx + 1}. ${new URL(url).hostname}: ${reason}`);
+                    try {
+                      const hostname = new URL(url).hostname;
+                      console.error(`  ${idx + 1}. ${hostname}: ${reason}`);
+                    } catch {
+                      console.error(`  ${idx + 1}. ${url}: ${reason}`);
+                    }
                   });
                 }
               }
