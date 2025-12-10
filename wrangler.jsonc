@@ -1,7 +1,10 @@
 {
   // Wrangler configuration for Cloudflare Pages deployment
   // This file is used when deploying the main application as static assets
-  "name": "authentiqc-worker",
+  // IMPORTANT: This name MUST be different from the worker name to avoid conflicts
+  // Pages project name: "qcv2" (matches projectName in .github/workflows/deploy.yml)
+  // Worker name: "authentiqc-worker" (in cloudflare-worker/wrangler.toml)
+  "name": "qcv2",
   "compatibility_date": "2025-12-10",
   "assets": {
     "directory": "./dist"

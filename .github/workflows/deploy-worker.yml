@@ -17,6 +17,12 @@ jobs:
         with:
           node-version: 20
 
+      - name: Validate wrangler configurations
+        run: |
+          echo "Checking for wrangler configuration conflicts..."
+          .github/scripts/validate-wrangler-configs.sh
+          echo "✓ Wrangler configurations are valid"
+
       - name: Install worker dependencies
         run: |
           cd cloudflare-worker

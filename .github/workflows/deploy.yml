@@ -22,6 +22,12 @@ jobs:
         with:
           node-version: 20
 
+      - name: Validate wrangler configurations
+        run: |
+          echo "Checking for wrangler configuration conflicts..."
+          .github/scripts/validate-wrangler-configs.sh
+          echo "✓ Wrangler configurations are valid"
+
       - name: Install Dependencies
         # PR #63 fix: Fallback to npm install if package-lock.json is missing
         # Prefer npm ci for deterministic builds when lockfile is present
