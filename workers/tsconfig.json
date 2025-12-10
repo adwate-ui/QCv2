@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022", "WebWorker"],
+    "skipLibCheck": true,
+    
+    /* Module Resolution */
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    
+    /* Type Checking */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    
+    /* Additional Checks */
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "allowJs": true,
+    
+    /* Cloudflare Workers */
+    "types": ["@cloudflare/workers-types"]
+  },
+  "include": [
+    "*.ts",
+    "*.mjs",
+    "*.js",
+    "../packages/shared/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "../dist"
+  ]
+}

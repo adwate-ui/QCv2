@@ -1,28 +1,78 @@
 # ============================================================================
-# CLOUDFLARE PAGES CONFIGURATION (Frontend Static Assets ONLY)
+# CLOUDFLARE PAGES + WORKERS CONFIGURATION
 # ============================================================================
-# This wrangler.toml exists ONLY as a fallback for Cloudflare Pages dashboard
-# deploy commands that cannot be removed.
+# This configuration supports the separated architecture:
+# - Pages (frontend): Static site from dist/ directory
+# - Workers (backend): Serverless functions from dist/workers/
+# - Shared types: Common TypeScript definitions in packages/shared/
 #
-# IMPORTANT - DEPLOYMENT SEPARATION:
-# • This config is for PAGES assets only (name = "qcv2")
-# • Worker has its own separate config (name = "authentiqc-worker")
-# • These names MUST remain different to prevent conflicts
-# • Primary deployment method is GitHub Actions (not dashboard)
+# IMPORTANT - MAINTAINER CONFIGURATION REQUIRED:
+# 1. Set your Cloudflare account ID below (find it in your Cloudflare Dashboard)
+# 2. Ensure your API token has the necessary permissions
+# 3. Update project name if different from "qcv2"
 #
-# DO NOT change the name from "qcv2" - it must match the Pages project name
-# and MUST be different from the worker name "authentiqc-worker"
+# To find your account ID:
+#   1. Go to https://dash.cloudflare.com
+#   2. Select your account
+#   3. Copy the Account ID from the URL or sidebar
+#
 # ============================================================================
 
 name = "qcv2"
 compatibility_date = "2025-12-10"
 workers_dev = false
 
-# Pages Assets Configuration
-# This tells wrangler to deploy static assets from the dist directory
-# This is a Pages deployment, NOT a Worker deployment
+# ============================================================================
+# ACCOUNT CONFIGURATION (REQUIRED - MAINTAINER MUST FILL IN)
+# ============================================================================
+# Uncomment and fill in your Cloudflare account ID:
+# account_id = "YOUR_ACCOUNT_ID_HERE"
+#
+# Alternatively, set the CLOUDFLARE_ACCOUNT_ID environment variable
+# ============================================================================
+
+# ============================================================================
+# PAGES CONFIGURATION
+# ============================================================================
+# This tells Cloudflare to serve static assets from the dist directory
+# This is your compiled React frontend
+
 [assets]
 directory = "./dist"
 
-# CRITICAL: This deploys to Pages project "qcv2", not to Workers
-# Worker deployment uses cloudflare-worker/wrangler.toml separately
+# ============================================================================
+# WORKER CONFIGURATION (Optional - for Cloudflare Pages Functions)
+# ============================================================================
+# If you want to deploy workers alongside your Pages project, you can
+# configure them here or deploy them separately using wrangler deploy
+
+# Example worker configuration:
+# [[workers]]
+# name = "image-proxy"
+# main = "dist/workers/image-proxy-worker.js"
+# compatibility_date = "2025-12-10"
+
+# ============================================================================
+# BUILD CONFIGURATION
+# ============================================================================
+# The build is handled by npm scripts:
+#   - npm run build:pages  → Builds frontend to dist/
+#   - npm run build:workers → Builds workers to dist/workers/
+#   - npm run build → Builds both
+#
+# GitHub Actions CI workflow automatically runs these on push/PR
+# ============================================================================
+
+# ============================================================================
+# DEPLOYMENT INSTRUCTIONS
+# ============================================================================
+# For Pages (Frontend):
+#   wrangler pages deploy dist --project-name=qcv2
+#
+# For Workers (Backend):
+#   cd dist/workers && wrangler deploy <worker-name>.js
+#
+# Or use the existing GitHub Actions workflows:
+#   - .github/workflows/deploy.yml (Pages)
+#   - .github/workflows/deploy-worker.yml (Workers)
+# ============================================================================
