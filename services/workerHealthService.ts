@@ -32,6 +32,9 @@ const HEALTH_CHECK_TIMEOUT_MS = 5000; // 5 second timeout for health checks
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 
+// Error messages
+const ERROR_WORKER_URL_NOT_CONFIGURED = 'Worker URL (VITE_IMAGE_PROXY_URL) is not configured. Set this environment variable to enable image fetching from URLs. See URGENT_FIX_CORS_ISSUE.md or CORS_FIX_NOW.md for setup instructions.';
+
 class WorkerHealthService {
   private healthStatus: WorkerHealthStatus | null = null;
   private circuitBreaker: CircuitBreakerState = {
@@ -170,7 +173,7 @@ class WorkerHealthService {
         isHealthy: false,
         lastChecked: Date.now(),
         workerVersion: null,
-        error: 'VITE_IMAGE_PROXY_URL is not configured. Please set the Cloudflare Worker URL in your environment variables. See CLOUDFLARE_DEPLOYMENT_GUIDE.md for instructions.',
+        error: ERROR_WORKER_URL_NOT_CONFIGURED,
         consecutiveFailures: 0,
       };
     }
@@ -358,6 +361,9 @@ class WorkerHealthService {
 
 // Singleton instance
 export const workerHealthService = new WorkerHealthService();
+
+// Export constants and types for use in components
+export { ERROR_WORKER_URL_NOT_CONFIGURED };
 
 // Export for testing
 export type { WorkerHealthStatus, CircuitBreakerState };

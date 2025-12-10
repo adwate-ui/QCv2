@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { workerHealthService, type WorkerHealthStatus } from '@/services/workerHealthService';
+import { workerHealthService, ERROR_WORKER_URL_NOT_CONFIGURED, type WorkerHealthStatus } from '@/services/workerHealthService';
 import { AlertCircle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 
 /**
@@ -24,7 +24,7 @@ export const WorkerHealthIndicator: React.FC = () => {
           isHealthy: false,
           lastChecked: Date.now(),
           workerVersion: null,
-          error: 'Worker URL (VITE_IMAGE_PROXY_URL) is not configured. Set this environment variable to enable image fetching from URLs.',
+          error: ERROR_WORKER_URL_NOT_CONFIGURED,
           consecutiveFailures: 0,
         });
         setIsChecking(false);

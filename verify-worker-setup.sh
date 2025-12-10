@@ -2,10 +2,20 @@
 
 # Verification script for Cloudflare Worker setup
 # This script checks if the worker is properly deployed and accessible
+#
+# Usage: ./verify-worker-setup.sh [WORKER_URL]
+# Example: ./verify-worker-setup.sh https://authentiqc-worker.adwate.workers.dev
 
 set -e
 
-WORKER_URL="https://authentiqc-worker.adwate.workers.dev"
+# Default worker URL or accept from command line
+WORKER_URL="${1:-https://authentiqc-worker.adwate.workers.dev}"
+
+# Allow override from environment variable
+if [ -n "$VITE_IMAGE_PROXY_URL" ]; then
+  WORKER_URL="$VITE_IMAGE_PROXY_URL"
+fi
+
 BOLD='\033[1m'
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -17,10 +27,13 @@ echo "=========================================="
 echo "  Cloudflare Worker Verification Script"
 echo "=========================================="
 echo ""
+echo "Testing worker at: $WORKER_URL"
+echo ""
 
 # Check 1: DNS Resolution
 echo -e "${BOLD}[1/5] Checking DNS resolution...${NC}"
-if host authentiqc-worker.adwate.workers.dev > /dev/null 2>&1; then
+WORKER_HOST=$(echo "$WORKER_URL" | sed -E 's|https?://||' | sed 's|/.*||')
+if host "$WORKER_HOST" > /dev/null 2>&1; then
     echo -e "${GREEN}✓ DNS resolves successfully${NC}"
 else
     echo -e "${RED}✗ DNS does not resolve${NC}"
