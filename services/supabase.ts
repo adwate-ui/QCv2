@@ -36,6 +36,9 @@ export const isSupabaseConfigured = () => {
 };
 
 // Only create client if credentials are configured to avoid "supabaseUrl is required" error
+// Note: App.tsx checks isSupabaseConfigured() before mounting AppProvider, so supabase
+// will never be null when actually used by components. The null case only exists during
+// initial module load when credentials haven't been set up yet.
 export const supabase = isSupabaseConfigured() 
   ? createClient(supabaseUrl, supabaseKey)
   : null as any; // Type assertion for backwards compatibility, but won't be used when not configured
