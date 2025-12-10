@@ -2,6 +2,7 @@ import { GoogleGenAI, Type, Schema, HarmCategory, HarmBlockThreshold } from "@go
 import { AppSettings, ExpertMode, ModelTier, ProductProfile, QCReport } from "../types";
 import { generateUUID, fetchAndEncodeImage } from "./utils";
 import { SIMILARITY, QC_SECTIONS } from "./constants";
+import { log } from "./logger";
 
 const isURL = (str: string): boolean => {
   try {
@@ -941,12 +942,15 @@ export const runFinalQCAnalysis = async (
 };
 
 /**
- * Search for section-specific close-up images using Google Search
+ * Search for section-specific reference images using Google Image Search
+ * Searches using the pattern: "brand name + product name + section name" to find
+ * high-quality photos that show the specific section of the authentic product.
+ * 
  * @param apiKey - Gemini API key
- * @param productProfile - Product profile information
- * @param sectionName - Name of the section to search images for (e.g., "Dial & Hands", "Clasp")
+ * @param productProfile - Product profile information (brand, name, category, etc.)
+ * @param sectionName - Name of the section to search images for (e.g., "Dial & Hands", "Clasp", "Bezel")
  * @param modelTier - Model tier to use (FAST or DETAILED)
- * @returns Promise resolving to an array of image URLs
+ * @returns Promise resolving to an array of image URLs (up to 5) that show the specific section
  */
 export const searchSectionSpecificImages = async (
   apiKey: string,
@@ -958,26 +962,48 @@ export const searchSectionSpecificImages = async (
     const ai = new GoogleGenAI({ apiKey });
     const { model } = getModelConfig(modelTier);
 
-    // Construct search prompt
-    const searchPrompt = `Find high-quality close-up images of the ${sectionName} section for the authentic ${productProfile.brand} ${productProfile.name}.
+    // Construct search prompt with explicit brand + product + section name
+    // This ensures Google Image Search uses the most specific query
+    const brand = productProfile.brand || 'Unknown Brand';
+    const name = productProfile.name || 'Unknown Product';
+    const searchQuery = `${brand} ${name} ${sectionName}`;
+    
+    // Build product information with only available fields
+    const productInfo = [
+      `- Brand: ${brand}`,
+      `- Model/Name: ${name}`,
+      productProfile.category ? `- Category: ${productProfile.category}` : null,
+      productProfile.material ? `- Material: ${productProfile.material}` : null
+    ].filter(Boolean).join('\n');
+    
+    const searchPrompt = `Use Google Image Search to find high-quality reference images for authenticating the ${sectionName} section.
 
-Product Details:
-- Brand: ${productProfile.brand}
-- Model: ${productProfile.name}
-- Category: ${productProfile.category}
-- Material: ${productProfile.material}
+Search Query: "${searchQuery}"
 
-Search for images that show:
-1. Clear, detailed close-up views of the ${sectionName}
-2. From official product pages, authorized retailers, or authentication guides
-3. High resolution and well-lit
-4. Showing authentic product details
+Product Information:
+${productInfo}
 
-Return 3-5 relevant image URLs that would be useful for quality control comparison of the ${sectionName}.`;
+Requirements for images:
+1. Must show clear, detailed close-up views of the ${sectionName} specifically
+2. From official sources: brand website, authorized retailers, or authentication guides
+3. High resolution and well-lit (not blurry or dark)
+4. Authentic product only (not replicas or counterfeits)
+5. Focus on the ${sectionName} section, not generic product shots
 
-    // Configure for web search
+Priority: Look for images from:
+- Official ${brand} website
+- Authorized luxury retailers (e.g., Chrono24 for watches, authorized jewelers)
+- Authentication and verification guides
+- High-quality product photography sites
+
+Return 3-5 image URLs that best match these criteria, prioritizing images that clearly show the ${sectionName} section in detail.`;
+
+    // Configure for Google Image Search
     const config: any = {
-      systemInstruction: 'You are an expert at finding reference images for product authentication. Use Google Search to find the most relevant, high-quality close-up images.',
+      systemInstruction: `You are an expert at finding reference images for product authentication and quality control. 
+Your primary task is to use Google Image Search with the exact search query provided to find the most relevant, high-quality images.
+Focus on finding images that clearly show the specific product section mentioned in the query.
+Prioritize official sources and high-resolution photography.`,
       tools: [{ googleSearch: {} }],
       safetySettings: [
         {
@@ -992,6 +1018,9 @@ Return 3-5 relevant image URLs that would be useful for quality control comparis
     }
 
     const parts = [{ text: searchPrompt }];
+    
+    log.info(`Image Search: Searching Google Images for "${searchQuery}"`, { sectionName, brand, name });
+    
     const response = await ai.models.generateContent({
       model,
       contents: { parts },
@@ -999,7 +1028,7 @@ Return 3-5 relevant image URLs that would be useful for quality control comparis
     });
 
     if (!response || !response.text) {
-      console.warn(`[Image Search] No response text received for ${sectionName}`);
+      log.warn(`Image Search: No response text received for ${sectionName}`);
       return [];
     }
 
@@ -1011,7 +1040,7 @@ Return 3-5 relevant image URLs that would be useful for quality control comparis
     const matches = responseText.match(urlRegex);
     
     if (!matches || matches.length === 0) {
-      console.warn(`[Image Search] No image URLs found for ${sectionName}`);
+      log.warn(`Image Search: No image URLs found for ${sectionName}`);
       return [];
     }
 
@@ -1020,10 +1049,10 @@ Return 3-5 relevant image URLs that would be useful for quality control comparis
       .filter((url, index, self) => self.indexOf(url) === index) // Remove duplicates
       .slice(0, 5); // Limit to 5 images
 
-    console.log(`[Image Search] Found ${validUrls.length} images for ${sectionName}`);
+    log.info(`Image Search: Found ${validUrls.length} images for ${sectionName}`);
     return validUrls;
   } catch (error) {
-    console.error(`[Image Search] Failed to search images for ${sectionName}:`, error);
+    log.error(`Image Search: Failed to search images for ${sectionName}`, error);
     return [];
   }
 };

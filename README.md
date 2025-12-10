@@ -27,9 +27,11 @@ The app requires both a Cloudflare Pages deployment (for the frontend) and a Clo
 
 ### 🚨 Build Error? "Workers-specific command in Pages project"?
 
-**See:** [IMMEDIATE_FIX_CLOUDFLARE_PAGES.md](IMMEDIATE_FIX_CLOUDFLARE_PAGES.md) - Remove the custom deploy command in Cloudflare Pages settings
+**See:** [CLOUDFLARE_PAGES_DASHBOARD_FIX.md](CLOUDFLARE_PAGES_DASHBOARD_FIX.md) - Complete fix for Pages dashboard misconfiguration
 
-This is caused by a custom "deploy command" in Cloudflare Pages dashboard that needs to be removed.
+**Quick Fix:** The Cloudflare Pages dashboard has an incorrect "deploy command" (`npx wrangler deploy`) that must be removed. Pages deployments are handled automatically after build - no deploy command is needed.
+
+**Also see:** [CLOUDFLARE_DASHBOARD_SETTINGS.md](CLOUDFLARE_DASHBOARD_SETTINGS.md) - Reference for correct dashboard configuration
 
 ### 🚨 CORS Error? Worker Not Working?
 
