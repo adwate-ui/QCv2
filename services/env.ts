@@ -64,12 +64,15 @@ export const validateEnv = (): string[] => {
   // IMAGE_PROXY_URL is optional but recommended
   const proxyUrl = getEnvVar('VITE_IMAGE_PROXY_URL');
   if (!proxyUrl) {
-    console.warn('VITE_IMAGE_PROXY_URL is not set. Image fetching from URLs will be limited.');
+    // Only warn in development, not in production
+    if (isDevelopment()) {
+      console.warn('VITE_IMAGE_PROXY_URL is not set. Image fetching from URLs may be limited.');
+    }
   } else if (!isValidUrl(proxyUrl)) {
     errors.push('VITE_IMAGE_PROXY_URL is not a valid URL.');
   }
   
-  // Supabase config is optional (falls back to in-memory storage)
+  // Supabase config is optional (falls back to defaults or in-memory storage)
   const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
   const supabaseKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
   
@@ -81,7 +84,7 @@ export const validateEnv = (): string[] => {
     errors.push('VITE_SUPABASE_URL is set but VITE_SUPABASE_ANON_KEY is missing.');
   }
   
-  if (!supabaseUrl && supabaseKey) {
+  if (!supabaseUrl && supabaseKey && isDevelopment()) {
     console.warn('VITE_SUPABASE_ANON_KEY is set but VITE_SUPABASE_URL is missing.');
   }
   
@@ -116,17 +119,20 @@ export const isDevelopment = (): boolean => {
 
 /**
  * Log environment validation errors
- * In production, only logs errors. In development, also logs warnings.
+ * In production, only logs critical errors. In development, also logs warnings.
  */
 export const logEnvValidation = (): void => {
   const errors = validateEnv();
   
   if (errors.length > 0) {
-    console.error('❌ Environment Configuration Errors:');
-    errors.forEach(error => console.error(`  - ${error}`));
-    
     if (isProduction()) {
-      console.error('⚠️  Application may not function correctly in production mode.');
+      // In production, log as warning instead of error for better UX
+      console.warn('⚠️  Environment Configuration Warnings:');
+      errors.forEach(error => console.warn(`  - ${error}`));
+    } else {
+      // In development, show full error details
+      console.error('❌ Environment Configuration Errors:');
+      errors.forEach(error => console.error(`  - ${error}`));
     }
   } else if (isDevelopment()) {
     console.info('✅ Environment configuration validated successfully');

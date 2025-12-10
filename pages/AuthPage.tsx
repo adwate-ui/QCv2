@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Input } from '../components/Input';
-import { ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const AuthPage = () => {
@@ -39,9 +38,16 @@ export const AuthPage = () => {
     <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-6 bg-slate-50">
       <div className="w-full max-w-md bg-white rounded-xl md:rounded-2xl shadow-xl p-6 md:p-8">
         <div className="flex justify-center mb-4 md:mb-6">
-          <div className="bg-primary/10 p-3 md:p-4 rounded-full">
-            <ShieldCheck size={40} className="md:w-12 md:h-12 text-primary" />
-          </div>
+          <img 
+            src="/logo.svg" 
+            alt="AuthentiqC Logo" 
+            className="w-20 h-20 md:w-24 md:h-24"
+            loading="lazy"
+            onError={(e) => {
+              // Fallback to a placeholder if logo fails to load
+              e.currentTarget.style.display = 'none';
+            }}
+          />
         </div>
         <h1 className="text-xl md:text-2xl font-bold text-center text-slate-800 mb-2">
           {isLogin ? 'Welcome Back' : 'Create Account'}
