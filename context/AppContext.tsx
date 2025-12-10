@@ -3,7 +3,7 @@ import { User, Product, AppSettings, ModelTier, ExpertMode, BackgroundTask, QCBa
 import { db } from '../services/db';
 import { supabase } from '../services/supabase';
 import { identifyProduct, runQCAnalysis, runFinalQCAnalysis, searchSectionSpecificImages } from '../services/geminiService';
-import { generateUUID } from '../services/utils';
+import { generateUUID, calculateTaskEstimate } from '../services/utils';
 import { generateComparisonImage } from '../services/comparisonImageService';
 import { TIME, STORAGE, QC_GRADING } from '../services/constants';
 
@@ -815,11 +815,13 @@ To fix:
 
   const startIdentificationTask = async (apiKey: string, images: string[], url: string | undefined, settings: AppSettings) => {
     const taskId = generateUUID();
+    const estimatedTime = calculateTaskEstimate('IDENTIFY', settings.modelTier, images.length);
     const task: BackgroundTask = {
         id: taskId,
         type: 'IDENTIFY',
         status: 'PROCESSING',
         createdAt: Date.now(),
+        estimatedCompletionTime: estimatedTime,
         meta: {
             title: 'Product Identification',
             subtitle: url || (images.length > 0 ? `${images.length} images` : 'No input'),
@@ -972,11 +974,14 @@ To fix:
 
   const startQCTask = async (apiKey: string, product: Product, qcImages: string[], settings: AppSettings, qcUserComments: string) => {
     const taskId = generateUUID();
+    // Estimate based on number of QC images (we'll refine this with section count later)
+    const estimatedTime = calculateTaskEstimate('QC', settings.modelTier, qcImages.length, 8, 0);
     const task: BackgroundTask = {
        id: taskId,
        type: 'QC',
        status: 'PROCESSING',
        createdAt: Date.now(),
+       estimatedCompletionTime: estimatedTime,
        meta: {
            title: `QC Inspection: ${product.profile.name}`,
            subtitle: 'Generating Preliminary Report...',

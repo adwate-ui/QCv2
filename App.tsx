@@ -17,7 +17,7 @@ const InventoryPage = lazy(() => import('./pages/InventoryPage').then(m => ({ de
 const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage').then(m => ({ default: m.ProductDetailPage })));
 const AddProductPage = lazy(() => import('./pages/AddProductPage').then(m => ({ default: m.AddProductPage })));
 const UserProfilePage = lazy(() => import('./pages/UserProfilePage').then(m => ({ default: m.UserProfilePage })));
-const QCInspectionDemo = lazy(() => import('./src/pages/QCInspectionDemo').then(m => ({ default: m.QCInspectionDemo })));
+const QCInspectionDemo = lazy(() => import('./pages/QCInspectionDemo').then(m => ({ default: m.QCInspectionDemo })));
 
 // Loading fallback component
 const PageLoader = () => (

@@ -83,6 +83,7 @@ export interface BackgroundTask {
   type: TaskType;
   status: TaskStatus;
   createdAt: number;
+  estimatedCompletionTime?: number; // seconds
   result?: any;
   error?: string;
   meta: {

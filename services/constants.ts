@@ -12,6 +12,24 @@ export const TIME = {
   ONE_DAY: 86400000,
 } as const;
 
+// Task Estimation Constants (in seconds)
+export const TASK_ESTIMATES = {
+  // Identification task estimates
+  IDENTIFY_FAST: 15, // Fast model: ~15 seconds
+  IDENTIFY_DETAILED: 30, // Detailed model: ~30 seconds
+  
+  // QC task estimates (base time per image)
+  QC_FAST_PER_IMAGE: 10, // Fast model: ~10 seconds per image
+  QC_DETAILED_PER_IMAGE: 20, // Detailed model: ~20 seconds per image
+  
+  // Additional time for comparisons and analysis
+  QC_BASE_OVERHEAD: 10, // Base overhead for QC setup
+  QC_COMPARISON_PER_SECTION: 5, // Additional time per section with comparison
+  
+  // Google Image Search overhead (per section)
+  IMAGE_SEARCH_PER_SECTION: 8, // ~8 seconds to search and download images
+} as const;
+
 // Storage Constants
 export const STORAGE = {
   MAX_SIZE_BYTES: 4 * 1024 * 1024, // 4MB safety limit for localStorage

@@ -3,9 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { getPublicImageUrl } from '../services/db';
 import { Product, QCReport, ModelTier, ExpertMode, BackgroundTask } from '../types';
-import { Loader2, CheckCircle, XCircle, Upload, History, ExternalLink, X, ZoomIn, Zap, Brain, Activity, Trash2, Info, ChevronDown } from 'lucide-react';
-import { parseObservations } from '../services/utils';
+import { Loader2, CheckCircle, XCircle, Upload, History, ExternalLink, X, ZoomIn, Zap, Brain, Activity, Trash2, Info, ChevronDown, Clock, FileDown } from 'lucide-react';
+import { parseObservations, formatEstimatedTime } from '../services/utils';
 import { Toggle } from '../components/Toggle';
+import { exportQCReportToPDF } from '../services/pdfExportService';
 
 // Debounce hook to prevent flickering
 const useDebounce = <T,>(value: T, delay: number): T => {
@@ -33,6 +34,8 @@ export const ProductDetailPage: React.FC = () => {
   const [refImages, setRefImages] = useState<string[]>([]);
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [imageZoom, setImageZoom] = useState(1);
+  const [imageRotation, setImageRotation] = useState(0);
   const [qcImages, setQcImages] = useState<string[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -137,6 +140,12 @@ export const ProductDetailPage: React.FC = () => {
     setFeedbackTask(null);
   };
   
+  const resetImageViewer = () => {
+    setSelectedImage(null);
+    setImageZoom(1);
+    setImageRotation(0);
+  };
+  
   const handleDelete = async () => {
     if (!product) return;
     if (!confirm('Delete this product and all related data?')) return;
@@ -153,7 +162,23 @@ export const ProductDetailPage: React.FC = () => {
     const [imgs, setImgs] = useState<string[]>([]);
     const [comparisonImgs, setComparisonImgs] = useState<string[]>([]);
     const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
+    const [exportingPDF, setExportingPDF] = useState(false);
     const { user } = useApp();
+
+    const handleExportPDF = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!product || !user?.id) return;
+      
+      setExportingPDF(true);
+      try {
+        await exportQCReportToPDF(report, product, user.id);
+      } catch (error) {
+        console.error('Failed to export PDF:', error);
+        alert('Failed to export PDF. Please try again.');
+      } finally {
+        setExportingPDF(false);
+      }
+    };
 
     useEffect(() => {
       if (!report.qcImageIds || report.qcImageIds.length === 0 || !user?.id) return;
@@ -207,18 +232,29 @@ export const ProductDetailPage: React.FC = () => {
                 <span className="bg-purple-100 text-purple-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">{report.expertMode}</span>
             </div>
           </div>
-          <div className="text-right">
-            {report.overallScore !== undefined && report.overallGrade ? (() => {
-              const cls = gradeToClasses(report.overallGrade);
-              return (
-                <div className={`inline-flex items-center gap-3 px-3 py-2 rounded ${cls.bg} ${cls.text} font-bold`}>
-                  <div className="text-xl">{report.overallScore}/100</div>
-                  <div className="text-sm">{report.overallGrade}</div>
-                </div>
-              );
-            })() : (
-              <div className="text-sm text-gray-500">Score pending...</div>
-            )}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleExportPDF}
+              disabled={exportingPDF}
+              className="flex items-center gap-2 px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors disabled:opacity-50"
+              title="Export as PDF"
+            >
+              {exportingPDF ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
+              <span>Export PDF</span>
+            </button>
+            <div className="text-right">
+              {report.overallScore !== undefined && report.overallGrade ? (() => {
+                const cls = gradeToClasses(report.overallGrade);
+                return (
+                  <div className={`inline-flex items-center gap-3 px-3 py-2 rounded ${cls.bg} ${cls.text} font-bold`}>
+                    <div className="text-xl">{report.overallScore}/100</div>
+                    <div className="text-sm">{report.overallGrade}</div>
+                  </div>
+                );
+              })() : (
+                <div className="text-sm text-gray-500">Score pending...</div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -330,11 +366,80 @@ export const ProductDetailPage: React.FC = () => {
   return (
     <div className="pb-20 relative">
       {selectedImage && (
-        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
-          <button className="absolute top-4 right-4 text-white p-2">
+        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4" onClick={resetImageViewer}>
+          <button className="absolute top-4 right-4 text-white p-2 hover:bg-white/10 rounded-full z-10">
             <X size={28} />
           </button>
-          <img src={selectedImage} className="max-w-full max-h-[90vh] object-contain rounded" onClick={e => e.stopPropagation()} />
+          
+          {/* Zoom and Rotate Controls */}
+          <div className="absolute top-4 left-4 flex flex-col gap-2 bg-black/50 p-3 rounded-lg z-10">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setImageZoom(Math.max(0.5, imageZoom - 0.25));
+                }}
+                className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
+              >
+                Zoom -
+              </button>
+              <span className="text-white text-sm min-w-[60px] text-center">{Math.round(imageZoom * 100)}%</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setImageZoom(Math.min(3, imageZoom + 0.25));
+                }}
+                className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
+              >
+                Zoom +
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setImageRotation((imageRotation - 90) % 360);
+                }}
+                className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
+              >
+                ↶ Rotate
+              </button>
+              <span className="text-white text-sm min-w-[60px] text-center">{imageRotation}°</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setImageRotation((imageRotation + 90) % 360);
+                }}
+                className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
+              >
+                ↷ Rotate
+              </button>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setImageZoom(1);
+                setImageRotation(0);
+              }}
+              className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
+            >
+              Reset
+            </button>
+          </div>
+          
+          <div className="overflow-auto max-w-full max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <img 
+              src={selectedImage} 
+              className="object-contain rounded transition-transform duration-200" 
+              style={{
+                transform: `scale(${imageZoom}) rotate(${imageRotation}deg)`,
+                transformOrigin: 'center',
+                maxWidth: 'none',
+                maxHeight: 'none'
+              }}
+              onClick={e => e.stopPropagation()} 
+            />
+          </div>
         </div>
       )}
       
@@ -450,10 +555,18 @@ export const ProductDetailPage: React.FC = () => {
 
       {isRunningQC && (
         <div className="bg-blue-50 p-3 rounded mb-6 flex items-center gap-3">
-          <Activity className="text-blue-600" />
+          <Activity className="text-blue-600 animate-pulse" />
           <div className="flex-1">
             <div className="font-semibold text-blue-800">Analysis running in background</div>
-            <div className="text-sm text-blue-600">The inspection is processing and will appear in history when complete.</div>
+            <div className="text-sm text-blue-600">
+              The inspection is processing and will appear in history when complete.
+              {activeQCTask?.estimatedCompletionTime && (
+                <span className="ml-2 inline-flex items-center gap-1">
+                  <Clock size={12} />
+                  Est. ~{formatEstimatedTime(activeQCTask.estimatedCompletionTime)}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       )}

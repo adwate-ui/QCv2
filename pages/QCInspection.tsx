@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { performSmartQC } from '../../services/smartQCService';
-import { QCAnalysisResult } from '../../types';
+import { performSmartQC } from '../services/smartQCService';
+import { QCAnalysisResult } from '../types';
 import { Loader2 } from 'lucide-react';
 
 interface QCInspectionProps {
