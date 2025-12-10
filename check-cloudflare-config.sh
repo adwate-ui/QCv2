@@ -81,10 +81,13 @@ if [ ! -f "cloudflare-worker/wrangler.toml" ]; then
 else
     echo "✓ Worker wrangler.toml exists"
     
-    # Check worker name
-    WORKER_NAME=$(grep '^name' cloudflare-worker/wrangler.toml | sed 's/name = "\(.*\)"/\1/')
+    # Check worker name (flexible pattern to handle various formats)
+    WORKER_NAME=$(grep '^name' cloudflare-worker/wrangler.toml | sed -e 's/^name[[:space:]]*=[[:space:]]*["\x27]\(.*\)["\x27].*$/\1/' -e 's/^name[[:space:]]*=[[:space:]]*\([^[:space:]]*\).*$/\1/')
     if [ "$WORKER_NAME" = "authentiqc-worker" ]; then
         echo "✓ Worker name is correct: $WORKER_NAME"
+    elif [ -z "$WORKER_NAME" ]; then
+        echo "⚠ Warning: Could not detect worker name in wrangler.toml"
+        echo "   Expected: 'authentiqc-worker'"
     else
         echo "⚠ Warning: Worker name is '$WORKER_NAME'"
         echo "   Expected: 'authentiqc-worker'"
