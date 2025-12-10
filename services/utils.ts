@@ -1,3 +1,5 @@
+import { API } from './constants';
+
 /**
  * Generate a UUID v4 identifier
  * Uses crypto.randomUUID if available (Secure Contexts), falls back to Math.random
@@ -14,6 +16,30 @@ export const generateUUID = (): string => {
     var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+};
+
+/**
+ * Helper to normalize worker URL by removing endpoint paths
+ * This handles cases where VITE_IMAGE_PROXY_URL incorrectly includes endpoint paths
+ * @param workerUrl The worker URL to normalize
+ * @returns Normalized worker URL without endpoint paths
+ */
+export const normalizeWorkerUrl = (workerUrl: string): string => {
+  if (!workerUrl) return workerUrl;
+  
+  // Remove trailing slash
+  let normalized = workerUrl.replace(/\/$/, '');
+  
+  // Remove common endpoint paths if they exist
+  const endpointPaths = ['/fetch-metadata', '/proxy-image', '/proxy'];
+  for (const path of endpointPaths) {
+    if (normalized.endsWith(path)) {
+      normalized = normalized.slice(0, -path.length);
+      break;
+    }
+  }
+  
+  return normalized;
 };
 
 /**
@@ -44,27 +70,6 @@ export const parseObservations = (text?: string): string[] => {
     .map(s => s.trim())
     .filter(Boolean);
   return sentences;
-};
-
-/**
- * Helper to normalize worker URL by removing endpoint paths
- */
-const normalizeWorkerUrl = (workerUrl: string): string => {
-  if (!workerUrl) return workerUrl;
-  
-  // Remove trailing slash
-  let normalized = workerUrl.replace(/\/$/, '');
-  
-  // Remove common endpoint paths if they exist
-  const endpointPaths = ['/fetch-metadata', '/proxy-image', '/proxy'];
-  for (const path of endpointPaths) {
-    if (normalized.endsWith(path)) {
-      normalized = normalized.slice(0, -path.length);
-      break;
-    }
-  }
-  
-  return normalized;
 };
 
 /**
@@ -99,7 +104,7 @@ export const fetchAndEncodeImage = async (url: string): Promise<string> => {
     }
     
     const response = await fetch(fetchUrl, {
-      signal: AbortSignal.timeout(15000) // 15 second timeout
+      signal: AbortSignal.timeout(API.IMAGE_FETCH_TIMEOUT)
     });
     
     if (!response.ok) {

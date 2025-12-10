@@ -76,6 +76,8 @@ const normalizeCategory = (category: string, existingCategories?: string[]): str
   // Step 2: Map plural to singular
   const pluralToSingular: Record<string, string> = {
     'watches': 'watch',
+    'wristwatches': 'watch',
+    'timepieces': 'watch',
     'bags': 'bag',
     'handbags': 'bag',
     'purses': 'bag',
@@ -106,12 +108,9 @@ const normalizeCategory = (category: string, existingCategories?: string[]): str
   const categoryAliases: Record<string, string> = {
     // Watch variations - all map to simple "watch"
     'wristwatch': 'watch',
-    'wristwatches': 'watch',
     'timepiece': 'watch',
-    'timepieces': 'watch',
     'smartwatch': 'watch',
     'smart watch': 'watch',
-    'smart watches': 'watch',
     // Bag variations - all map to simple "bag"
     'handbag': 'bag',
     'purse': 'bag',
