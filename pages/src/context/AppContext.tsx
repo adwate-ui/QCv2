@@ -966,6 +966,15 @@ To fix:
                 
                 if (!proxyBase) {
                   console.error('[Identification] VITE_IMAGE_PROXY_URL not configured, cannot fetch AI-provided image URLs. See IMAGE_FETCHING_GUIDE.md for setup instructions.');
+                  
+                  // Update task to inform user that proxy is not configured
+                  setTasks(prev => prev.map(t => t.id === taskId ? { 
+                    ...t, 
+                    meta: { 
+                      ...t.meta, 
+                      subtitle: 'Image proxy not configured - identification completed without images. See IMAGE_FETCHING_GUIDE.md for setup.' 
+                    } 
+                  } : t));
                 } else {
                   const fetchedImages = await Promise.allSettled(
                       profile.imageUrls.slice(0, MAX_IMAGES_FROM_URL).map(async (imageUrl, index) => {
