@@ -33,6 +33,7 @@ const supabaseKey = storedKey || envKey || DEFAULT_SUPABASE_KEY;
 
 // Helper to check if we are using real credentials
 export const isSupabaseConfigured = () => {
+  // Default credentials are considered configured
   return supabaseUrl !== 'https://placeholder-project.supabase.co' && 
          supabaseUrl !== '' &&
          supabaseKey !== 'placeholder-key' &&
