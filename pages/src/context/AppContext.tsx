@@ -445,12 +445,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
               
               if (imageUrls.length > 0) {
                 // Try to download the first valid image
+                let downloadedCount = 0;
+                let failedUrls: Array<{ url: string; reason: string }> = [];
+                
                 for (const imageUrl of imageUrls) {
                   try {
                     const proxyUrl = new URL('/proxy-image', proxyBase);
                     proxyUrl.searchParams.set('url', imageUrl);
                     const fetchUrl = proxyUrl.toString();
                     
+                    console.log(`[Comparison] Attempting to download: ${imageUrl}`);
                     const response = await fetch(fetchUrl, {
                       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
                     });
@@ -467,14 +471,32 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                         });
                         
                         referenceImageUrl = dataUrl;
-                        console.log(`[Comparison] Successfully downloaded close-up image for ${section.sectionName}`);
+                        downloadedCount++;
+                        console.log(`[Comparison] ✓ Successfully downloaded close-up image for ${section.sectionName} from ${new URL(imageUrl).hostname}`);
                         break;
+                      } else {
+                        failedUrls.push({ url: imageUrl, reason: `Invalid blob: type=${blob.type}, size=${blob.size}` });
                       }
+                    } else {
+                      // Log the specific HTTP error
+                      const errorText = await response.text().catch(() => response.statusText);
+                      failedUrls.push({ url: imageUrl, reason: `HTTP ${response.status}: ${errorText.substring(0, 100)}` });
+                      console.warn(`[Comparison] ✗ Failed to download ${imageUrl}: HTTP ${response.status}`);
                     }
-                  } catch (imgError) {
-                    console.debug(`[Comparison] Failed to download image ${imageUrl}:`, imgError);
+                  } catch (imgError: any) {
+                    const errorMsg = imgError?.message || String(imgError);
+                    failedUrls.push({ url: imageUrl, reason: errorMsg });
+                    console.warn(`[Comparison] ✗ Failed to download ${imageUrl}:`, errorMsg);
                     continue;
                   }
+                }
+                
+                // Log summary of download attempts
+                if (downloadedCount === 0 && failedUrls.length > 0) {
+                  console.error(`[Comparison] All ${failedUrls.length} image URLs failed for ${section.sectionName}:`);
+                  failedUrls.forEach(({ url, reason }, idx) => {
+                    console.error(`  ${idx + 1}. ${new URL(url).hostname}: ${reason}`);
+                  });
                 }
               }
             } catch (searchError) {

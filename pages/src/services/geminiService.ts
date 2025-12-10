@@ -1178,21 +1178,31 @@ Requirements for images:
 3. High resolution and well-lit (not blurry or dark)
 4. Authentic product only (not replicas or counterfeits)
 5. Focus on the ${sectionName} section, not generic product shots
+6. IMPORTANT: Avoid social media sites (Pinterest, Instagram, Facebook) as they block automated downloads
 
-Priority: Look for images from:
-- Official ${brand} website
-- Authorized luxury retailers (e.g., Chrono24 for watches, authorized jewelers)
+Priority sources (in order):
+- Official ${brand} website and product pages
+- Authorized retailers (e.g., Chrono24, TheRealReal, luxury watch/jewelry retailers)
 - Authentication and verification guides
-- High-quality product photography sites
+- High-quality e-commerce sites with detailed product photography
+- Professional review sites and blogs
 
-Return 3-5 image URLs that best match these criteria, prioritizing images that clearly show the ${sectionName} section in detail.`;
+AVOID these sources:
+- Pinterest (pinimg.com, pinterest.com)
+- Instagram (instagram.com, cdninstagram.com)
+- Facebook (fbcdn.net, facebook.com)
+
+Return 5-8 image URLs that best match these criteria, prioritizing images from accessible, official sources that clearly show the ${sectionName} section in detail.`;
 
     // Configure for Google Image Search
     const config: any = {
       systemInstruction: `You are an expert at finding reference images for product authentication and quality control. 
 Your primary task is to use Google Image Search with the exact search query provided to find the most relevant, high-quality images.
 Focus on finding images that clearly show the specific product section mentioned in the query.
-Prioritize official sources and high-resolution photography.`,
+
+CRITICAL: Only return image URLs from websites that allow automated access. 
+AVOID social media sites (Pinterest, Instagram, Facebook) as they block automated downloads.
+Prioritize official brand websites, authorized retailers, and e-commerce sites with accessible image CDNs.`,
       tools: [{ googleSearch: {} }],
       safetySettings: [
         {
@@ -1234,11 +1244,41 @@ Prioritize official sources and high-resolution photography.`,
     }
 
     // Filter and validate URLs
+    // Exclude problematic domains that commonly block proxy requests
+    const problematicDomains = [
+      'pinimg.com', // Pinterest - blocks proxy requests with 403/502
+      'pinterest.com',
+      'instagram.com',
+      'fbcdn.net', // Facebook CDN
+      'cdninstagram.com',
+      'facebook.com',
+      'twitter.com',
+      'twimg.com', // Twitter images
+      'tiktok.com'
+    ];
+    
     const validUrls = matches
       .filter((url, index, self) => self.indexOf(url) === index) // Remove duplicates
-      .slice(0, 5); // Limit to 5 images
+      .filter(url => {
+        try {
+          const hostname = new URL(url).hostname.toLowerCase();
+          const isProblematic = problematicDomains.some(domain => hostname.includes(domain));
+          if (isProblematic) {
+            log.debug(`Image Search: Filtering out problematic domain: ${hostname}`);
+          }
+          return !isProblematic;
+        } catch {
+          log.debug(`Image Search: Invalid URL: ${url}`);
+          return false; // Invalid URL
+        }
+      })
+      .slice(0, 8); // Increase limit to 8 to account for filtering
 
-    log.info(`Image Search: Found ${validUrls.length} images for ${sectionName}`);
+    if (validUrls.length === 0 && matches.length > 0) {
+      log.warn(`Image Search: All ${matches.length} URLs were filtered out as problematic for ${sectionName}`);
+    }
+
+    log.info(`Image Search: Found ${validUrls.length} valid images for ${sectionName} (filtered from ${matches.length} total)`);
     return validUrls;
   } catch (error) {
     log.error(`Image Search: Failed to search images for ${sectionName}`, error);
