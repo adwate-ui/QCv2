@@ -40,6 +40,8 @@ export interface QCSection {
   observations: string[];
   // Optional image references related to this section's observations (references into report.qcImageIds)
   imageIds?: string[];
+  // Optional reference/authentic image IDs assigned to this section (references into product.referenceImageIds or profile.imageUrls)
+  authImageIds?: string[];
 }
 
 export interface QCReport {
@@ -51,10 +53,12 @@ export interface QCReport {
   sections: QCSection[];
   basedOnBatchIds: string[];
   qcImageIds: string[]; // <-- ADD THIS LINE
+  authImageIds: string[]; // Authentic/reference image IDs used in this report
   modelTier: ModelTier; // Track which model generated this report
   expertMode: ExpertMode; // Track which persona generated this report
   // Optional mapping of sectionName -> comparison results (auth image + diff)
-  sectionComparisons?: Record<string, { authImageId?: string; diffImageId?: string; diffScore?: number }>;
+  // comparisonType: 'side-by-side' (has both auth and QC images) or 'highlight-only' (only QC images)
+  sectionComparisons?: Record<string, { authImageId?: string; diffImageId?: string; diffScore?: number; comparisonType?: 'side-by-side' | 'highlight-only' }>;
   requestForMoreInfo?: string[];
   userComments?: string;
 }

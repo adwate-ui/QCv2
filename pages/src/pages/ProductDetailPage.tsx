@@ -319,10 +319,31 @@ export const ProductDetailPage: React.FC = () => {
                   
                   {isSectionExpanded && (
                     <div className="px-3 pb-3">
+                      {/* Show section-specific reference/authentic images if available */}
+                      {s.authImageIds && s.authImageIds.length > 0 && (
+                        <div className="mb-3">
+                          <h5 className="text-xs font-semibold text-gray-600 mb-2">Authentic reference images for this section:</h5>
+                          <div className="flex gap-2 flex-wrap">
+                            {s.authImageIds.map((imgId, imgIdx) => {
+                              const imgUrl = getPublicImageUrl(user!.id!, imgId);
+                              return (
+                                <div 
+                                  key={imgIdx} 
+                                  className="h-16 w-16 cursor-pointer rounded overflow-hidden hover:ring-2 hover:ring-blue-500"
+                                  onClick={() => setSelectedImage(imgUrl)}
+                                >
+                                  <img src={imgUrl} className="h-full w-full object-cover" alt={`Reference image for ${s.sectionName}`} />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      
                       {/* Show section-specific QC images if available */}
                       {s.imageIds && s.imageIds.length > 0 && (
                         <div className="mb-3">
-                          <h5 className="text-xs font-semibold text-gray-600 mb-2">Images showing this section:</h5>
+                          <h5 className="text-xs font-semibold text-gray-600 mb-2">QC inspection images for this section:</h5>
                           <div className="flex gap-2 flex-wrap">
                             {s.imageIds.map((imgId, imgIdx) => {
                               const imgUrl = getPublicImageUrl(user!.id!, imgId);
@@ -346,8 +367,17 @@ export const ProductDetailPage: React.FC = () => {
                       
                       {comparisonImgUrl && (s.grade === 'CAUTION' || s.grade === 'FAIL') && (
                         <div className="mt-3 pt-3 border-t border-gray-200">
-                          <h5 className="text-xs font-semibold text-gray-600 mb-2">Side-by-Side Comparison</h5>
-                          <p className="text-xs text-gray-500 mb-2">Reference (left) vs QC Image (right) - Discrepancies noted below</p>
+                          {sectionComparison?.comparisonType === 'side-by-side' ? (
+                            <>
+                              <h5 className="text-xs font-semibold text-gray-600 mb-2">Side-by-Side Comparison</h5>
+                              <p className="text-xs text-gray-500 mb-2">Reference (left) vs QC Image (right)</p>
+                            </>
+                          ) : (
+                            <>
+                              <h5 className="text-xs font-semibold text-gray-600 mb-2">QC Image Analysis</h5>
+                              <p className="text-xs text-gray-500 mb-2">Highlighted differences (no authentic reference available for direct comparison)</p>
+                            </>
+                          )}
                           <div className="cursor-pointer border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary/30" onClick={() => setSelectedImage(comparisonImgUrl)}>
                             <img src={comparisonImgUrl} className="w-full h-auto" alt={`Comparison for ${s.sectionName}`} />
                           </div>
