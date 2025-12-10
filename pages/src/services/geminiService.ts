@@ -764,6 +764,8 @@ Example output format:
       config
     });
 
+    // Parse the response. Gemini should return an array according to our schema.
+    // If parsing fails or response is empty, fall back to empty array (no assignments).
     const result = JSON.parse(cleanJson(response.text || '[]'));
     const mappingArray = Array.isArray(result) ? result : [];
 

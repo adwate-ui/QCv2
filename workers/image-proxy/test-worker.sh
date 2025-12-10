@@ -66,8 +66,9 @@ echo "Test 5: Proxy image endpoint"
 echo "──────────────────────────────────────────────────────────"
 TEST_IMAGE="https://via.placeholder.com/150"
 PROXY_RESPONSE=$(curl -sI "$WORKER_URL/proxy-image?url=$TEST_IMAGE")
-CONTENT_TYPE=$(echo "$PROXY_RESPONSE" | grep -i "content-type:" | cut -d' ' -f2 | tr -d '\r\n')
+CONTENT_TYPE=$(echo "$PROXY_RESPONSE" | grep -i "content-type:" | cut -d' ' -f2 | tr -d '\r\n' | tr -d ' ')
 
+# Check if content type starts with "image/"
 if [[ "$CONTENT_TYPE" == image/* ]]; then
   echo "✅ Proxy image works (content-type: $CONTENT_TYPE)"
 else
