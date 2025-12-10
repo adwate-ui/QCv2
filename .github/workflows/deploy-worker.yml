@@ -3,6 +3,7 @@ name: Deploy Cloudflare Worker
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   deploy-worker:
@@ -21,12 +22,86 @@ jobs:
           cd cloudflare-worker
           npm install
 
+      - name: Validate worker code
+        run: |
+          cd cloudflare-worker
+          node --check index.mjs
+          echo "✓ Worker code syntax is valid"
+
       - name: Publish worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
-          # Deploy from the cloudflare-worker directory to ensure wrangler.toml is used
-          # This ensures compatibility flags (nodejs_compat) are properly applied
-          # Use --config flag to explicitly specify wrangler.toml and avoid picking up root wrangler.jsonc
           cd cloudflare-worker
+          echo "Deploying worker with wrangler@4..."
           npx wrangler@4 deploy --config wrangler.toml
+          echo "✓ Worker deployment command completed"
+
+      - name: Verify worker deployment
+        run: |
+          echo "Waiting for worker to be available..."
+          
+          # Retry mechanism with exponential backoff
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+          SUCCESS=false
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES..."
+            
+            # Test health check endpoint
+            HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" https://authentiqc-worker.adwate.workers.dev/ || echo "000")
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✓ Worker is responding with 200 OK"
+              cat /tmp/response.json
+              echo ""
+              SUCCESS=true
+              break
+            else
+              echo "⚠ Attempt $((RETRY_COUNT + 1)) failed with HTTP $HTTP_CODE"
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                WAIT_TIME=$((2 ** RETRY_COUNT))
+                echo "Waiting ${WAIT_TIME}s before retry..."
+                sleep $WAIT_TIME
+              fi
+            fi
+          done
+          
+          if [ "$SUCCESS" = false ]; then
+            echo "✗ Error: Worker not responding after $MAX_RETRIES attempts"
+            echo "This indicates a deployment issue or the worker is not accessible"
+            exit 1
+          fi
+          
+          # Check for CORS headers (case-insensitive)
+          echo "Checking CORS headers..."
+          CORS=$(curl -s -I https://authentiqc-worker.adwate.workers.dev/ | tr '[:upper:]' '[:lower:]' | grep "access-control-allow-origin" || echo "")
+          if [ -n "$CORS" ]; then
+            echo "✓ CORS headers present: $CORS"
+          else
+            echo "✗ Error: CORS headers not found - worker will not function properly"
+            echo "All worker responses should include Access-Control-Allow-Origin header"
+            exit 1
+          fi
+          
+          # Test fetch-metadata endpoint - test basic functionality by checking endpoint is accessible
+          # We accept both 200 (success) and 502 (worker running but external fetch failed)
+          # The key is that we get a response FROM the worker (not a 404 from Cloudflare)
+          echo "Testing fetch-metadata endpoint..."
+          METADATA_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://authentiqc-worker.adwate.workers.dev/fetch-metadata?url=https://httpbin.org/html" || echo "000")
+          
+          # If httpbin fails, try a fallback test with a minimal query parameter
+          if [ "$METADATA_CODE" = "000" ]; then
+            echo "Primary test URL unavailable, trying fallback..."
+            METADATA_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://authentiqc-worker.adwate.workers.dev/fetch-metadata?url=https://www.cloudflare.com" || echo "000")
+          fi
+          
+          if [ "$METADATA_CODE" = "200" ] || [ "$METADATA_CODE" = "502" ] || [ "$METADATA_CODE" = "400" ]; then
+            echo "✓ fetch-metadata endpoint is accessible (HTTP $METADATA_CODE)"
+            echo "  Any non-404 response confirms the worker is handling requests"
+          else
+            echo "⚠ Warning: fetch-metadata endpoint returned HTTP $METADATA_CODE"
+          fi
