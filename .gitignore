@@ -27,5 +27,7 @@ dist-ssr
 *.unused
 wrangler.jsonc.unused
 
-# Note: wrangler.toml at root is required for Cloudflare Pages deployment
-# The cloudflare-worker directory has its own wrangler.toml for the worker
+# Worker configuration should only exist in cloudflare-worker/
+# Root wrangler.toml causes deployment conflicts with the worker
+# See CORS_404_FIX_SUMMARY.md for details
+/wrangler.toml
