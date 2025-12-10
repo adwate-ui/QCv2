@@ -4,7 +4,7 @@ This directory contains the Cloudflare Worker that provides image proxying and m
 
 ## Version
 
-Current version: **1.3.0**
+Current version: **1.4.0**
 
 This version includes:
 - Enhanced configuration documentation
@@ -52,7 +52,7 @@ cd worker
 - Worker name: **authentiqc-worker** (must match name in wrangler.toml)
 - Worker URL: **https://authentiqc-worker.adwate.workers.dev**
 - All endpoints include CORS headers: `'Access-Control-Allow-Origin': '*'`
-- All endpoints include version header: `'X-Worker-Version': '1.3.0'`
+- All endpoints include version header: `'X-Worker-Version': '1.4.0'`
 - The worker uses `nodejs_compat` compatibility flag for Node.js built-ins
 - Worker dependencies are managed in `worker/package.json`
 - Global error handler ensures CORS headers are present even on unhandled errors
@@ -124,7 +124,7 @@ curl https://authentiqc-worker.adwate.workers.dev/
 # Expected output (JSON):
 # {
 #   "name": "AuthentiqC Image Proxy Worker",
-#   "version": "1.3.0",
+#   "version": "1.4.0",
 #   "status": "ok",
 #   ...
 # }
@@ -139,7 +139,7 @@ curl "https://authentiqc-worker.adwate.workers.dev/fetch-metadata?url=https://ex
 ```
 
 Look for:
-- `X-Worker-Version: 1.3.0`
+- `X-Worker-Version: 1.4.0`
 - `Access-Control-Allow-Origin: *`
 - JSON response format (not HTML)
 

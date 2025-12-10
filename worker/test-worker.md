@@ -111,7 +111,7 @@ If automatic deployment fails or you need to deploy immediately:
 
 ```bash
 # From the repository root
-cd cloudflare-worker
+cd worker
 
 # Deploy using wrangler
 npx wrangler@4 deploy
@@ -198,7 +198,7 @@ wrangler deploy
 
 2. **Check wrangler.toml**:
    ```bash
-   cat cloudflare-worker/wrangler.toml
+   cat worker/wrangler.toml
    ```
    - Should have `name = "authentiqc-worker"`
    - Should have `main = "index.mjs"`
@@ -206,7 +206,7 @@ wrangler deploy
 
 3. **Check for syntax errors**:
    ```bash
-   node --check cloudflare-worker/index.mjs
+   node --check worker/index.mjs
    ```
    - Should exit with no output
    - If errors, fix syntax before deploying
@@ -234,7 +234,7 @@ To debug issues, view real-time logs from the deployed worker:
 
 ### Via Wrangler CLI
 ```bash
-cd cloudflare-worker
+cd worker
 npx wrangler@4 tail
 ```
 
@@ -249,4 +249,4 @@ npx wrangler@4 tail
 - [CLOUDFLARE_DEPLOYMENT_GUIDE.md](../CLOUDFLARE_DEPLOYMENT_GUIDE.md) - Complete deployment guide
 - [IMAGE_FETCHING_GUIDE.md](../IMAGE_FETCHING_GUIDE.md) - Image fetching troubleshooting
 - [WORKER_CORS_FIX_GUIDE.md](../WORKER_CORS_FIX_GUIDE.md) - Previous CORS fix documentation
-- [cloudflare-worker/README.md](README.md) - Worker-specific documentation
+- [worker/README.md](README.md) - Worker-specific documentation

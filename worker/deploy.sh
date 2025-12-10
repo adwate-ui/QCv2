@@ -88,10 +88,10 @@ if [ -n "$VERSION" ]; then
     echo "  ✓ Worker is responding"
     echo "  ✓ Version: $VERSION"
     
-    if [ "$VERSION" = "1.2.0" ]; then
-        echo "  ✓ Version is correct (1.2.0)"
+    if [ "$VERSION" = "1.4.0" ]; then
+        echo "  ✓ Version is correct (1.4.0)"
     else
-        echo "  ⚠ Version mismatch! Expected 1.2.0, got $VERSION"
+        echo "  ⚠ Version mismatch! Expected 1.4.0, got $VERSION"
         echo "    This may indicate caching or old deployment"
     fi
 else
