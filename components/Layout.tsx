@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, PlusSquare, User as UserIcon, LogOut, Zap, Brain, Bell, Loader2, CheckCircle, AlertTriangle, X } from 'lucide-react';
 import { ModelTier, ExpertMode } from '../types';
+import { WorkerHealthBadge } from './WorkerHealthIndicator';
 
 export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const { user, settings, tasks, toggleModelTier, toggleExpertMode, logout, dismissTask } = useApp();
@@ -41,7 +42,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           </span>
         </Link>
         
-        <div className="flex items-center gap-1.5 md:gap-2">
+        <div className="flex items-center gap-2 md:gap-3">
+          {/* Worker Health Status */}
+          <WorkerHealthBadge />
+          
           {/* Activity Center */}
           <div className="relative">
              <button 
