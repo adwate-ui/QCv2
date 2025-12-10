@@ -14,9 +14,13 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
+        // Expose GEMINI_API_KEY in multiple ways for compatibility across different parts of the app
+        // - process.env.API_KEY: Legacy support for older code paths
+        // - process.env.GEMINI_API_KEY: Standard Node.js style access
+        // - import.meta.env.GEMINI_API_KEY: Vite/modern bundler style access
+        // All three point to the same value to ensure consistency
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        // Also expose GEMINI_API_KEY via import.meta.env for consistency
         'import.meta.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       },
       resolve: {

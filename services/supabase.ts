@@ -24,6 +24,10 @@ const envUrl = getEnv('VITE_SUPABASE_URL');
 const envKey = getEnv('VITE_SUPABASE_ANON_KEY');
 
 // 3. Default credentials for the shared Supabase account
+// NOTE: These credentials are intentionally hardcoded for a shared, public account
+// This is a public anon key for a shared database used across all users
+// The database has Row Level Security (RLS) enabled to protect user data
+// For production deployments with sensitive data, override these with environment variables
 const DEFAULT_SUPABASE_URL = 'https://gbsgkvmjtsjpmjrpupma.supabase.co';
 const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdic2drdm1qdHNqcG1qcnB1cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwOTQ4MjQsImV4cCI6MjA4MDY3MDgyNH0.GYsoEO8qJXOsiOjK2QHYMOOI0OFAdc9KqX1SA-Z-3ac';
 

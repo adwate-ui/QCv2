@@ -181,6 +181,39 @@ This should not happen after the fix, but if it does:
 
 ## Security Notes
 
+## Security Notes
+
+### Supabase Credentials
+
+The default Supabase credentials are hardcoded for convenience:
+- **This is intentional** for a shared, public account
+- The credentials are a **public anon key** (safe to expose)
+- **Row Level Security (RLS)** is enabled on the database to protect user data
+- Each user's data is isolated via RLS policies
+
+**For production with sensitive data:**
+- Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as GitHub secrets
+- Configure proper RLS policies in Supabase
+- Consider implementing backend authentication
+
+### Gemini API Key
+
+The API key is embedded in the client-side build:
+- This is **by design** for this application
+- Client-side code can be inspected to view the key
+- For production with sensitive data, consider:
+  - Implementing a backend API to proxy Gemini requests
+  - Using rate limiting on the API key
+  - Monitoring API usage via Google AI Studio
+
+### Cloudflare Worker
+
+The worker implements security measures:
+- **SSRF Protection**: Blocks access to internal/private IP ranges
+- **URL Validation**: Validates all URLs before fetching
+- **CORS Headers**: Properly configured for frontend access
+- **Rate Limiting**: Consider enabling Cloudflare rate limiting for production
+
 1. **Supabase Credentials**: The default credentials are stored in code as they are intended for a shared account. For production use with sensitive data, consider using environment variables or a different authentication approach.
 
 2. **Gemini API Key**: The API key is embedded in the client-side build. This is by design for this application, but be aware that client-side code can be inspected. For production applications handling sensitive data, consider implementing a backend API to proxy Gemini requests.
