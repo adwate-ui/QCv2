@@ -23,7 +23,16 @@ jobs:
           node-version: 20
 
       - name: Install Dependencies
-        run: npm ci
+        # PR #63 fix: Fallback to npm install if package-lock.json is missing
+        # Prefer npm ci for deterministic builds when lockfile is present
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "Found package-lock.json, using npm ci for deterministic install"
+            npm ci
+          else
+            echo "No package-lock.json found, using npm install"
+            npm install
+          fi
 
       - name: Build Project
         run: npm run build
