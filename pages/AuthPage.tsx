@@ -42,6 +42,11 @@ export const AuthPage = () => {
             src="/logo.svg" 
             alt="AuthentiqC Logo" 
             className="w-20 h-20 md:w-24 md:h-24"
+            loading="lazy"
+            onError={(e) => {
+              // Fallback to a placeholder if logo fails to load
+              e.currentTarget.style.display = 'none';
+            }}
           />
         </div>
         <h1 className="text-xl md:text-2xl font-bold text-center text-slate-800 mb-2">

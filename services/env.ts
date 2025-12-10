@@ -125,8 +125,6 @@ export const logEnvValidation = (): void => {
   const errors = validateEnv();
   
   if (errors.length > 0) {
-    // Only log to console in production if there are critical errors
-    // Don't show environment errors if only GEMINI_API_KEY-related
     if (isProduction()) {
       // In production, log as warning instead of error for better UX
       console.warn('⚠️  Environment Configuration Warnings:');
