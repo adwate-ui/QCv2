@@ -5,7 +5,7 @@ import jpeg from 'jpeg-js';
 // Constants for retry and validation
 const BASE_RETRY_DELAY_MS = 1000;
 const MIN_VALID_IMAGE_SIZE = 100;
-const WORKER_VERSION = '1.2.0'; // Updated to fix 404 CORS issues
+const WORKER_VERSION = '1.3.0'; // Updated configuration and documentation for better deployment clarity
 
 // Helper to create standard CORS headers
 function getCorsHeaders(additionalHeaders = {}) {
