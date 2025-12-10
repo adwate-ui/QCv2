@@ -83,7 +83,7 @@ export const exportQCReportToPDF = async (
   addText(`Overall Score: ${report.overallScore}/100`, 14, true);
   
   // Grade with color
-  const gradeColor = report.overallGrade === 'PASS' ? [34, 197, 94] : 
+  const gradeColor: [number, number, number] = report.overallGrade === 'PASS' ? [34, 197, 94] : 
                      report.overallGrade === 'CAUTION' ? [251, 191, 36] : [239, 68, 68];
   doc.setTextColor(...gradeColor);
   doc.setFontSize(14);
@@ -106,7 +106,7 @@ export const exportQCReportToPDF = async (
     checkPageBreak(60);
     
     // Section header with colored bar
-    const sectionColor = section.grade === 'PASS' ? [34, 197, 94] : 
+    const sectionColor: [number, number, number] = section.grade === 'PASS' ? [34, 197, 94] : 
                          section.grade === 'CAUTION' ? [251, 191, 36] : [239, 68, 68];
     
     doc.setFillColor(...sectionColor);
