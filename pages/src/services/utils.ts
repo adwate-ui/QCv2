@@ -22,10 +22,13 @@ export const generateUUID = (): string => {
  * Helper to normalize worker URL by removing endpoint paths
  * This handles cases where VITE_IMAGE_PROXY_URL incorrectly includes endpoint paths
  * @param workerUrl The worker URL to normalize
- * @returns Normalized worker URL without endpoint paths
+ * @returns Normalized worker URL without endpoint paths, or empty string if invalid
  */
 export const normalizeWorkerUrl = (workerUrl: string): string => {
-  if (!workerUrl) return workerUrl;
+  // Handle falsy values and string representations of null/undefined
+  if (!workerUrl || workerUrl === 'undefined' || workerUrl === 'null') {
+    return '';
+  }
   
   // Remove trailing slash
   let normalized = workerUrl.replace(/\/$/, '');
