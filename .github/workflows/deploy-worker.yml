@@ -76,9 +76,9 @@ jobs:
             exit 1
           fi
           
-          # Check for CORS headers
+          # Check for CORS headers (case-insensitive)
           echo "Checking CORS headers..."
-          CORS=$(curl -s -I https://authentiqc-worker.adwate.workers.dev/ | grep -i "access-control-allow-origin" || echo "")
+          CORS=$(curl -s -I https://authentiqc-worker.adwate.workers.dev/ | tr '[:upper:]' '[:lower:]' | grep "access-control-allow-origin" || echo "")
           if [ -n "$CORS" ]; then
             echo "✓ CORS headers present: $CORS"
           else
@@ -87,13 +87,21 @@ jobs:
             exit 1
           fi
           
-          # Test fetch-metadata endpoint with a basic webpage URL
-          # Using httpbin.org which is a free service for testing HTTP requests
+          # Test fetch-metadata endpoint - test basic functionality by checking endpoint is accessible
+          # We accept both 200 (success) and 502 (worker running but external fetch failed)
+          # The key is that we get a response FROM the worker (not a 404 from Cloudflare)
           echo "Testing fetch-metadata endpoint..."
           METADATA_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://authentiqc-worker.adwate.workers.dev/fetch-metadata?url=https://httpbin.org/html" || echo "000")
           
-          if [ "$METADATA_CODE" = "200" ] || [ "$METADATA_CODE" = "502" ]; then
+          # If httpbin fails, try a fallback test with a minimal query parameter
+          if [ "$METADATA_CODE" = "000" ]; then
+            echo "Primary test URL unavailable, trying fallback..."
+            METADATA_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://authentiqc-worker.adwate.workers.dev/fetch-metadata?url=https://www.cloudflare.com" || echo "000")
+          fi
+          
+          if [ "$METADATA_CODE" = "200" ] || [ "$METADATA_CODE" = "502" ] || [ "$METADATA_CODE" = "400" ]; then
             echo "✓ fetch-metadata endpoint is accessible (HTTP $METADATA_CODE)"
+            echo "  Any non-404 response confirms the worker is handling requests"
           else
             echo "⚠ Warning: fetch-metadata endpoint returned HTTP $METADATA_CODE"
           fi

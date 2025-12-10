@@ -25,7 +25,7 @@ A 404 error **without CORS headers** means:
   3. The worker URL is incorrect
   4. There's an account/routing issue
 
-Note: If the worker WAS running, even a 404 from the worker code would include CORS headers (see `cloudflare-worker/index.mjs` line 474-486).
+Note: If the worker WAS running, even a 404 from the worker code would include CORS headers (see the 404 handler in `cloudflare-worker/index.mjs` in the `handleRequest` function).
 
 ## Quick Checks
 
