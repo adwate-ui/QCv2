@@ -82,12 +82,15 @@ jobs:
           if [ -n "$CORS" ]; then
             echo "✓ CORS headers present: $CORS"
           else
-            echo "⚠ Warning: CORS headers not found"
+            echo "✗ Error: CORS headers not found - worker will not function properly"
+            echo "All worker responses should include Access-Control-Allow-Origin header"
+            exit 1
           fi
           
-          # Test fetch-metadata endpoint with a safe test URL (the worker's own health endpoint)
+          # Test fetch-metadata endpoint with a basic webpage URL
+          # Using httpbin.org which is a free service for testing HTTP requests
           echo "Testing fetch-metadata endpoint..."
-          METADATA_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://authentiqc-worker.adwate.workers.dev/fetch-metadata?url=https://authentiqc-worker.adwate.workers.dev/" || echo "000")
+          METADATA_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://authentiqc-worker.adwate.workers.dev/fetch-metadata?url=https://httpbin.org/html" || echo "000")
           
           if [ "$METADATA_CODE" = "200" ] || [ "$METADATA_CODE" = "502" ]; then
             echo "✓ fetch-metadata endpoint is accessible (HTTP $METADATA_CODE)"
