@@ -1,0 +1,30 @@
+# ============================================================================
+# CLOUDFLARE PAGES CONFIGURATION (Frontend Static Assets)
+# ============================================================================
+# This wrangler.toml is for deploying the Pages project (frontend assets)
+# It is used ONLY when Cloudflare Pages executes "npx wrangler deploy"
+# from the dashboard deploy command.
+#
+# IMPORTANT:
+# - This configuration deploys ASSETS (static files from dist/)
+# - It does NOT deploy a Worker (no JavaScript code)
+# - Worker deployment is handled separately in cloudflare-worker/wrangler.toml
+#
+# Deployment Methods:
+# 1. PRIMARY: GitHub Actions via cloudflare/pages-action@v1 (recommended)
+# 2. FALLBACK: Cloudflare Pages dashboard deploy command (uses this config)
+#
+# DO NOT change the name from "qcv2" - it must match the Pages project name
+# ============================================================================
+
+name = "qcv2"
+compatibility_date = "2025-12-10"
+workers_dev = false
+
+# Pages Assets Configuration
+# This tells wrangler to deploy static assets from the dist directory
+[assets]
+directory = "./dist"
+
+# Ensure this doesn't conflict with the worker deployment
+# The authentiqc-worker is deployed separately from cloudflare-worker/wrangler.toml

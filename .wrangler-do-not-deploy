@@ -1,73 +1,77 @@
 # ============================================================================
-# DO NOT DEPLOY WORKER FROM ROOT DIRECTORY
+# CLOUDFLARE PAGES DEPLOY COMMAND CONFIGURATION
 # ============================================================================
 #
-# This file serves as a safeguard to prevent accidental worker deployments
-# from the repository root.
+# IMPORTANT: This repository now includes a root wrangler.toml file
 #
-# ❌ ERROR: If you're seeing this, wrangler was invoked from the wrong location!
+# ============================================================================
+# WHY wrangler.toml EXISTS IN ROOT:
+# ============================================================================
 #
-# IMPORTANT:
-# - The Cloudflare Worker MUST be deployed from the cloudflare-worker/ directory
-# - Pages deployment is handled by GitHub Actions, NOT by wrangler
-# - If you see "Missing entry-point to Worker script" error, this is why!
+# Cloudflare Pages dashboard has a "deploy command" configured that runs
+# "npx wrangler deploy" after the build completes. This cannot be easily
+# removed from the dashboard UI in some cases.
+#
+# To prevent the "Missing entry-point to Worker script" error, we provide
+# a wrangler.toml configuration that:
+# 1. Deploys static assets from the dist/ directory
+# 2. Uses name "qcv2" (Pages project name)
+# 3. Does NOT conflict with authentiqc-worker
+#
+# ============================================================================
+# DEPLOYMENT ARCHITECTURE:
+# ============================================================================
+#
+# TWO SEPARATE DEPLOYMENTS:
+#
+# 1. PAGES (Frontend):
+#    - Name: qcv2
+#    - Config: /wrangler.toml (this file's purpose)
+#    - Content: Static assets from dist/
+#    - URL: https://qcv2.pages.dev
+#    - Deployment: GitHub Actions OR Cloudflare Pages dashboard
+#
+# 2. WORKER (Image Proxy API):
+#    - Name: authentiqc-worker
+#    - Config: /cloudflare-worker/wrangler.toml
+#    - Content: JavaScript Worker code (index.mjs)
+#    - URL: https://authentiqc-worker.adwate.workers.dev
+#    - Deployment: GitHub Actions only (must run from cloudflare-worker/ dir)
 #
 # ============================================================================
 # CORRECT DEPLOYMENT METHODS:
 # ============================================================================
 #
 # FOR PAGES (Frontend):
-#   - Deployment: Automatic via GitHub Actions
-#   - Workflow: .github/workflows/deploy.yml
-#   - Method: cloudflare/pages-action@v1
-#   - NO wrangler command needed
-#   - NO deploy command in Cloudflare Pages dashboard
+#   METHOD 1 (Recommended): GitHub Actions
+#     - Workflow: .github/workflows/deploy.yml
+#     - Uses: cloudflare/pages-action@v1
+#     - Deploys: dist/ directory as Pages project
+#
+#   METHOD 2 (Fallback): Cloudflare Pages Dashboard
+#     - Build command: npm run build
+#     - Deploy command: npx wrangler deploy (uses root wrangler.toml)
+#     - Deploys: Using assets configuration in wrangler.toml
 #
 # FOR WORKER (Image Proxy API):
-#   - Deployment: Automatic via GitHub Actions
-#   - Workflow: .github/workflows/deploy-worker.yml
-#   - Manual: cd cloudflare-worker && npx wrangler@4 deploy
-#   - Config: cloudflare-worker/wrangler.toml
+#   METHOD 1 (Only supported): GitHub Actions
+#     - Workflow: .github/workflows/deploy-worker.yml
+#     - Command: cd cloudflare-worker && npx wrangler@4 deploy
+#     - Config: cloudflare-worker/wrangler.toml
 #
 # ============================================================================
-# CLOUDFLARE PAGES DASHBOARD CONFIGURATION:
+# WHAT CHANGED:
 # ============================================================================
 #
-# If you're seeing this error during Cloudflare Pages build, it means you have
-# a custom "deploy command" configured in the Cloudflare Pages dashboard.
+# BEFORE:
+# - No wrangler.toml in root
+# - Cloudflare Pages deploy command would fail with "Missing entry-point"
+# - Users had to manually remove deploy command from dashboard
 #
-# TO FIX:
-# 1. Go to Cloudflare Dashboard → Workers & Pages → qcv2
-# 2. Go to Settings → Builds & deployments
-# 3. Find "Build configurations" section
-# 4. Look for "Deploy command" field
-# 5. If it shows "npx wrangler deploy" or similar, DELETE IT
-# 6. Leave the field EMPTY
-# 7. Save settings
-# 8. Retry deployment
-#
-# WHY:
-# - GitHub Actions handles deployment automatically
-# - Custom deploy commands are not needed
-# - The deploy command runs from root where there's no wrangler config
-# - This causes the "Missing entry-point" error
-#
-# ============================================================================
-# BUILD CONFIGURATION (Cloudflare Pages Dashboard):
-# ============================================================================
-#
-# ✅ CORRECT SETTINGS:
-#   Build command:              npm run build
-#   Build output directory:     dist
-#   Deploy command:             (LEAVE EMPTY)
-#   Root directory:             /
-#
-# ============================================================================
-# FOR MORE INFORMATION:
-# ============================================================================
-#
-# See: CLOUDFLARE_PAGES_DEPLOY_COMMAND_FIX.md
-# See: PAGES_DEPLOYMENT_FIX_README.md
-# See: PREVENT_WORKER_CONFLICTS.md
+# AFTER:
+# - wrangler.toml exists in root with assets configuration
+# - Cloudflare Pages deploy command works correctly
+# - Deploys static assets from dist/ directory
+# - No conflict with worker deployment (different names)
 #
 # ============================================================================

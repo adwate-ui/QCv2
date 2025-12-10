@@ -27,9 +27,7 @@ dist-ssr
 *.unused
 wrangler.jsonc.unused
 
-# Worker configuration should only exist in cloudflare-worker/
-# Root wrangler.toml causes deployment conflicts with the worker
-# See CORS_404_FIX_SUMMARY.md for details
-# NOTE: wrangler.jsonc in root is OK - it's for Pages deployment (different name: authentiqc-app)
-#       Worker deployment explicitly uses --config wrangler.toml flag to avoid conflicts
-/wrangler.toml
+# Root wrangler.toml is NOW REQUIRED for Pages deployment
+# It configures static asset deployment when Cloudflare Pages runs "npx wrangler deploy"
+# This does NOT conflict with cloudflare-worker/wrangler.toml (different names: qcv2 vs authentiqc-worker)
+# See DEPLOY_COMMAND_FIX_FINAL.md for details
