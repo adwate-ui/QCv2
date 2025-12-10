@@ -4,7 +4,7 @@
   // IMPORTANT: This name MUST be different from the worker name to avoid conflicts
   // Pages project name: "qcv2" (matches projectName in .github/workflows/deploy.yml)
   // Worker name: "authentiqc-worker" (in cloudflare-worker/wrangler.toml)
-  "name": "qcv2",
+  "name": "authentiqc-worker",
   "compatibility_date": "2025-12-10",
   "assets": {
     "directory": "./dist"
