@@ -94,6 +94,8 @@ export interface BackgroundTask {
     settings?: AppSettings; // For ID task hydration
     allQCImageIds?: string[];
     allQCRawImages?: string[];
+    imageCount?: number; // Count of images for storage optimization
+    allQCRawImageCount?: number; // Count of raw QC images for storage optimization
   };
   preliminaryReport?: QCReport;
 }

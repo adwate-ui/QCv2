@@ -210,7 +210,7 @@ If no defects are found, return an empty discrepancies array and a high score.`
     }));
 
     return {
-      score: rawResult.score || 0,
+      qualityScore: rawResult.score || 0,
       summary: rawResult.summary || 'Failed to analyze images',
       discrepancies
     };
@@ -279,7 +279,7 @@ export async function performSmartQC(
     // Step 3: Defect Detection
     console.log('Step 3: Performing defect detection...');
     const result = await detectDefects(apiKey, comparisonUrl, qcImageUrl);
-    console.log('Defect detection complete. Score:', result.score);
+    console.log('Defect detection complete. Score:', result.qualityScore);
 
     return result;
   } catch (error) {
