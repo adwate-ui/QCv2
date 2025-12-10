@@ -3,6 +3,28 @@ name: Deploy to Cloudflare Pages
 on:
   push:
     branches: ["main"]
+    paths:
+      # Only trigger when frontend code changes
+      - "**.tsx"
+      - "**.ts"
+      - "**.jsx"
+      - "**.js"
+      - "**.css"
+      - "**.html"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.ts"
+      - "tsconfig.json"
+      - "index.html"
+      - "public/**"
+      - "components/**"
+      - "context/**"
+      - "pages/**"
+      - "services/**"
+      - "src/**"
+      - ".github/workflows/deploy.yml"
+      # Explicitly EXCLUDE worker directory
+      - "!cloudflare-worker/**"
   workflow_dispatch: # Allows manual trigger from GitHub Actions tab
 
 jobs:

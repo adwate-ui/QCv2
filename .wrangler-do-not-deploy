@@ -1,77 +1,161 @@
 # ============================================================================
-# CLOUDFLARE PAGES DEPLOY COMMAND CONFIGURATION
+# DEPLOYMENT SEPARATION: PAGES vs WORKER
 # ============================================================================
 #
-# IMPORTANT: This repository now includes a root wrangler.toml file
+# This repository has TWO completely independent deployments with path-based
+# triggering to ensure they never deploy unnecessarily.
+#
+# 1. PAGES (Frontend - qcv2):
+#    • Triggers: Only when frontend code changes (see deploy.yml paths)
+#    • Primary: GitHub Actions using cloudflare/pages-action@v1
+#    • Fallback: Cloudflare Pages dashboard (uses root wrangler.toml)
+#    • Config: wrangler.toml (name = "qcv2")
+#    • Build: npm run build → dist/
+#    • URL: https://qcv2.pages.dev
+#
+# 2. WORKER (Image Proxy API - authentiqc-worker):
+#    • Triggers: Only when cloudflare-worker/ directory changes
+#    • Deployment: GitHub Actions using wrangler CLI
+#    • Config: cloudflare-worker/wrangler.toml (name = "authentiqc-worker")
+#    • URL: https://authentiqc-worker.adwate.workers.dev
 #
 # ============================================================================
-# WHY wrangler.toml EXISTS IN ROOT:
+# CRITICAL: NAMES MUST BE DIFFERENT
 # ============================================================================
 #
-# Cloudflare Pages dashboard has a "deploy command" configured that runs
-# "npx wrangler deploy" after the build completes. This cannot be easily
-# removed from the dashboard UI in some cases.
+# The root wrangler.toml and cloudflare-worker/wrangler.toml MUST have
+# different names:
 #
-# To prevent the "Missing entry-point to Worker script" error, we provide
-# a wrangler.toml configuration that:
-# 1. Deploys static assets from the dist/ directory
-# 2. Uses name "qcv2" (Pages project name)
-# 3. Does NOT conflict with authentiqc-worker
+#   • Root wrangler.toml:              name = "qcv2"
+#   • cloudflare-worker/wrangler.toml: name = "authentiqc-worker"
 #
-# ============================================================================
-# DEPLOYMENT ARCHITECTURE:
-# ============================================================================
+# WHY THIS MATTERS:
+# • Cloudflare uses the 'name' field to determine the deployment target
+# • If both configs have the same name, one deployment OVERWRITES the other
+# • With different names, they deploy to different URLs independently
 #
-# TWO SEPARATE DEPLOYMENTS:
+# THE PROBLEM THIS SOLVES:
+# Previously, both workflows triggered on EVERY push to main, causing:
+# • Unnecessary deployments when only one component changed
+# • Potential conflicts and race conditions
+# • Wasted CI/CD minutes
 #
-# 1. PAGES (Frontend):
-#    - Name: qcv2
-#    - Config: /wrangler.toml (this file's purpose)
-#    - Content: Static assets from dist/
-#    - URL: https://qcv2.pages.dev
-#    - Deployment: GitHub Actions OR Cloudflare Pages dashboard
-#
-# 2. WORKER (Image Proxy API):
-#    - Name: authentiqc-worker
-#    - Config: /cloudflare-worker/wrangler.toml
-#    - Content: JavaScript Worker code (index.mjs)
-#    - URL: https://authentiqc-worker.adwate.workers.dev
-#    - Deployment: GitHub Actions only (must run from cloudflare-worker/ dir)
+# THE SOLUTION:
+# • Path-based triggers: Each workflow only runs when relevant files change
+# • Name separation: Different names ensure no deployment conflicts
+# • Independent validation: Each workflow validates its own configuration
 #
 # ============================================================================
-# CORRECT DEPLOYMENT METHODS:
+# PATH-BASED TRIGGERING
 # ============================================================================
 #
-# FOR PAGES (Frontend):
-#   METHOD 1 (Recommended): GitHub Actions
-#     - Workflow: .github/workflows/deploy.yml
-#     - Uses: cloudflare/pages-action@v1
-#     - Deploys: dist/ directory as Pages project
+# Pages Workflow (.github/workflows/deploy.yml):
+#   Triggers on changes to:
+#   • Frontend code: *.tsx, *.ts, *.jsx, *.js, *.css
+#   • Configuration: package.json, vite.config.ts, tsconfig.json
+#   • Directories: components/, context/, pages/, services/, src/, public/
+#   • Excludes: cloudflare-worker/** (prevents unnecessary Pages deployments)
 #
-#   METHOD 2 (Fallback): Cloudflare Pages Dashboard
-#     - Build command: npm run build
-#     - Deploy command: npx wrangler deploy (uses root wrangler.toml)
-#     - Deploys: Using assets configuration in wrangler.toml
+# Worker Workflow (.github/workflows/deploy-worker.yml):
+#   Triggers on changes to:
+#   • Worker directory: cloudflare-worker/**
+#   • Worker workflow: .github/workflows/deploy-worker.yml
 #
-# FOR WORKER (Image Proxy API):
-#   METHOD 1 (Only supported): GitHub Actions
-#     - Workflow: .github/workflows/deploy-worker.yml
-#     - Command: cd cloudflare-worker && npx wrangler@4 deploy
-#     - Config: cloudflare-worker/wrangler.toml
+# This means:
+# ✓ Changing frontend code → Only Pages deploys
+# ✓ Changing worker code → Only Worker deploys
+# ✓ Changing both → Both deploy (as they should)
+# ✓ No redundant deployments
 #
 # ============================================================================
-# WHAT CHANGED:
+# ROOT WRANGLER.TOML PURPOSE
 # ============================================================================
 #
-# BEFORE:
-# - No wrangler.toml in root
-# - Cloudflare Pages deploy command would fail with "Missing entry-point"
-# - Users had to manually remove deploy command from dashboard
+# The root wrangler.toml exists as a fallback for:
+# • Cloudflare Pages dashboard deploy commands (if configured)
+# • Manual deployments from root directory
 #
-# AFTER:
-# - wrangler.toml exists in root with assets configuration
-# - Cloudflare Pages deploy command works correctly
-# - Deploys static assets from dist/ directory
-# - No conflict with worker deployment (different names)
+# It is configured to deploy ONLY static assets (Pages project):
+# • name = "qcv2" (Pages project name)
+# • [assets] section pointing to dist/ directory
+# • workers_dev = false (this is a Pages deployment)
+#
+# Primary deployment method is still GitHub Actions via cloudflare/pages-action@v1
+#
+# ============================================================================
+# CLOUDFLARE PAGES DASHBOARD CONFIGURATION
+# ============================================================================
+#
+# Recommended configuration (GitHub Actions handles deployment):
+#
+# Build configuration:
+#   Build command:     npm run build
+#   Build output dir:  dist
+#   Root directory:    /
+#
+# Deploy configuration:
+#   Deploy command:    [LEAVE EMPTY for GitHub Actions]
+#                     OR
+#                     npx wrangler deploy [if using dashboard deployment]
+#
+# If using dashboard deploy command:
+# • The root wrangler.toml will be used
+# • It will deploy to Pages project "qcv2" (not Workers)
+# • It will NOT conflict with worker deployment (different names)
+#
+# ============================================================================
+# DEPLOYMENT WORKFLOWS
+# ============================================================================
+#
+# Pages Deployment:
+#   Workflow: .github/workflows/deploy.yml
+#   Trigger:  Push to main + frontend code changes
+#   Steps:    Validate → Build → Deploy via cloudflare/pages-action@v1
+#   Primary:  Uses cloudflare/pages-action@v1 (not wrangler)
+#   Fallback: Root wrangler.toml (for dashboard deployments)
+#
+# Worker Deployment:
+#   Workflow: .github/workflows/deploy-worker.yml
+#   Trigger:  Push to main + worker code changes
+#   Steps:    Validate → Deploy via wrangler
+#   Config:   cloudflare-worker/wrangler.toml
+#
+# ============================================================================
+# VALIDATION
+# ============================================================================
+#
+# Both workflows run a validation script to ensure separation:
+#   .github/scripts/validate-wrangler-configs.sh
+#
+# This script:
+#   ✓ Ensures worker wrangler.toml exists with correct name
+#   ✓ If root wrangler config exists, ensures it has a different name
+#   ✓ Prevents name conflicts that would cause deployment overwrites
+#   ✓ Validates expected names: "qcv2" for Pages, "authentiqc-worker" for Worker
+#
+# To validate manually:
+#   bash .github/scripts/validate-wrangler-configs.sh
+#
+# ============================================================================
+# TROUBLESHOOTING
+# ============================================================================
+#
+# Worker not deploying:
+#   → Check if cloudflare-worker/ files changed in your commit
+#   → Path-based trigger means worker only deploys when its code changes
+#   → Use workflow_dispatch to manually trigger deployment if needed
+#
+# Pages deploying when it shouldn't:
+#   → Check .github/workflows/deploy.yml paths configuration
+#   → Ensure your changes didn't touch frontend files
+#
+# Both deploying unnecessarily:
+#   → This is expected if changes affect both (e.g., package.json)
+#   → Workflow file changes trigger their respective workflows
+#
+# Name conflict errors:
+#   → Run: bash .github/scripts/validate-wrangler-configs.sh
+#   → Ensure root wrangler.toml has name = "qcv2"
+#   → Ensure cloudflare-worker/wrangler.toml has name = "authentiqc-worker"
 #
 # ============================================================================
