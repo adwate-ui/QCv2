@@ -864,9 +864,11 @@ export const runQCAnalysis = async (
     Output requirements:
     - Break down analysis by sections. Use these STANDARD SECTION NAMES consistently: ${standardSections}
     - CRITICAL: Always use the exact section names provided above. Do NOT create variations like "luxury watches" vs "luxury timepiece" or "Exterior Leather" vs "Leather Exterior". Use the standard names exactly as given.
+    - IMPORTANT: Only create sections where you have sufficient data from the QC images to make meaningful observations. If a section cannot be analyzed due to lack of visibility or insufficient images, do NOT create that section.
+    - For sections that cannot be analyzed due to insufficient data, add them to the "requestForMoreInfo" array with a description of what images or information would be needed. Example: "Clear close-up images of the Crown & Pushers to inspect winding mechanism and crown guards"
     - Use bullet points in observations.
-    - Provide a specific score on a scale of 0-100 and a grade for each section and for the overall assessment.
-    - Include a "requestForMoreInfo" section suggesting what additional images or information could improve the analysis.
+    - Provide a specific score on a scale of 0-100 and a grade for each section that you DO analyze.
+    - Include a "requestForMoreInfo" section listing sections that could not be analyzed and what additional images or information would improve the analysis.
     - ALWAYS return your response as a valid, raw JSON object conforming to the QCReport schema. Do NOT wrap it in markdown backticks.`
     });
 
@@ -1051,8 +1053,10 @@ export const runFinalQCAnalysis = async (
     - Incorporate the user's feedback into your final analysis.
     - Use these STANDARD SECTION NAMES consistently: ${standardSections}
     - CRITICAL: Always use the exact section names provided above to maintain consistency with the preliminary report.
-    - Provide a specific score (0-100) and grade for each section and Overall.
-    - Include a "requestForMoreInfo" section suggesting what additional images or information could improve the analysis.
+    - IMPORTANT: Only create sections where you have sufficient data from the QC images to make meaningful observations. If a section cannot be analyzed due to lack of visibility or insufficient images, do NOT create that section.
+    - For sections that cannot be analyzed due to insufficient data, add them to the "requestForMoreInfo" array with a description of what images or information would be needed.
+    - Provide a specific score (0-100) and grade for each section that you DO analyze.
+    - Include a "requestForMoreInfo" section listing sections that could not be analyzed and what additional images or information would improve the analysis.
     - ALWAYS return your response as a valid, raw JSON object conforming to the QCReport schema.`
   });
 
