@@ -645,6 +645,139 @@ export const identifyProduct = async (
   }
 };
 
+/**
+ * Assigns QC images to specific sections based on AI analysis
+ * This function analyzes which images are most relevant to each section
+ * and creates a mapping for better visualization and comparison
+ * 
+ * @param apiKey - Gemini API key
+ * @param profile - Product profile
+ * @param qcImages - Array of QC images (base64 or URLs)
+ * @param qcImageIds - Array of corresponding image IDs
+ * @param sections - Array of section names from the QC report
+ * @param modelTier - Model tier to use (FAST recommended for this task)
+ * @returns Promise resolving to a mapping of section names to image ID arrays
+ */
+export const assignImagesToSections = async (
+  apiKey: string,
+  profile: ProductProfile,
+  qcImages: string[],
+  qcImageIds: string[],
+  sections: string[],
+  modelTier: ModelTier = ModelTier.FAST
+): Promise<Record<string, string[]>> => {
+  if (qcImages.length === 0 || sections.length === 0) {
+    return {};
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const { model } = getModelConfig(modelTier);
+
+    const parts: any[] = [];
+
+    // Add instruction
+    parts.push({
+      text: `You are analyzing QC inspection images of a ${profile.brand} ${profile.name} (${profile.category}).
+
+Your task is to determine which QC inspection image(s) show which section(s) of the product.
+
+Available Sections: ${sections.join(', ')}
+
+INSTRUCTIONS:
+1. Look at each QC inspection image carefully
+2. Determine which section(s) of the product are visible in each image
+3. An image may show multiple sections (e.g., an image showing the full watch shows dial, case, bracelet, etc.)
+4. Return a mapping of section names to arrays of image indices (0-based)
+
+Example output format:
+{
+  "Dial & Hands": [0, 2],
+  "Case & Bezel": [0, 1, 2],
+  "Bracelet/Strap": [1, 3]
+}
+
+Now analyze the following QC inspection images:`
+    });
+
+    // Add QC Images with index labels
+    for (const [idx, img] of qcImages.entries()) {
+      parts.push({
+        text: `\nQC IMAGE ${idx}:`
+      });
+      let processedImgData;
+      if (isURL(img)) {
+        processedImgData = await fetchAndEncodeImage(img);
+      } else {
+        processedImgData = img.split(',')[1] || img;
+      }
+      parts.push({
+        inlineData: { mimeType: 'image/jpeg', data: processedImgData }
+      });
+    }
+
+    parts.push({
+      text: `\n\nReturn ONLY a JSON object mapping section names to arrays of image indices. Use EXACTLY the section names provided above.`
+    });
+
+    const schema: Schema = {
+      type: Type.OBJECT,
+      properties: {
+        mapping: {
+          type: Type.OBJECT,
+          description: 'Mapping of section names to arrays of image indices'
+        }
+      },
+      required: ['mapping']
+    };
+
+    const config: any = {
+      systemInstruction: 'You are an expert at analyzing product images and determining which parts of a product are visible in each image.',
+      responseMimeType: "application/json",
+      responseSchema: schema,
+      safetySettings: [
+        {
+          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH
+        }
+      ]
+    };
+
+    if (modelTier === ModelTier.FAST) {
+      config.thinkingConfig = { thinkingBudget: 8192 };
+    }
+
+    const response = await ai.models.generateContent({
+      model,
+      contents: { parts },
+      config
+    });
+
+    const result = JSON.parse(cleanJson(response.text || '{"mapping":{}}'));
+    const mapping = result.mapping || {};
+
+    // Convert image indices to image IDs
+    const sectionToImageIds: Record<string, string[]> = {};
+    for (const [sectionName, indices] of Object.entries(mapping)) {
+      if (Array.isArray(indices)) {
+        sectionToImageIds[sectionName] = indices
+          .map((idx: any) => {
+            const index = typeof idx === 'number' ? idx : parseInt(String(idx), 10);
+            return isNaN(index) || index < 0 || index >= qcImageIds.length ? null : qcImageIds[index];
+          })
+          .filter(Boolean) as string[];
+      }
+    }
+
+    log.info(`[Image Assignment] Assigned ${qcImages.length} images to ${Object.keys(sectionToImageIds).length} sections`);
+    return sectionToImageIds;
+  } catch (error) {
+    log.error('[Image Assignment] Failed to assign images to sections:', error);
+    // Return empty mapping on error - the system will still work without it
+    return {};
+  }
+};
+
 export const runQCAnalysis = async (
   apiKey: string,
   profile: ProductProfile,
@@ -818,6 +951,26 @@ export const runQCAnalysis = async (
       }));
     }
     
+    // Assign images to sections using AI
+    log.info('[QC Analysis] Assigning images to sections...');
+    const sectionNames = result.sections.map((s: any) => s.sectionName);
+    const imageAssignments = await assignImagesToSections(
+      apiKey,
+      profile,
+      qcImages,
+      qcImageIds,
+      sectionNames,
+      ModelTier.FAST // Use fast model for image assignment
+    );
+    
+    // Add image assignments to sections
+    if (result.sections && Object.keys(imageAssignments).length > 0) {
+      result.sections = result.sections.map((section: any) => ({
+        ...section,
+        imageIds: imageAssignments[section.sectionName] || []
+      }));
+    }
+    
     return {
       id: generateUUID(),
       generatedAt: Date.now(),
@@ -927,6 +1080,28 @@ export const runFinalQCAnalysis = async (
       ...section,
       sectionName: normalizeSectionName(section.sectionName, profile.category || 'default')
     }));
+  }
+  
+  // Assign images to sections using AI (reuse assignments from preliminary report if available)
+  if (result.sections) {
+    log.info('[Final QC Analysis] Assigning images to sections...');
+    const sectionNames = result.sections.map((s: any) => s.sectionName);
+    const imageAssignments = await assignImagesToSections(
+      apiKey,
+      profile,
+      qcImages,
+      qcImageIds,
+      sectionNames,
+      ModelTier.FAST // Use fast model for image assignment
+    );
+    
+    // Add image assignments to sections
+    if (Object.keys(imageAssignments).length > 0) {
+      result.sections = result.sections.map((section: any) => ({
+        ...section,
+        imageIds: imageAssignments[section.sectionName] || []
+      }));
+    }
   }
   
   return {
