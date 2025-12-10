@@ -319,6 +319,27 @@ export const ProductDetailPage: React.FC = () => {
                   
                   {isSectionExpanded && (
                     <div className="px-3 pb-3">
+                      {/* Show section-specific QC images if available */}
+                      {s.imageIds && s.imageIds.length > 0 && (
+                        <div className="mb-3">
+                          <h5 className="text-xs font-semibold text-gray-600 mb-2">Images showing this section:</h5>
+                          <div className="flex gap-2 flex-wrap">
+                            {s.imageIds.map((imgId, imgIdx) => {
+                              const imgUrl = getPublicImageUrl(user!.id!, imgId);
+                              return (
+                                <div 
+                                  key={imgIdx} 
+                                  className="h-16 w-16 cursor-pointer rounded overflow-hidden hover:ring-2 hover:ring-primary/50"
+                                  onClick={() => setSelectedImage(imgUrl)}
+                                >
+                                  <img src={imgUrl} className="h-full w-full object-cover" alt={`QC image for ${s.sectionName}`} />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      
                       <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
                         {observations.map((o, i) => (<li key={i}>{o}</li>))}
                       </ul>

@@ -5,7 +5,8 @@ import jpeg from 'jpeg-js';
 // Constants for retry and validation
 const BASE_RETRY_DELAY_MS = 1000;
 const MIN_VALID_IMAGE_SIZE = 100;
-const WORKER_VERSION = '1.3.0'; // Updated configuration and documentation for better deployment clarity
+const WORKER_VERSION = '1.4.0'; // Updated with improved browser-like headers and 403 retry
+const BROWSER_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 // Helper to create standard CORS headers
 function getCorsHeaders(additionalHeaders = {}) {
@@ -136,15 +137,18 @@ async function handleRequest(request) {
         const fetchOpts = {
           redirect: 'follow',
           headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; AuthentiQC/1.0; +https://example.com)',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+            'User-Agent': BROWSER_USER_AGENT,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Cache-Control': 'no-cache'
           }
         };
         
         const resp = await fetch(target, fetchOpts);
         if (!resp.ok) {
           // Check if this is a retriable error
-          const isRetriable = resp.status >= 500 || resp.status === 429;
+          const isRetriable = resp.status >= 500 || resp.status === 429 || resp.status === 403;
           
           if (isRetriable && attempt < maxRetries) {
             // Wait before retrying (exponential backoff)
@@ -331,19 +335,27 @@ async function handleRequest(request) {
         const uaOverride = url.searchParams.get('ua');
         const acceptOverride = url.searchParams.get('accept');
 
+        // Use realistic browser headers to avoid being blocked
+        // Google and other sites often block non-browser user agents
         const fetchOpts = {
           redirect: 'follow',
           headers: {
-            'User-Agent': uaOverride || 'Mozilla/5.0 (compatible; AuthentiQC/1.0; +https://example.com)',
-            'Accept': acceptOverride || 'image/*,*/*;q=0.8',
-            'Referer': refererOverride || targetUrl.origin
+            'User-Agent': uaOverride || BROWSER_USER_AGENT,
+            'Accept': acceptOverride || 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Referer': refererOverride || targetUrl.origin,
+            'Sec-Fetch-Dest': 'image',
+            'Sec-Fetch-Mode': 'no-cors',
+            'Sec-Fetch-Site': 'cross-site',
+            'Cache-Control': 'no-cache'
           }
         };
 
         const resp = await fetch(target, fetchOpts);
         if (!resp.ok) {
           // Check if this is a retriable error
-          const isRetriable = resp.status >= 500 || resp.status === 429;
+          const isRetriable = resp.status >= 500 || resp.status === 429 || resp.status === 403;
           
           if (isRetriable && attempt < maxRetries) {
             // Wait before retrying (exponential backoff)

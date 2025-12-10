@@ -6,6 +6,7 @@ import { identifyProduct, runQCAnalysis, runFinalQCAnalysis, searchSectionSpecif
 import { generateUUID, calculateTaskEstimate, normalizeWorkerUrl } from '../services/utils';
 import { generateComparisonImage } from '../services/comparisonImageService';
 import { TIME, STORAGE, QC_GRADING } from '../services/constants';
+import { log } from '../services/logger';
 
 interface AppContextType {
   user: User | null;
@@ -533,12 +534,23 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           
           // Step 3: Select the most relevant QC image for this section
           let qcImageSrc: string;
-          if (section.imageIds && section.imageIds.length > 0 && allQCRawImages.length > 0) {
-            // Section has specific image references (future compatibility)
-            qcImageSrc = allQCRawImages[0];
+          if (section.imageIds && section.imageIds.length > 0) {
+            // Section has specific image assignments from AI - use the first assigned image
+            const firstImageId = section.imageIds[0];
+            const imageIndex = report.qcImageIds.indexOf(firstImageId);
+            
+            if (imageIndex >= 0 && imageIndex < allQCRawImages.length) {
+              qcImageSrc = allQCRawImages[imageIndex];
+              log.debug(`[Comparison] Using section-assigned image ${imageIndex} for ${section.sectionName}`);
+            } else {
+              // Fallback if image ID not found
+              qcImageSrc = allQCRawImages[sectionIndex % allQCRawImages.length];
+              log.debug(`[Comparison] Image ID not found, using fallback for ${section.sectionName}`);
+            }
           } else if (allQCRawImages.length > 1) {
-            // Distribute images across sections using round-robin for better coverage
+            // Fallback: Distribute images across sections using round-robin for better coverage
             qcImageSrc = allQCRawImages[sectionIndex % allQCRawImages.length];
+            log.debug(`[Comparison] No section assignment, using round-robin for ${section.sectionName}`);
           } else {
             // Use first (and likely only) QC image
             qcImageSrc = allQCRawImages[0];
