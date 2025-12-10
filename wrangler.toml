@@ -21,7 +21,7 @@
 #       The actual Pages deployment is handled by GitHub Actions.
 # ============================================================================
 
-name = "qcv2"
+name = "authentiqc-worker"
 compatibility_date = "2025-12-10"
 
 # Static assets configuration for Pages deployment
