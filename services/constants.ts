@@ -65,6 +65,7 @@ export const API = {
   GEMINI_TIMEOUT: 60000, // 60 seconds
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000,
+  IMAGE_FETCH_TIMEOUT: 15000, // 15 seconds for image fetching
 } as const;
 
 // UI Constants

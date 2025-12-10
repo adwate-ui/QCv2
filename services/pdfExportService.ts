@@ -2,6 +2,10 @@ import { jsPDF } from 'jspdf';
 import { QCReport, Product } from '../types';
 import { db } from './db';
 
+// PDF Layout Constants
+const PDF_MARGIN = 20;
+const PDF_COMPARISON_IMAGE_HEIGHT = 80;
+
 /**
  * Export a QC report as a PDF document
  * @param report - QC report to export
@@ -17,8 +21,25 @@ export const exportQCReportToPDF = async (
   let yPos = 20;
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 20;
+  const margin = PDF_MARGIN;
   const contentWidth = pageWidth - 2 * margin;
+  
+  // Helper to load and add images to PDF
+  const addImageToPDF = async (imageData: string, x: number, y: number, width: number, height: number) => {
+    try {
+      // Ensure we have a data URL
+      const dataUrl = imageData.startsWith('data:') ? imageData : `data:image/jpeg;base64,${imageData}`;
+      doc.addImage(dataUrl, 'JPEG', x, y, width, height);
+    } catch (error) {
+      console.error('Error adding image to PDF:', error);
+      // Draw a placeholder rectangle if image fails to load
+      doc.setFillColor(240, 240, 240);
+      doc.rect(x, y, width, height, 'F');
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text('Image not available', x + width / 2, y + height / 2, { align: 'center' });
+    }
+  };
 
   // Helper to check if we need a new page
   const checkPageBreak = (requiredSpace: number) => {
@@ -122,6 +143,38 @@ export const exportQCReportToPDF = async (
     doc.setTextColor(0, 0, 0);
     
     yPos += 12;
+
+    // Add side-by-side comparison image if available
+    if (report.sectionComparisons && report.sectionComparisons[section.sectionName]) {
+      const comparison = report.sectionComparisons[section.sectionName];
+      
+      // Check if we need space for the comparison image
+      const imageHeight = PDF_COMPARISON_IMAGE_HEIGHT;
+      checkPageBreak(imageHeight + 10);
+      
+      try {
+        // Load the comparison image (which contains both reference and QC images side-by-side)
+        if (comparison.diffImageId) {
+          const comparisonImageData = await db.getImage(comparison.diffImageId);
+          if (comparisonImageData) {
+            // Add label
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(100, 100, 100);
+            doc.text('Comparison:', margin + 5, yPos);
+            yPos += 5;
+            
+            // Add the comparison image (full width)
+            const imageWidth = contentWidth;
+            await addImageToPDF(comparisonImageData, margin, yPos, imageWidth, imageHeight);
+            yPos += imageHeight + 5;
+          }
+        }
+      } catch (error) {
+        console.error(`Error adding comparison image for ${section.sectionName}:`, error instanceof Error ? error.message : String(error));
+        // Continue without the image - the text observations will still be included
+      }
+    }
 
     // Observations
     if (section.observations && section.observations.length > 0) {

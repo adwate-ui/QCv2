@@ -3,7 +3,7 @@ import { User, Product, AppSettings, ModelTier, ExpertMode, BackgroundTask, QCBa
 import { db } from '../services/db';
 import { supabase } from '../services/supabase';
 import { identifyProduct, runQCAnalysis, runFinalQCAnalysis, searchSectionSpecificImages } from '../services/geminiService';
-import { generateUUID, calculateTaskEstimate } from '../services/utils';
+import { generateUUID, calculateTaskEstimate, normalizeWorkerUrl } from '../services/utils';
 import { generateComparisonImage } from '../services/comparisonImageService';
 import { TIME, STORAGE, QC_GRADING } from '../services/constants';
 
@@ -602,26 +602,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const isJsonResponse = (response: Response): boolean => {
     const contentType = response.headers.get('content-type');
     return contentType !== null && contentType.toLowerCase().includes('application/json');
-  };
-
-  // Helper function to normalize the worker URL by removing endpoint paths if they exist
-  // This handles cases where VITE_IMAGE_PROXY_URL incorrectly includes endpoint paths
-  const normalizeWorkerUrl = (workerUrl: string): string => {
-    if (!workerUrl) return workerUrl;
-    
-    // Remove trailing slash
-    let normalized = workerUrl.replace(/\/$/, '');
-    
-    // Remove common endpoint paths if they exist
-    const endpointPaths = ['/fetch-metadata', '/proxy-image', '/proxy'];
-    for (const path of endpointPaths) {
-      if (normalized.endsWith(path)) {
-        normalized = normalized.slice(0, -path.length);
-        break;
-      }
-    }
-    
-    return normalized;
   };
 
   // Helper function to fetch images from a product URL with retry logic and better error handling

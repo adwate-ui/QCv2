@@ -60,8 +60,20 @@ const normalizeCategory = (category: string, existingCategories?: string[]): str
   // Convert to lowercase and trim
   let normalized = category.toLowerCase().trim();
   
-  // Remove common variations and standardize
-  // Map plural to singular
+  // Step 1: Remove common prefixes/modifiers to get base category
+  // This handles cases like "luxury watch", "designer bag", "vintage watch", etc.
+  const modifiersToRemove = [
+    'luxury', 'designer', 'vintage', 'authentic', 'genuine', 'premium',
+    'high-end', 'classic', 'modern', 'new', 'used', 'pre-owned'
+  ];
+  
+  for (const modifier of modifiersToRemove) {
+    // Remove modifier if it's at the start followed by space
+    const pattern = new RegExp(`^${modifier}\\s+`, 'gi');
+    normalized = normalized.replace(pattern, '');
+  }
+  
+  // Step 2: Map plural to singular
   const pluralToSingular: Record<string, string> = {
     'watches': 'watch',
     'bags': 'bag',
@@ -85,41 +97,44 @@ const normalizeCategory = (category: string, existingCategories?: string[]): str
     'earrings': 'earring',
   };
   
-  // Normalize common category variations
+  // Apply plural to singular mapping
+  if (pluralToSingular[normalized]) {
+    normalized = pluralToSingular[normalized];
+  }
+  
+  // Step 3: Normalize common category variations to simpler, more common terms
+  // Note: Plurals like 'wristwatches' and 'timepieces' are already handled by Step 2,
+  // so we only need the singular forms here
   const categoryAliases: Record<string, string> = {
+    // Watch variations - all map to simple "watch"
     'wristwatch': 'watch',
     'timepiece': 'watch',
-    'luxury watch': 'watch',
-    'luxury watches': 'watch',
-    'designer watch': 'watch',
-    'designer watches': 'watch',
-    'smart watch': 'smartwatch',
-    'smart watches': 'smartwatch',
+    'smartwatch': 'watch',
+    'smart watch': 'watch',
+    // Bag variations - all map to simple "bag"
     'handbag': 'bag',
     'purse': 'bag',
     'tote': 'bag',
     'clutch': 'bag',
     'satchel': 'bag',
     'backpack': 'bag',
+    // Shoe variations - all map to simple "shoe"
     'sneaker': 'shoe',
     'trainer': 'shoe',
     'boot': 'shoe',
     'sandal': 'shoe',
+    // Electronics
     'smartphone': 'phone',
     'mobile phone': 'phone',
     'cell phone': 'phone',
     'ipad': 'tablet',
     'laptop': 'computer',
     'desktop': 'computer',
+    // Other
     'eyewear': 'sunglass',
     'jewellery': 'jewelry',
     'jewel': 'jewelry',
   };
-  
-  // Apply plural to singular mapping
-  if (pluralToSingular[normalized]) {
-    normalized = pluralToSingular[normalized];
-  }
   
   // Apply alias mapping
   if (categoryAliases[normalized]) {

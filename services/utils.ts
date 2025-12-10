@@ -1,3 +1,5 @@
+import { API } from './constants';
+
 /**
  * Generate a UUID v4 identifier
  * Uses crypto.randomUUID if available (Secure Contexts), falls back to Math.random
@@ -14,6 +16,30 @@ export const generateUUID = (): string => {
     var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+};
+
+/**
+ * Helper to normalize worker URL by removing endpoint paths
+ * This handles cases where VITE_IMAGE_PROXY_URL incorrectly includes endpoint paths
+ * @param workerUrl The worker URL to normalize
+ * @returns Normalized worker URL without endpoint paths
+ */
+export const normalizeWorkerUrl = (workerUrl: string): string => {
+  if (!workerUrl) return workerUrl;
+  
+  // Remove trailing slash
+  let normalized = workerUrl.replace(/\/$/, '');
+  
+  // Remove common endpoint paths if they exist
+  const endpointPaths = ['/fetch-metadata', '/proxy-image', '/proxy'];
+  for (const path of endpointPaths) {
+    if (normalized.endsWith(path)) {
+      normalized = normalized.slice(0, -path.length);
+      break;
+    }
+  }
+  
+  return normalized;
 };
 
 /**
@@ -49,28 +75,67 @@ export const parseObservations = (text?: string): string[] => {
 /**
  * Fetches an image from a URL and converts it to a Base64 string.
  * This is necessary because Gemini API's inlineData expects raw Base64 image data, not a URL.
+ * Uses the Cloudflare Worker proxy to bypass CORS restrictions when fetching from external URLs.
  * @param url The URL of the image to fetch.
  * @returns A Promise that resolves to the Base64 string of the image, or rejects if fetching fails.
  */
 export const fetchAndEncodeImage = async (url: string): Promise<string> => {
   try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image from ${url}: ${response.statusText}`);
+    let fetchUrl = url;
+    
+    // Check if this is an external URL (not a data URL or blob URL)
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      // Use the image proxy to bypass CORS restrictions
+      const proxyBaseRaw = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
+      
+      if (proxyBaseRaw) {
+        const proxyBase = normalizeWorkerUrl(proxyBaseRaw);
+        
+        // Build proxy URL
+        const proxyUrl = new URL('/proxy-image', proxyBase);
+        proxyUrl.searchParams.set('url', url);
+        fetchUrl = proxyUrl.toString();
+        
+        console.log(`[fetchAndEncodeImage] Using proxy for external URL: ${url}`);
+      } else {
+        console.warn(`[fetchAndEncodeImage] VITE_IMAGE_PROXY_URL not configured. Attempting direct fetch for: ${url}`);
+        console.warn('[fetchAndEncodeImage] This may fail due to CORS restrictions. Please configure VITE_IMAGE_PROXY_URL.');
+      }
     }
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          resolve(reader.result.split(',')[1]); // Extract Base64 part
-        } else {
-          reject(new Error("Failed to read image as Data URL."));
-        }
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
+    
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API.IMAGE_FETCH_TIMEOUT);
+    
+    try {
+      const response = await fetch(fetchUrl, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image from ${url}: ${response.status} ${response.statusText}`);
+      }
+      
+      const blob = await response.blob();
+      
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result.split(',')[1]); // Extract Base64 part
+          } else {
+            reject(new Error("Failed to read image as Data URL."));
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      throw fetchError;
+    }
   } catch (error) {
     console.error("Error fetching and encoding image:", error);
     throw error;
