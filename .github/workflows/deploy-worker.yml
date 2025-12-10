@@ -41,7 +41,7 @@ jobs:
         run: |
           cd worker
           echo "Deploying worker with wrangler@4..."
-          npx wrangler@4 deploy --config wrangler.toml
+          npx wrangler@4 deploy
           echo "✓ Worker deployment command completed"
           echo ""
           echo "Expected worker URL: https://authentiqc-worker.adwate.workers.dev"
