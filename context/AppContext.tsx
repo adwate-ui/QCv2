@@ -667,7 +667,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       
       if (!metadataResponse.ok) {
         // Try to parse error response as JSON if content-type is appropriate
-        let errorData = { error: 'Unknown error' };
+        let errorData: { error?: string; message?: string } = { error: 'Unknown error' };
         if (isJsonResponse(metadataResponse)) {
           try {
             errorData = await metadataResponse.json();

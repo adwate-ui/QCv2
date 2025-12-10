@@ -236,9 +236,9 @@ const cleanJson = (text: string) => {
 const STANDARD_SECTION_NAMES = QC_SECTIONS;
 
 // Constants for string similarity comparison (imported from constants)
-const MIN_TOKEN_LENGTH = SIMILARITY.MIN_TOKEN_LENGTH;
-const SIMILARITY_THRESHOLD = SIMILARITY.THRESHOLD;
-const CATEGORY_SIMILARITY_THRESHOLD = SIMILARITY.CATEGORY_THRESHOLD;
+const MIN_TOKEN_LENGTH: number = SIMILARITY.MIN_TOKEN_LENGTH;
+const SIMILARITY_THRESHOLD: number = SIMILARITY.THRESHOLD;
+const CATEGORY_SIMILARITY_THRESHOLD: number = SIMILARITY.CATEGORY_THRESHOLD;
 
 // Calculate similarity between two strings (0-1)
 const stringSimilarity = (str1: string, str2: string): number => {
