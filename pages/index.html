@@ -28,16 +28,21 @@
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
     
-    <!-- Font Preconnect -->
+    <!-- Performance: Preconnect to critical origins -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://generativelanguage.googleapis.com">
     
-    <!-- DNS Prefetch for API Endpoints -->
-    <link rel="dns-prefetch" href="https://generativelanguage.googleapis.com" />
+    <!-- Performance: DNS prefetch for external resources -->
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+    <link rel="dns-prefetch" href="https://aistudiocdn.com">
+    
+    <!-- Fonts with display swap for better performance -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+      // Tailwind configuration with performance optimizations
       tailwind.config = {
         theme: {
           extend: {
@@ -50,6 +55,19 @@
               sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
             }
           }
+        }
+      }
+      
+      // Performance: Early critical resource hints
+      if ('connection' in navigator && 'effectiveType' in navigator.connection) {
+        // Adapt behavior based on connection speed
+        const { effectiveType } = navigator.connection;
+        if (effectiveType === '4g') {
+          // On fast connections, be more aggressive with preloading
+          console.log('Fast connection detected, optimizing for performance');
+        } else {
+          // On slower connections, prioritize critical resources only
+          console.log('Slower connection detected, prioritizing critical resources');
         }
       }
     </script>

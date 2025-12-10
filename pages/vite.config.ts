@@ -46,6 +46,8 @@ export default defineConfig(({ mode }) => {
               'gemini-vendor': ['@google/genai'],
               'supabase-vendor': ['@supabase/supabase-js'],
               'image-vendor': ['pixelmatch', 'pngjs', 'jpeg-js'],
+              // PDF export separated for code splitting
+              'pdf-vendor': ['jspdf'],
             },
             // Asset naming for better caching
             chunkFileNames: isProd ? 'assets/js/[name]-[hash].js' : 'assets/js/[name].js',
@@ -57,10 +59,14 @@ export default defineConfig(({ mode }) => {
         // esbuild minify options for production
         esbuild: isProd ? {
           drop: ['console', 'debugger'], // Remove console and debugger statements
+          legalComments: 'none', // Remove comments for smaller bundle
         } : undefined,
         
         // Optimize chunk size
         chunkSizeWarningLimit: 1000, // Warn for chunks larger than 1000kb
+        
+        // Improve asset inlining threshold
+        assetsInlineLimit: 4096, // Inline assets smaller than 4kb
       },
       
       // Optimize dependencies
