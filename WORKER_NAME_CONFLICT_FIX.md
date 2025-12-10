@@ -14,7 +14,7 @@ The repository has two Wrangler configuration files:
 1. **Root `wrangler.jsonc`** - Used for Cloudflare Pages deployment of the React app
 2. **`cloudflare-worker/wrangler.toml`** - Used for Cloudflare Worker deployment
 
-After the last merge (PR #65), the root `wrangler.jsonc` was configured with:
+After a recent merge, the root `wrangler.jsonc` was incorrectly configured with:
 ```jsonc
 {
   "name": "authentiqc-worker",  // ❌ WRONG - Same as worker name

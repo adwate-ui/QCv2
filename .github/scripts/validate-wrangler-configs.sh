@@ -7,18 +7,30 @@ set -e
 
 echo "Validating wrangler configurations..."
 
-# Extract name from root wrangler.jsonc
+# Extract name from root wrangler.jsonc (supports JSONC with comments)
 ROOT_NAME=""
 if [ -f "wrangler.jsonc" ]; then
-  ROOT_NAME=$(grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' wrangler.jsonc | sed 's/"name"[[:space:]]*:[[:space:]]*"\([^"]*\)"/\1/')
-  echo "✓ Found root wrangler.jsonc with name: $ROOT_NAME"
+  # Use grep/sed to handle JSONC (JSON with comments)
+  ROOT_NAME=$(grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' wrangler.jsonc | sed 's/"name"[[:space:]]*:[[:space:]]*"\([^"]*\)"/\1/' || echo "")
+  
+  if [ -n "$ROOT_NAME" ]; then
+    echo "✓ Found root wrangler.jsonc with name: $ROOT_NAME"
+  else
+    echo "⚠ Warning: Could not extract name from wrangler.jsonc"
+  fi
 fi
 
-# Extract name from cloudflare-worker/wrangler.toml
+# Extract name from cloudflare-worker/wrangler.toml (supports both quoted and unquoted values)
 WORKER_NAME=""
 if [ -f "cloudflare-worker/wrangler.toml" ]; then
-  WORKER_NAME=$(grep '^name[[:space:]]*=' cloudflare-worker/wrangler.toml | sed 's/name[[:space:]]*=[[:space:]]*"\([^"]*\)"/\1/')
-  echo "✓ Found worker wrangler.toml with name: $WORKER_NAME"
+  # Handle both quoted and unquoted TOML values
+  WORKER_NAME=$(grep '^name[[:space:]]*=' cloudflare-worker/wrangler.toml | sed 's/^name[[:space:]]*=[[:space:]]*[\"]*\([^\"]*\)[\"]*$/\1/' | tr -d ' ' || echo "")
+  
+  if [ -n "$WORKER_NAME" ]; then
+    echo "✓ Found worker wrangler.toml with name: $WORKER_NAME"
+  else
+    echo "⚠ Warning: Could not extract name from wrangler.toml"
+  fi
 fi
 
 # Validate names are different
