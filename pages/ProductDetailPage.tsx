@@ -3,9 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { getPublicImageUrl } from '../services/db';
 import { Product, QCReport, ModelTier, ExpertMode, BackgroundTask } from '../types';
-import { Loader2, CheckCircle, XCircle, Upload, History, ExternalLink, X, ZoomIn, Zap, Brain, Activity, Trash2, Info, ChevronDown, Clock } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Upload, History, ExternalLink, X, ZoomIn, Zap, Brain, Activity, Trash2, Info, ChevronDown, Clock, FileDown } from 'lucide-react';
 import { parseObservations, formatEstimatedTime } from '../services/utils';
 import { Toggle } from '../components/Toggle';
+import { exportQCReportToPDF } from '../services/pdfExportService';
 
 // Debounce hook to prevent flickering
 const useDebounce = <T,>(value: T, delay: number): T => {
@@ -153,7 +154,23 @@ export const ProductDetailPage: React.FC = () => {
     const [imgs, setImgs] = useState<string[]>([]);
     const [comparisonImgs, setComparisonImgs] = useState<string[]>([]);
     const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
+    const [exportingPDF, setExportingPDF] = useState(false);
     const { user } = useApp();
+
+    const handleExportPDF = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!product || !user?.id) return;
+      
+      setExportingPDF(true);
+      try {
+        await exportQCReportToPDF(report, product, user.id);
+      } catch (error) {
+        console.error('Failed to export PDF:', error);
+        alert('Failed to export PDF. Please try again.');
+      } finally {
+        setExportingPDF(false);
+      }
+    };
 
     useEffect(() => {
       if (!report.qcImageIds || report.qcImageIds.length === 0 || !user?.id) return;
@@ -207,18 +224,29 @@ export const ProductDetailPage: React.FC = () => {
                 <span className="bg-purple-100 text-purple-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">{report.expertMode}</span>
             </div>
           </div>
-          <div className="text-right">
-            {report.overallScore !== undefined && report.overallGrade ? (() => {
-              const cls = gradeToClasses(report.overallGrade);
-              return (
-                <div className={`inline-flex items-center gap-3 px-3 py-2 rounded ${cls.bg} ${cls.text} font-bold`}>
-                  <div className="text-xl">{report.overallScore}/100</div>
-                  <div className="text-sm">{report.overallGrade}</div>
-                </div>
-              );
-            })() : (
-              <div className="text-sm text-gray-500">Score pending...</div>
-            )}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleExportPDF}
+              disabled={exportingPDF}
+              className="flex items-center gap-2 px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors disabled:opacity-50"
+              title="Export as PDF"
+            >
+              {exportingPDF ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
+              <span>Export PDF</span>
+            </button>
+            <div className="text-right">
+              {report.overallScore !== undefined && report.overallGrade ? (() => {
+                const cls = gradeToClasses(report.overallGrade);
+                return (
+                  <div className={`inline-flex items-center gap-3 px-3 py-2 rounded ${cls.bg} ${cls.text} font-bold`}>
+                    <div className="text-xl">{report.overallScore}/100</div>
+                    <div className="text-sm">{report.overallGrade}</div>
+                  </div>
+                );
+              })() : (
+                <div className="text-sm text-gray-500">Score pending...</div>
+              )}
+            </div>
           </div>
         </div>
 
