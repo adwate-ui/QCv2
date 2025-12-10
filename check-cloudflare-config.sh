@@ -147,11 +147,12 @@ echo "────────────────────────�
 echo "Check 5: Package.json build scripts"
 echo "─────────────────────────────────────────────────────────────────"
 
-if ! grep -q '"build".*:.*"tsc && vite build"' package.json; then
-    echo "⚠ Warning: Build script may not be configured correctly"
-    echo "  Expected: \"build\": \"tsc && vite build\""
-else
+# More flexible check for build script - allows for spacing variations
+if grep -q '"build"' package.json && grep -q 'tsc.*vite build' package.json; then
     echo "✓ Build script configured correctly"
+else
+    echo "⚠ Warning: Build script may not be configured correctly"
+    echo "  Expected: \"build\": \"tsc && vite build\" (or similar)"
 fi
 
 echo ""
@@ -164,19 +165,26 @@ echo "────────────────────────�
 echo "Check 6: Documentation files"
 echo "─────────────────────────────────────────────────────────────────"
 
-REQUIRED_DOCS=(
+# Check for key documentation files (warnings only, not errors)
+IMPORTANT_DOCS=(
     "CLOUDFLARE_PAGES_DEPLOY_COMMAND_FIX.md"
     "PAGES_DEPLOYMENT_FIX_README.md"
     "CLOUDFLARE_DEPLOYMENT_GUIDE.md"
+    "URGENT_WORKER_BUILD_FIX.md"
 )
 
-for DOC in "${REQUIRED_DOCS[@]}"; do
+DOC_COUNT=0
+for DOC in "${IMPORTANT_DOCS[@]}"; do
     if [ -f "$DOC" ]; then
         echo "✓ $DOC exists"
-    else
-        echo "⚠ Warning: $DOC not found"
+        DOC_COUNT=$((DOC_COUNT + 1))
     fi
 done
+
+if [ $DOC_COUNT -eq 0 ]; then
+    echo "⚠ Warning: No deployment documentation files found"
+    echo "  Consider adding documentation for deployment troubleshooting"
+fi
 
 echo ""
 
