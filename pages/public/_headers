@@ -20,7 +20,9 @@
   Cache-Control: public, max-age=31536000, immutable
   Access-Control-Allow-Origin: *
 
-# Logo and favicon with shorter cache (in case of updates)
+# Logo and favicon with shorter cache (in case of branding updates)
+# These are intentionally cached for 1 day instead of 1 year to allow
+# for quick branding updates without requiring cache busting
 /logo.svg
   Cache-Control: public, max-age=86400
   
