@@ -143,7 +143,7 @@ async function handleRequest(request: Request): Promise<Response> {
  * Worker entry point
  */
 export default {
-  async fetch(request: Request, env: unknown, ctx: unknown): Promise<Response> {
+  async fetch(request: Request, _env: unknown, _ctx: unknown): Promise<Response> {
     try {
       return await handleRequest(request);
     } catch (error) {

@@ -10,7 +10,7 @@
  */
 
 import * as esbuild from 'esbuild';
-import { readdir } from 'fs/promises';
+import { readdir, copyFile, mkdir } from 'fs/promises';
 import { join, basename, extname } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -25,6 +25,9 @@ async function buildWorkers() {
   console.log('🔨 Building Cloudflare Workers...\n');
 
   try {
+    // Ensure output directory exists
+    await mkdir(OUTPUT_DIR, { recursive: true });
+
     // Find all worker entry points
     const files = await readdir(WORKERS_DIR);
     const workerFiles = files.filter(file => 
@@ -48,6 +51,16 @@ async function buildWorkers() {
 
       console.log(`📦 Building ${file}...`);
 
+      // Special handling for .mjs files (already in ES module format for workers)
+      // These often use nodejs_compat and should be copied as-is
+      if (file.endsWith('.mjs')) {
+        console.log(`  ℹ️  Copying .mjs file as-is (nodejs_compat worker)`);
+        await copyFile(inputPath, join(OUTPUT_DIR, file));
+        console.log(`  ✅ Copied to dist/workers/${file}`);
+        continue;
+      }
+
+      // Build TypeScript workers with esbuild
       await esbuild.build({
         entryPoints: [inputPath],
         bundle: true,
@@ -58,7 +71,7 @@ async function buildWorkers() {
         minify: true,
         sourcemap: false,
         treeShaking: true,
-        // Cloudflare Workers have Node.js compatibility layer
+        // Cloudflare Workers environment
         conditions: ['worker', 'browser'],
         mainFields: ['browser', 'module', 'main'],
         logLevel: 'info',
