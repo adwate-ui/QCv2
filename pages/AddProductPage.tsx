@@ -235,6 +235,11 @@ export const AddProductPage = () => {
 
       await addProduct(newProduct);
       
+      // Dismiss the identification task from recent list now that it's been added to inventory
+      if (reviewingTaskId) {
+        dismissTask(reviewingTaskId);
+      }
+      
       // Only clear storage and navigate on success
       localStorage.removeItem(STORAGE_KEY);
       navigate('/inventory');
