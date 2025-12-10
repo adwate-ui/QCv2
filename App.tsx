@@ -1,16 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { Layout } from './components/Layout';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthPage } from './pages/AuthPage';
-import { InventoryPage } from './pages/InventoryPage';
-import { ProductDetailPage } from './pages/ProductDetailPage';
-import { AddProductPage } from './pages/AddProductPage';
-import { UserProfilePage } from './pages/UserProfilePage';
-import { QCInspectionDemo } from './src/pages/QCInspectionDemo';
 import { isSupabaseConfigured, saveSupabaseConfig } from './services/supabase';
+import { logEnvValidation } from './services/env';
 import { Database, ArrowRight, AlertCircle } from 'lucide-react';
 import { Input } from './components/Input';
+
+// Validate environment on app initialization
+logEnvValidation();
+
+// Lazy load pages for better performance
+const InventoryPage = lazy(() => import('./pages/InventoryPage').then(m => ({ default: m.InventoryPage })));
+const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage').then(m => ({ default: m.ProductDetailPage })));
+const AddProductPage = lazy(() => import('./pages/AddProductPage').then(m => ({ default: m.AddProductPage })));
+const UserProfilePage = lazy(() => import('./pages/UserProfilePage').then(m => ({ default: m.UserProfilePage })));
+const QCInspectionDemo = lazy(() => import('./src/pages/QCInspectionDemo').then(m => ({ default: m.QCInspectionDemo })));
+
+// Loading fallback component
+const PageLoader = () => (
+  <div className="h-screen flex items-center justify-center bg-slate-50">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+      <div className="text-slate-400">Loading...</div>
+    </div>
+  </div>
+);
 
 const SetupPage = () => {
   const [url, setUrl] = useState('');
@@ -93,35 +110,37 @@ const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
 const AppContent = () => {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<Navigate to="/inventory" replace />} />
-        
-        <Route path="/inventory" element={
-          <ProtectedRoute>
-            <InventoryPage />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/inventory/new" element={
-          <ProtectedRoute>
-            <AddProductPage />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/inventory/:id" element={
-          <ProtectedRoute>
-            <ProductDetailPage />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/user" element={
-          <ProtectedRoute>
-            <UserProfilePage />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/qc-demo" element={<QCInspectionDemo />} />
-      </Routes>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/inventory" replace />} />
+          
+          <Route path="/inventory" element={
+            <ProtectedRoute>
+              <InventoryPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/inventory/new" element={
+            <ProtectedRoute>
+              <AddProductPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/inventory/:id" element={
+            <ProtectedRoute>
+              <ProductDetailPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/user" element={
+            <ProtectedRoute>
+              <UserProfilePage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/qc-demo" element={<QCInspectionDemo />} />
+        </Routes>
+      </Suspense>
     </Router>
   );
 };
@@ -132,8 +151,10 @@ export default function App() {
   }
 
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }

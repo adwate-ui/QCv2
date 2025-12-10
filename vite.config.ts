@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
+    const isProd = mode === 'production';
+    
     return {
       base: '/',
       server: {
@@ -19,6 +21,53 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
-      }
+      },
+      build: {
+        // Production optimizations
+        target: 'es2022',
+        outDir: 'dist',
+        assetsDir: 'assets',
+        sourcemap: !isProd, // Source maps only in development
+        minify: isProd ? 'terser' : false,
+        cssMinify: isProd,
+        
+        // Chunk splitting for better caching
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              // Vendor chunks
+              'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+              'gemini-vendor': ['@google/genai'],
+              'supabase-vendor': ['@supabase/supabase-js'],
+              'image-vendor': ['pixelmatch', 'pngjs', 'jpeg-js'],
+            },
+            // Asset naming for better caching
+            chunkFileNames: isProd ? 'assets/js/[name]-[hash].js' : 'assets/js/[name].js',
+            entryFileNames: isProd ? 'assets/js/[name]-[hash].js' : 'assets/js/[name].js',
+            assetFileNames: isProd ? 'assets/[ext]/[name]-[hash][extname]' : 'assets/[ext]/[name][extname]',
+          }
+        },
+        
+        // Terser options for production
+        terserOptions: isProd ? {
+          compress: {
+            drop_console: true, // Remove console.log in production
+            drop_debugger: true,
+            pure_funcs: ['console.log', 'console.debug'], // Remove specific console methods
+          },
+          format: {
+            comments: false, // Remove comments
+          }
+        } : undefined,
+        
+        // Optimize chunk size
+        chunkSizeWarningLimit: 1000, // Warn for chunks larger than 1000kb
+      },
+      
+      // Optimize dependencies
+      optimizeDeps: {
+        include: ['react', 'react-dom', 'react-router-dom'],
+        exclude: [],
+      },
     };
 });

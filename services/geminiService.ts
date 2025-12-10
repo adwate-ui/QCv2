@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type, Schema, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { AppSettings, ExpertMode, ModelTier, ProductProfile, QCReport } from "../types";
 import { generateUUID, fetchAndEncodeImage } from "./utils";
+import { SIMILARITY, QC_SECTIONS } from "./constants";
 
 const isURL = (str: string): boolean => {
   try {
@@ -231,21 +232,13 @@ const cleanJson = (text: string) => {
   return text;
 };
 
-// Standard section names for different product categories
-const STANDARD_SECTION_NAMES: Record<string, string[]> = {
-  'watches': ['Dial & Hands', 'Case & Bezel', 'Crown & Pushers', 'Bracelet/Strap', 'Clasp', 'Movement', 'Case Back', 'Packaging', 'Documentation'],
-  'bags': ['Exterior Material', 'Interior Lining', 'Hardware & Zippers', 'Stitching', 'Handles/Straps', 'Logo & Stamps', 'Dust Bag', 'Authenticity Card', 'Packaging'],
-  'shoes': ['Upper Material', 'Sole', 'Stitching', 'Logo & Branding', 'Interior', 'Laces', 'Box & Packaging', 'Authenticity Card'],
-  'electronics': ['Display/Screen', 'Body/Casing', 'Ports & Buttons', 'Camera/Lens', 'Software/Interface', 'Accessories', 'Packaging', 'Documentation'],
-  'jewelry': ['Metal Quality', 'Gemstones', 'Clasp/Closure', 'Engravings', 'Finish/Polish', 'Chain/Band', 'Packaging', 'Certificate'],
-  'clothing': ['Fabric Quality', 'Stitching', 'Labels & Tags', 'Hardware', 'Construction', 'Finish', 'Packaging'],
-  'default': ['Overall Quality', 'Materials', 'Construction', 'Hardware', 'Branding', 'Finish', 'Packaging', 'Documentation']
-};
+// Standard section names for different product categories (imported from constants)
+const STANDARD_SECTION_NAMES = QC_SECTIONS;
 
-// Constants for string similarity comparison
-const MIN_TOKEN_LENGTH = 2;
-const SIMILARITY_THRESHOLD = 0.7;
-const CATEGORY_SIMILARITY_THRESHOLD = 0.75;
+// Constants for string similarity comparison (imported from constants)
+const MIN_TOKEN_LENGTH = SIMILARITY.MIN_TOKEN_LENGTH;
+const SIMILARITY_THRESHOLD = SIMILARITY.THRESHOLD;
+const CATEGORY_SIMILARITY_THRESHOLD = SIMILARITY.CATEGORY_THRESHOLD;
 
 // Calculate similarity between two strings (0-1)
 const stringSimilarity = (str1: string, str2: string): number => {
