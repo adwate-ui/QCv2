@@ -93,7 +93,7 @@ export const calculateTaskEstimate = (
   sectionCount: number = 0,
   failedSections: number = 0
 ): number => {
-  // Import constants dynamically to avoid circular dependency
+  // Constants defined inline to avoid circular dependency with constants.ts
   const TASK_ESTIMATES = {
     IDENTIFY_FAST: 15,
     IDENTIFY_DETAILED: 30,

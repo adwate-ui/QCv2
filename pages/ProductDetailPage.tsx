@@ -140,6 +140,12 @@ export const ProductDetailPage: React.FC = () => {
     setFeedbackTask(null);
   };
   
+  const resetImageViewer = () => {
+    setSelectedImage(null);
+    setImageZoom(1);
+    setImageRotation(0);
+  };
+  
   const handleDelete = async () => {
     if (!product) return;
     if (!confirm('Delete this product and all related data?')) return;
@@ -360,11 +366,7 @@ export const ProductDetailPage: React.FC = () => {
   return (
     <div className="pb-20 relative">
       {selectedImage && (
-        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4" onClick={() => {
-          setSelectedImage(null);
-          setImageZoom(1);
-          setImageRotation(0);
-        }}>
+        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4" onClick={resetImageViewer}>
           <button className="absolute top-4 right-4 text-white p-2 hover:bg-white/10 rounded-full z-10">
             <X size={28} />
           </button>
