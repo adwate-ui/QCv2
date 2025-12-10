@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
-import { QCAnalysisResult, BoundingBox, Discrepancy } from "../../types";
-import { fetchAndEncodeImage } from "../../services/utils";
+import { QCAnalysisResult, BoundingBox, Discrepancy } from "../types";
+import { fetchAndEncodeImage } from "./utils";
 
 interface FeatureIdentificationResult {
   isDetail: boolean;

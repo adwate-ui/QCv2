@@ -1,47 +1,32 @@
 {
-  "name": "authentiqc",
-  "private": true,
+  "name": "authentiqc-monorepo",
   "version": "0.0.0",
+  "private": true,
   "type": "module",
+  "description": "AuthentiqC - AI-Powered Quality Control & Product Authentication",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm run dev --workspace=pages",
     "build": "npm run build:pages && npm run build:workers",
-    "build:pages": "tsc --project tsconfig.pages.json && node build-pages.mjs",
-    "build:workers": "node build-workers.mjs",
-    "preview": "vite preview",
-    "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
-    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "build:pages": "npm run build --workspace=pages",
+    "build:workers": "echo 'Workers are deployed directly using wrangler'",
+    "preview": "npm run preview --workspace=pages",
+    "typecheck": "npm run typecheck --workspace=pages",
+    "lint": "npm run lint --workspace=pages",
+    "lint:fix": "npm run lint:fix --workspace=pages",
     "format": "prettier --write \"**/*.{ts,tsx,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,css,md}\"",
-    "type-check": "npm run typecheck",
-    "typecheck": "tsc --project tsconfig.pages.json --noEmit && tsc --project workers/tsconfig.json --noEmit && tsc --project packages/shared/tsconfig.json --noEmit"
+    "deploy:pages": "cd pages && npm run build && npx wrangler pages deploy dist --project-name=qcv2",
+    "deploy:workers": "cd workers && ./deploy-all.sh"
   },
-  "dependencies": {
-    "react": "^19.2.1",
-    "react-dom": "^19.2.1",
-    "@google/genai": "^1.31.0",
-    "lucide-react": "^0.555.0",
-    "react-router-dom": "^7.10.1",
-    "@supabase/supabase-js": "^2.45.0",
-    "pixelmatch": "^5.3.0",
-    "pngjs": "^6.0.0",
-    "jpeg-js": "^0.4.3",
-    "jspdf": "^2.5.2"
-  },
+  "workspaces": [
+    "pages",
+    "workers/image-proxy"
+  ],
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241127.0",
-    "@types/node": "^22.14.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@typescript-eslint/eslint-plugin": "^7.0.0",
-    "@typescript-eslint/parser": "^7.0.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "esbuild": "^0.24.2",
-    "eslint": "^8.57.0",
-    "eslint-plugin-react": "^7.33.0",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "prettier": "^3.2.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "prettier": "^3.2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/adwate-ui/QCv2.git"
   }
 }

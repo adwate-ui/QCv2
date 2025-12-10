@@ -20,84 +20,71 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
+          cache-dependency-path: |
+            pages/package-lock.json
+            workers/image-proxy/package-lock.json
 
-      - name: Install Dependencies
+      - name: Install Root Dependencies
+        run: npm install
+
+      - name: Install Pages Dependencies
+        working-directory: pages
         run: |
           if [ -f package-lock.json ]; then
-            echo "Found package-lock.json, using npm ci for deterministic install"
             npm ci
           else
-            echo "No package-lock.json found, using npm install"
             npm install
           fi
 
-      - name: Type Check All Projects
+      - name: Install Worker Dependencies
+        working-directory: workers/image-proxy
         run: |
-          echo "Running type checks for all TypeScript projects..."
-          echo ""
-          echo "📦 Type checking shared package..."
-          npm run typecheck
-          echo ""
-          echo "✅ All type checks passed!"
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
-      - name: Build Workers
-        run: |
-          echo "Building Cloudflare Workers..."
-          npm run build:workers
-          echo ""
-          echo "✅ Workers built successfully!"
-          echo ""
-          ls -lah dist/workers/ || echo "No workers output found"
+      - name: Type Check Pages
+        working-directory: pages
+        run: npm run typecheck
 
       - name: Build Pages
-        run: |
-          echo "Building Cloudflare Pages (Frontend)..."
-          npm run build:pages
-          echo ""
-          echo "✅ Pages built successfully!"
-          echo ""
-          ls -lah dist/ | head -20 || echo "No pages output found"
+        working-directory: pages
+        run: npm run build
 
-      - name: Verify Build Outputs
+      - name: Verify Pages Build Output
         run: |
-          echo "Verifying build outputs..."
-          echo ""
-          
-          # Check that dist directory exists
-          if [ ! -d "dist" ]; then
-            echo "❌ Error: dist/ directory not found"
+          echo "Verifying pages build output..."
+          if [ ! -d "pages/dist" ]; then
+            echo "❌ Error: pages/dist/ directory not found"
             exit 1
           fi
           
-          echo "✅ dist/ directory exists"
-          
-          # Check for workers output
-          if [ -d "dist/workers" ]; then
-            WORKER_COUNT=$(find dist/workers -name "*.js" | wc -l)
-            echo "✅ Found $WORKER_COUNT worker bundle(s) in dist/workers/"
-            find dist/workers -name "*.js" -exec echo "  - {}" \;
-          else
-            echo "ℹ️  No dist/workers/ directory (no workers to build)"
-          fi
-          
-          echo ""
-          
-          # Check for pages output (HTML files)
-          HTML_COUNT=$(find dist -name "*.html" | wc -l)
+          HTML_COUNT=$(find pages/dist -name "*.html" | wc -l)
           if [ $HTML_COUNT -gt 0 ]; then
-            echo "✅ Found $HTML_COUNT HTML file(s) in dist/"
+            echo "✅ Found $HTML_COUNT HTML file(s) in pages/dist/"
           else
-            echo "⚠️  Warning: No HTML files found in dist/"
+            echo "⚠️  Warning: No HTML files found in pages/dist/"
+            exit 1
           fi
           
-          # Check for JS bundles
-          JS_COUNT=$(find dist -name "*.js" -not -path "dist/workers/*" | wc -l)
-          if [ $JS_COUNT -gt 0 ]; then
-            echo "✅ Found $JS_COUNT JavaScript bundle(s) in dist/"
+          echo "✅ Pages build verification complete!"
+
+      - name: Verify Workers Structure
+        run: |
+          echo "Verifying workers structure..."
+          if [ ! -f "workers/image-proxy/index.mjs" ]; then
+            echo "❌ Error: workers/image-proxy/index.mjs not found"
+            exit 1
           fi
           
-          echo ""
-          echo "✅ Build verification complete!"
+          if [ ! -f "workers/image-proxy/wrangler.toml" ]; then
+            echo "❌ Error: workers/image-proxy/wrangler.toml not found"
+            exit 1
+          fi
+          
+          echo "✅ Workers structure verification complete!"
 
       - name: Summary
         if: always()
@@ -108,8 +95,7 @@ jobs:
           echo ""
           echo "  ✓ Dependencies installed"
           echo "  ✓ Type checks completed"
-          echo "  ✓ Workers built"
           echo "  ✓ Pages built"
-          echo "  ✓ Build outputs verified"
+          echo "  ✓ Workers structure verified"
           echo ""
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

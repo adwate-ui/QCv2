@@ -1,89 +1,218 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# AuthentiqC - AI-Powered Quality Control & Product Authentication
 
-# Run and deploy your AI Studio app
+Professional quality control and product authentication platform powered by AI. Identify products, perform detailed QC inspections, and ensure authenticity with advanced image analysis.
 
-This contains everything you need to run your app locally.
+## Repository Structure
 
-View your app in AI Studio: https://ai.studio/apps/drive/1pShI4np7Qntn9U9CTnSQ8BNbO-mnukbd
+This repository is organized as a monorepo with complete separation between frontend and backend:
 
-## Run Locally
+```
+/
+├── pages/              # Frontend application (Cloudflare Pages)
+│   ├── src/           # React application source code
+│   ├── public/        # Static assets
+│   ├── index.html     # HTML entry point
+│   ├── vite.config.ts # Vite configuration
+│   ├── package.json   # Frontend dependencies
+│   └── README.md      # Frontend documentation
+│
+├── workers/           # Backend workers (Cloudflare Workers)
+│   ├── image-proxy/   # Image proxy worker
+│   │   ├── index.mjs
+│   │   ├── wrangler.toml
+│   │   └── package.json
+│   └── README.md      # Workers documentation
+│
+├── .github/           # GitHub Actions workflows
+│   └── workflows/
+│       ├── ci.yml            # Build and type check
+│       ├── deploy-pages.yml  # Deploy frontend
+│       └── deploy-workers.yml # Deploy workers
+│
+├── package.json       # Root package.json (workspace management)
+└── README.md          # This file
+```
 
-**Prerequisites:**  Node.js
+## Quick Start
 
-1. Install dependencies:
-   `npm install`
-2. Set up environment variables:
-   - Copy `.env.example` to `.env.local`
-   - Set the `GEMINI_API_KEY` in `.env.local` to your Gemini API key
-   - Set the `VITE_IMAGE_PROXY_URL` to your deployed Cloudflare Worker URL (required for fetching images from product URLs)
-3. Run the app:
-   `npm run dev`
+### Prerequisites
+- Node.js 20 or higher
+- npm (comes with Node.js)
 
-## Cloudflare Deployment
+### Installation
 
-The app requires both a Cloudflare Pages deployment (for the frontend) and a Cloudflare Worker deployment (for the image proxy).
+```bash
+# Install all dependencies (root + workspaces)
+npm install
 
-### 🚨 Build Error? "Missing entry-point to Worker script"?
+# Or install individually
+cd pages && npm install
+cd workers/image-proxy && npm install
+```
 
-**See:** [CLOUDFLARE_PAGES_DEPLOY_COMMAND_FIX.md](CLOUDFLARE_PAGES_DEPLOY_COMMAND_FIX.md) - **CRITICAL FIX** for worker deployment failure
+### Development
 
-**Issue:** The Cloudflare Pages dashboard has a custom "deploy command" that runs `npx wrangler deploy` from the root directory. This causes the error because there's no wrangler config at the root (which is correct).
+```bash
+# Start frontend development server
+npm run dev
+# Or: cd pages && npm run dev
 
-**Solution:** Remove the deploy command from Cloudflare Pages dashboard settings:
-1. Go to Dashboard → Workers & Pages → qcv2 → Settings → Builds & deployments
-2. Find "Deploy command" field and **DELETE IT** (leave it empty)
-3. Save and retry deployment
+# Frontend runs at http://localhost:3000
+```
 
-**Verify Configuration:** Run `./check-cloudflare-config.sh` to validate your setup
+### Building
 
-**Also see:**
-- [PAGES_DEPLOYMENT_FIX_README.md](PAGES_DEPLOYMENT_FIX_README.md) - Background on Pages deployment
-- [CLOUDFLARE_DASHBOARD_SETTINGS.md](CLOUDFLARE_DASHBOARD_SETTINGS.md) - Reference for correct dashboard configuration
+```bash
+# Build everything
+npm run build
 
-### 🚨 CORS Error? Worker Not Working?
+# Build only pages
+npm run build:pages
+# Or: cd pages && npm run build
 
-**See:** [CORS_FIX_NOW.md](CORS_FIX_NOW.md) - 2-minute quick fix guide
+# Workers don't need building (deployed as-is)
+```
 
-If you're seeing CORS errors, the worker is likely not deployed. This is the #1 issue.
+## Deployment
 
-### Quick Start (Local Development)
+### Frontend (Cloudflare Pages)
 
-To deploy the worker for local development:
-1. Install Wrangler CLI: `npm install -g wrangler`
-2. Login to Cloudflare: `wrangler login`
-3. Deploy the worker: `cd cloudflare-worker && wrangler deploy`
-4. Copy the worker URL and set it as `VITE_IMAGE_PROXY_URL` in your `.env.local`
-5. Verify: `./verify-worker-setup.sh`
+**Root Directory:** `pages`
+**Build Command:** `npm run build`
+**Build Output:** `dist`
 
-### Production Deployment
+**Environment Variables:**
+- `GEMINI_API_KEY` - Google Gemini API key
+- `VITE_IMAGE_PROXY_URL` - URL to image proxy worker
 
-For complete step-by-step instructions on deploying to Cloudflare Pages (including automatic deployment via GitHub Actions), see:
+**Deploy:**
+```bash
+cd pages
+npm run build
+npx wrangler pages deploy dist --project-name=qcv2
+```
 
-📖 **[Cloudflare Deployment Guide](CLOUDFLARE_DEPLOYMENT_GUIDE.md)**
+Or use GitHub Actions (automatically deploys on push to `main`).
 
-This guide covers:
-- Deploying the Cloudflare Worker (image proxy)
-- Deploying the frontend to Cloudflare Pages
-- Setting up environment variables correctly
-- Configuring GitHub Actions for automatic deployment
-- Troubleshooting common deployment issues
+### Workers (Cloudflare Workers)
 
-**Important:** The `VITE_IMAGE_PROXY_URL` environment variable must be set during the build process for the image fetching feature to work in production.
+**Image Proxy Worker:**
 
-### Troubleshooting
+**Working Directory:** `workers/image-proxy`
 
-- **CORS errors**: See [CORS_FIX_NOW.md](CORS_FIX_NOW.md)
-- **Detailed diagnosis**: See [URGENT_FIX_CORS_ISSUE.md](URGENT_FIX_CORS_ISSUE.md)
-- **Verify setup**: Run `./verify-worker-setup.sh`
+**Deploy:**
+```bash
+cd workers/image-proxy
+npx wrangler@4 deploy
+```
 
-### Troubleshooting Image Fetching
+Or use GitHub Actions (automatically deploys on push to `main`).
 
-If you're having issues with fetching images from product URLs, see the [Image Fetching Troubleshooting Guide](IMAGE_FETCHING_GUIDE.md) for:
-- How the multi-stage image fetching works
-- Common issues and solutions
-- Monitoring and debugging tips
-- Best practices for reliable results
+## Environment Variables
 
-**December 2025 Update:** If you encounter **404 errors with no CORS headers** when accessing worker endpoints, see [WORKER_DEPLOYMENT_FIX.md](WORKER_DEPLOYMENT_FIX.md) for the solution. This was caused by missing dependencies during worker deployment and has been fixed.
+### Pages (.env.local in `/pages`)
+```
+GEMINI_API_KEY=your_gemini_api_key_here
+VITE_IMAGE_PROXY_URL=https://authentiqc-worker.your-subdomain.workers.dev
+VITE_SUPABASE_URL=your_supabase_url (optional)
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key (optional)
+```
+
+### Workers
+Workers use Cloudflare environment variables (set via wrangler or dashboard).
+
+## Cloudflare Configuration
+
+### Pages Project Settings
+- **Project Name:** qcv2
+- **Build Command:** `npm run build`
+- **Build Output Directory:** `dist`
+- **Root Directory:** `pages`
+- **Environment Variables:** Set `GEMINI_API_KEY` and `VITE_IMAGE_PROXY_URL`
+
+### Worker Settings
+- **Worker Name:** authentiqc-worker
+- **Worker Directory:** `workers/image-proxy`
+- No build step required (deployed as-is)
+
+## Project Structure Details
+
+### Pages (Frontend)
+- **Framework:** React 19 + TypeScript
+- **Build Tool:** Vite 6
+- **Routing:** React Router DOM
+- **AI:** Google Gemini API
+- **Database:** Supabase (optional, fallback to in-memory)
+- **Styling:** Tailwind CSS (CDN)
+
+### Workers (Backend)
+- **Platform:** Cloudflare Workers
+- **Features:** Image proxy with CORS, retry logic, SSRF protection
+
+## Development Scripts
+
+### Root
+```bash
+npm run dev          # Start frontend dev server
+npm run build        # Build everything
+npm run build:pages  # Build only pages
+npm run typecheck    # Type check pages
+npm run lint         # Lint pages
+npm run format       # Format all code
+```
+
+### Pages (in `/pages`)
+```bash
+npm run dev       # Development server
+npm run build     # Production build
+npm run preview   # Preview production build
+npm run typecheck # TypeScript check
+npm run lint      # ESLint
+npm run format    # Prettier format
+```
+
+### Workers (in `/workers/image-proxy`)
+```bash
+npx wrangler@4 deploy  # Deploy worker
+npx wrangler@4 dev     # Local development
+```
+
+## GitHub Actions Workflows
+
+### CI Workflow (`ci.yml`)
+Runs on every push and PR:
+- Installs dependencies
+- Type checks pages
+- Builds pages
+- Verifies build outputs and worker structure
+
+### Pages Deployment (`deploy-pages.yml`)
+Runs on push to `main` when pages files change:
+- Builds frontend
+- Deploys to Cloudflare Pages
+
+### Workers Deployment (`deploy-workers.yml`)
+Runs on push to `main` when worker files change:
+- Deploys image proxy worker to Cloudflare Workers
+
+## Contributing
+
+1. Make changes in the appropriate directory (`pages/` or `workers/`)
+2. Test locally
+3. Commit and push
+4. GitHub Actions will run CI checks
+5. On merge to `main`, deployments happen automatically
+
+## Documentation
+
+- **Frontend:** See `/pages/README.md`
+- **Workers:** See `/workers/README.md`
+- **Deployment Guides:** Check documentation files in root
+
+## Support
+
+For issues, please create a GitHub issue in this repository.
+
+## License
+
+See LICENSE file for details.
