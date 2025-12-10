@@ -4,7 +4,7 @@ import { db } from '../services/db';
 import { supabase } from '../services/supabase';
 import { identifyProduct, runQCAnalysis, runFinalQCAnalysis, searchSectionSpecificImages } from '../services/geminiService';
 import { generateUUID, calculateTaskEstimate, normalizeWorkerUrl } from '../services/utils';
-import { generateComparisonImage } from '../services/comparisonImageService';
+import { generateComparisonImage, generateHighlightImage } from '../services/comparisonImageService';
 import { TIME, STORAGE, QC_GRADING, IMAGE_SEARCH } from '../services/constants';
 import { log } from '../services/logger';
 
@@ -396,8 +396,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     allQCRawImages: string[],
     report: QCReport,
     settings: AppSettings
-  ): Promise<Record<string, { authImageId?: string; diffImageId?: string; diffScore?: number }>> => {
-    const sectionComparisons: Record<string, { authImageId?: string; diffImageId?: string; diffScore?: number }> = {};
+  ): Promise<Record<string, { authImageId?: string; diffImageId?: string; diffScore?: number; comparisonType?: 'side-by-side' | 'highlight-only' }>> => {
+    const sectionComparisons: Record<string, { authImageId?: string; diffImageId?: string; diffScore?: number; comparisonType?: 'side-by-side' | 'highlight-only' }> = {};
     
     if (allQCRawImages.length === 0) {
       return sectionComparisons;
@@ -430,10 +430,27 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         try {
           console.log(`[Comparison] Processing ${section.sectionName}...`);
           
-          // Step 1: Search for section-specific close-up images from the internet
+          // Step 1: Try to get section-specific authentic image
           let referenceImageUrl: string | null = null;
+          let hasAuthImage = false;
           
-          if (proxyBase && apiKey) {
+          // First, check if section has assigned authentic images from the report
+          if (section.authImageIds && section.authImageIds.length > 0) {
+            try {
+              const authImageId = section.authImageIds[0];
+              const authImage = await db.getImage(authImageId);
+              if (authImage) {
+                referenceImageUrl = authImage;
+                hasAuthImage = true;
+                console.log(`[Comparison] Using section-assigned authentic image for ${section.sectionName}`);
+              }
+            } catch (error) {
+              console.debug(`[Comparison] Failed to load section-assigned auth image:`, error);
+            }
+          }
+          
+          // Step 2: If no section-specific auth image, search for section-specific close-up images from the internet
+          if (!hasAuthImage && proxyBase && apiKey) {
             try {
               console.log(`[Comparison] Searching for ${section.sectionName} close-up images...`);
               const imageUrls = await searchSectionSpecificImages(
@@ -471,6 +488,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                         });
                         
                         referenceImageUrl = dataUrl;
+                        hasAuthImage = true;
                         downloadedCount++;
                         try {
                           const hostname = new URL(imageUrl).hostname;
@@ -484,11 +502,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                       }
                     } else {
                       // Log the specific HTTP error
-                      // For JSON error responses from the worker, try to parse the error message
                       const contentType = response.headers.get('content-type') || '';
                       let errorText = response.statusText;
                       
-                      // Only read JSON error responses (worker returns these)
                       if (contentType.includes('json')) {
                         try {
                           const errorData = await response.json();
@@ -498,7 +514,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                         }
                       }
                       
-                      // Truncate if needed
                       if (errorText.length > IMAGE_SEARCH.MAX_ERROR_TEXT_LENGTH) {
                         errorText = errorText.substring(0, IMAGE_SEARCH.MAX_ERROR_TEXT_LENGTH) + '...';
                       }
@@ -532,8 +547,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             }
           }
           
-          // Step 2: Fallback to general reference images if section-specific search failed
-          if (!referenceImageUrl) {
+          // Step 3: Fallback to general reference images if no section-specific image found
+          if (!hasAuthImage) {
             console.log(`[Comparison] Using fallback reference image for ${section.sectionName}`);
             
             // Try product.profile.imageUrls first
@@ -559,6 +574,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                       });
                       
                       referenceImageUrl = dataUrl;
+                      hasAuthImage = true;
                       break;
                     }
                   }
@@ -569,10 +585,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             }
             
             // Final fallback: use uploaded reference images
-            if (!referenceImageUrl && product.referenceImageIds && product.referenceImageIds.length > 0) {
+            if (!hasAuthImage && product.referenceImageIds && product.referenceImageIds.length > 0) {
               const refImage = await db.getImage(product.referenceImageIds[0]);
               if (refImage) {
                 referenceImageUrl = refImage;
+                hasAuthImage = true;
               }
             }
           }
@@ -582,7 +599,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             return null;
           }
           
-          // Step 3: Select the most relevant QC image for this section
+          // Step 4: Select the most relevant QC image for this section
           let qcImageSrc: string;
           if (section.imageIds && section.imageIds.length > 0) {
             // Section has specific image assignments from AI - use the first assigned image
@@ -606,30 +623,42 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             qcImageSrc = allQCRawImages[0];
           }
           
-          // Step 4: Get observations for this section (limit for better readability)
-          // NOTE: We don't pass observations to the comparison image anymore as per requirement
-          // The text observations are already shown in the section, no need to duplicate them
+          // Step 5: Generate appropriate comparison based on whether we have authentic images
+          let comparisonImageData: string;
+          let comparisonType: 'side-by-side' | 'highlight-only';
           
-          // Step 5: Generate side-by-side comparison WITHOUT text observations
-          // Only visual comparison with highlighted areas (if bounding boxes were available)
-          const comparisonImageData = await generateComparisonImage(
-            referenceImageUrl, 
-            qcImageSrc, 
-            undefined, // No bounding boxes available from AI model
-            undefined  // Don't duplicate observations in image - they're shown in section text
-          );
+          if (hasAuthImage && referenceImageUrl) {
+            // Generate side-by-side comparison with both auth and QC images
+            console.log(`[Comparison] Generating side-by-side comparison for ${section.sectionName}`);
+            comparisonImageData = await generateComparisonImage(
+              referenceImageUrl, 
+              qcImageSrc, 
+              undefined, // No bounding boxes available from AI model
+              undefined  // Don't duplicate observations in image - they're shown in section text
+            );
+            comparisonType = 'side-by-side';
+          } else {
+            // Generate highlight-only image (just QC image with any highlights)
+            console.log(`[Comparison] Generating highlight-only image for ${section.sectionName} (no authentic image available)`);
+            comparisonImageData = await generateHighlightImage(
+              qcImageSrc,
+              [] // No bounding boxes available from AI model
+            );
+            comparisonType = 'highlight-only';
+          }
           
           // Step 6: Save comparison image
           const comparisonImageId = generateUUID();
           await db.saveImage(comparisonImageId, comparisonImageData);
           
-          console.log(`[Comparison] Generated comparison image for ${section.sectionName} (${section.grade})`);
+          console.log(`[Comparison] Generated ${comparisonType} comparison image for ${section.sectionName} (${section.grade})`);
           
           return {
             sectionName: section.sectionName,
             comparison: {
-              authImageId: product.referenceImageIds[0],
-              diffImageId: comparisonImageId
+              authImageId: hasAuthImage && product.referenceImageIds.length > 0 ? product.referenceImageIds[0] : undefined,
+              diffImageId: comparisonImageId,
+              comparisonType
             }
           };
         } catch (error) {
@@ -640,7 +669,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       
       const comparisonResults = (await Promise.all(comparisonPromises)).filter(Boolean) as Array<{
         sectionName: string;
-        comparison: { authImageId?: string; diffImageId?: string; diffScore?: number }
+        comparison: { authImageId?: string; diffImageId?: string; diffScore?: number; comparisonType?: 'side-by-side' | 'highlight-only' }
       }>;
       
       // Map results to sectionComparisons
@@ -1081,7 +1110,16 @@ To fix:
        );
        const validRefImagesAsBase64 = refImagesAsBase64.filter(Boolean);
 
-       const preliminaryReport = await runQCAnalysis(apiKey, product.profile, validRefImagesAsBase64, allQCRawImages, allQCImageIds, settings, qcUserComments);
+       const preliminaryReport = await runQCAnalysis(
+         apiKey, 
+         product.profile, 
+         validRefImagesAsBase64, 
+         product.referenceImageIds || [], // Pass reference image IDs
+         allQCRawImages, 
+         allQCImageIds, 
+         settings, 
+         qcUserComments
+       );
        
        // Correct grades to match scores based on rubric
        const correctedPreliminaryReport = correctGradeBasedOnScore(preliminaryReport);
@@ -1201,6 +1239,7 @@ To fix:
           apiKey,
           product.profile,
           validRefImagesAsBase64,
+          product.referenceImageIds || [], // Pass reference image IDs
           allQCRawImages,
           allQCImageIds,
           task.meta.settings!,

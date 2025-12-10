@@ -646,28 +646,32 @@ export const identifyProduct = async (
 };
 
 /**
- * Assigns QC images to specific sections based on AI analysis
+ * Assigns both QC and reference images to specific sections based on AI analysis
  * This function analyzes which images are most relevant to each section
- * and creates a mapping for better visualization and comparison
+ * and creates mappings for better visualization and comparison
  * 
  * @param apiKey - Gemini API key
  * @param profile - Product profile
  * @param qcImages - Array of QC images (base64 or URLs)
- * @param qcImageIds - Array of corresponding image IDs
+ * @param qcImageIds - Array of corresponding QC image IDs
+ * @param refImages - Array of reference/authentic images (base64 or URLs)
+ * @param refImageIds - Array of corresponding reference image IDs
  * @param sections - Array of section names from the QC report
  * @param modelTier - Model tier to use (FAST recommended for this task)
- * @returns Promise resolving to a mapping of section names to image ID arrays
+ * @returns Promise resolving to separate mappings for QC and reference images
  */
 export const assignImagesToSections = async (
   apiKey: string,
   profile: ProductProfile,
   qcImages: string[],
   qcImageIds: string[],
+  refImages: string[],
+  refImageIds: string[],
   sections: string[],
   modelTier: ModelTier = ModelTier.FAST
-): Promise<Record<string, string[]>> => {
-  if (qcImages.length === 0 || sections.length === 0) {
-    return {};
+): Promise<{ qcImageAssignments: Record<string, string[]>; authImageAssignments: Record<string, string[]> }> => {
+  if ((qcImages.length === 0 && refImages.length === 0) || sections.length === 0) {
+    return { qcImageAssignments: {}, authImageAssignments: {} };
   }
 
   try {
@@ -678,67 +682,116 @@ export const assignImagesToSections = async (
 
     // Add instruction
     parts.push({
-      text: `You are analyzing QC inspection images of a ${profile.brand} ${profile.name} (${profile.category}).
+      text: `You are analyzing images of a ${profile.brand} ${profile.name} (${profile.category}).
 
-Your task is to determine which QC inspection image(s) show which section(s) of the product.
+Your task is to determine which image(s) show which section(s) of the product.
 
 Available Sections: ${sections.join(', ')}
 
+You will be given two types of images:
+1. REFERENCE/AUTHENTIC images (the genuine product for comparison)
+2. QC INSPECTION images (the item being inspected)
+
 INSTRUCTIONS:
-1. Look at each QC inspection image carefully
+1. Look at each image carefully
 2. Determine which section(s) of the product are visible in each image
 3. An image may show multiple sections (e.g., an image showing the full watch shows dial, case, bracelet, etc.)
-4. Return a JSON array where each item contains a section name and the image indices that show that section
+4. Create TWO separate lists: one for QC images and one for reference images
+5. Return a JSON object with two arrays
 
-Now analyze the following QC inspection images:`
+Now analyze the following images:`
     });
 
-    // Add QC Images with index labels
-    for (const [idx, img] of qcImages.entries()) {
+    // Add Reference Images first if available
+    if (refImages.length > 0) {
       parts.push({
-        text: `\nQC IMAGE ${idx}:`
+        text: `\n\n=== REFERENCE/AUTHENTIC IMAGES ===`
       });
-      let processedImgData;
-      if (isURL(img)) {
-        processedImgData = await fetchAndEncodeImage(img);
-      } else {
-        processedImgData = img.split(',')[1] || img;
+      for (const [idx, img] of refImages.entries()) {
+        parts.push({
+          text: `\nREFERENCE IMAGE ${idx}:`
+        });
+        let processedImgData;
+        if (isURL(img)) {
+          processedImgData = await fetchAndEncodeImage(img);
+        } else {
+          processedImgData = img.split(',')[1] || img;
+        }
+        parts.push({
+          inlineData: { mimeType: 'image/jpeg', data: processedImgData }
+        });
       }
+    }
+
+    // Add QC Images if available
+    if (qcImages.length > 0) {
       parts.push({
-        inlineData: { mimeType: 'image/jpeg', data: processedImgData }
+        text: `\n\n=== QC INSPECTION IMAGES ===`
       });
+      for (const [idx, img] of qcImages.entries()) {
+        parts.push({
+          text: `\nQC IMAGE ${idx}:`
+        });
+        let processedImgData;
+        if (isURL(img)) {
+          processedImgData = await fetchAndEncodeImage(img);
+        } else {
+          processedImgData = img.split(',')[1] || img;
+        }
+        parts.push({
+          inlineData: { mimeType: 'image/jpeg', data: processedImgData }
+        });
+      }
     }
 
     parts.push({
-      text: `\n\nReturn ONLY a JSON array where each item contains a section name and the image indices that show that section. Use EXACTLY the section names provided above.
+      text: `\n\nReturn ONLY a JSON object with two arrays:
+- "qcImageAssignments": Array of {sectionName, imageIndices} for QC images
+- "authImageAssignments": Array of {sectionName, imageIndices} for reference/authentic images
+
+Use EXACTLY the section names provided above.
 
 Example output format:
-[
-  { "sectionName": "Dial & Hands", "imageIndices": [0, 2] },
-  { "sectionName": "Case & Bezel", "imageIndices": [0, 1, 2] },
-  { "sectionName": "Bracelet/Strap", "imageIndices": [1, 3] }
-]`
+{
+  "qcImageAssignments": [
+    { "sectionName": "Dial & Hands", "imageIndices": [0, 2] },
+    { "sectionName": "Case & Bezel", "imageIndices": [0, 1] }
+  ],
+  "authImageAssignments": [
+    { "sectionName": "Dial & Hands", "imageIndices": [0] },
+    { "sectionName": "Case & Bezel", "imageIndices": [0] },
+    { "sectionName": "Bracelet/Strap", "imageIndices": [0, 1] }
+  ]
+}`
     });
 
     const schema: Schema = {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          sectionName: {
-            type: Type.STRING,
-            description: 'Name of the section (must match one of the provided section names)'
-          },
-          imageIndices: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.NUMBER
+      type: Type.OBJECT,
+      properties: {
+        qcImageAssignments: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              sectionName: { type: Type.STRING },
+              imageIndices: { type: Type.ARRAY, items: { type: Type.NUMBER } }
             },
-            description: 'Array of image indices (0-based) that show this section'
+            required: ['sectionName', 'imageIndices']
           }
         },
-        required: ['sectionName', 'imageIndices']
-      }
+        authImageAssignments: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              sectionName: { type: Type.STRING },
+              imageIndices: { type: Type.ARRAY, items: { type: Type.NUMBER } }
+            },
+            required: ['sectionName', 'imageIndices']
+          }
+        }
+      },
+      required: ['qcImageAssignments', 'authImageAssignments']
     };
 
     const config: any = {
@@ -764,31 +817,39 @@ Example output format:
       config
     });
 
-    // Parse the response. Gemini should return an array according to our schema.
-    // If parsing fails or response is empty, fall back to empty array (no assignments).
-    const result = JSON.parse(cleanJson(response.text || '[]'));
-    const mappingArray = Array.isArray(result) ? result : [];
-
-    // Convert array format to object format and image indices to image IDs
-    const sectionToImageIds: Record<string, string[]> = {};
-    for (const item of mappingArray) {
-      if (item && typeof item === 'object' && item.sectionName && Array.isArray(item.imageIndices)) {
-        const sectionName = item.sectionName;
-        sectionToImageIds[sectionName] = item.imageIndices
-          .map((idx: number | string) => {
-            const index = typeof idx === 'number' ? idx : parseInt(String(idx), 10);
-            return isNaN(index) || index < 0 || index >= qcImageIds.length ? null : qcImageIds[index];
-          })
-          .filter(Boolean) as string[];
+    // Parse the response
+    const result = JSON.parse(cleanJson(response.text || '{"qcImageAssignments": [], "authImageAssignments": []}'));
+    
+    // Convert array formats to object formats with image IDs
+    const convertToMapping = (assignments: any[], imageIds: string[]): Record<string, string[]> => {
+      const mapping: Record<string, string[]> = {};
+      const mappingArray = Array.isArray(assignments) ? assignments : [];
+      
+      for (const item of mappingArray) {
+        if (item && typeof item === 'object' && item.sectionName && Array.isArray(item.imageIndices)) {
+          const sectionName = item.sectionName;
+          mapping[sectionName] = item.imageIndices
+            .map((idx: number | string) => {
+              const index = typeof idx === 'number' ? idx : parseInt(String(idx), 10);
+              return isNaN(index) || index < 0 || index >= imageIds.length ? null : imageIds[index];
+            })
+            .filter(Boolean) as string[];
+        }
       }
-    }
+      return mapping;
+    };
+    
+    const qcImageAssignments = convertToMapping(result.qcImageAssignments || [], qcImageIds);
+    const authImageAssignments = convertToMapping(result.authImageAssignments || [], refImageIds);
 
-    log.info(`[Image Assignment] Assigned ${qcImages.length} images to ${Object.keys(sectionToImageIds).length} sections`);
-    return sectionToImageIds;
+    log.info(`[Image Assignment] Assigned ${qcImages.length} QC images and ${refImages.length} auth images to sections`);
+    log.info(`[Image Assignment] QC: ${Object.keys(qcImageAssignments).length} sections, Auth: ${Object.keys(authImageAssignments).length} sections`);
+    
+    return { qcImageAssignments, authImageAssignments };
   } catch (error) {
     log.error('[Image Assignment] Failed to assign images to sections:', error);
-    // Return empty mapping on error - the system will still work without it
-    return {};
+    // Return empty mappings on error - the system will still work without it
+    return { qcImageAssignments: {}, authImageAssignments: {} };
   }
 };
 
@@ -796,8 +857,9 @@ export const runQCAnalysis = async (
   apiKey: string,
   profile: ProductProfile,
   refImages: string[],
+  refImageIds: string[], // <-- ADD THIS PARAMETER
   qcImages: string[],
-  qcImageIds: string[], // <-- ADD THIS
+  qcImageIds: string[],
   settings: AppSettings,
   qcUserComments: string
 ): Promise<QCReport> => {
@@ -967,23 +1029,26 @@ export const runQCAnalysis = async (
       }));
     }
     
-    // Assign images to sections using AI
+    // Assign both QC and reference images to sections using AI
     log.info('[QC Analysis] Assigning images to sections...');
     const sectionNames = result.sections.map((s: any) => s.sectionName);
-    const imageAssignments = await assignImagesToSections(
+    const { qcImageAssignments, authImageAssignments } = await assignImagesToSections(
       apiKey,
       profile,
       qcImages,
       qcImageIds,
+      refImages,
+      refImageIds,
       sectionNames,
       ModelTier.FAST // Use fast model for image assignment
     );
     
     // Add image assignments to sections
-    if (result.sections && Object.keys(imageAssignments).length > 0) {
+    if (result.sections && (Object.keys(qcImageAssignments).length > 0 || Object.keys(authImageAssignments).length > 0)) {
       result.sections = result.sections.map((section: any) => ({
         ...section,
-        imageIds: imageAssignments[section.sectionName] || []
+        imageIds: qcImageAssignments[section.sectionName] || [],
+        authImageIds: authImageAssignments[section.sectionName] || []
       }));
     }
     
@@ -991,7 +1056,8 @@ export const runQCAnalysis = async (
       id: generateUUID(),
       generatedAt: Date.now(),
       basedOnBatchIds: [],
-      qcImageIds: qcImageIds, // <-- ADD THIS
+      qcImageIds: qcImageIds,
+      authImageIds: refImageIds, // <-- ADD THIS
       modelTier: settings.modelTier,
       expertMode: settings.expertMode,
       userComments: qcUserComments, // Store initial user comments
@@ -1001,7 +1067,7 @@ export const runQCAnalysis = async (
     if (settings.modelTier === ModelTier.DETAILED) {
       console.warn("Detailed QC failed. Attempting fallback with Fast model...");
       const fallbackSettings = { ...settings, modelTier: ModelTier.FAST };
-      return runQCAnalysis(apiKey, profile, refImages, qcImages, qcImageIds, fallbackSettings, qcUserComments);
+      return runQCAnalysis(apiKey, profile, refImages, refImageIds, qcImages, qcImageIds, fallbackSettings, qcUserComments);
     }
     throw error; // Re-throw if not detailed or if fallback fails
   }
@@ -1011,6 +1077,7 @@ export const runFinalQCAnalysis = async (
   apiKey: string,
   profile: ProductProfile,
   refImages: string[],
+  refImageIds: string[], // <-- ADD THIS PARAMETER
   qcImages: string[],
   qcImageIds: string[],
   settings: AppSettings,
@@ -1100,24 +1167,27 @@ export const runFinalQCAnalysis = async (
     }));
   }
   
-  // Assign images to sections using AI (reuse assignments from preliminary report if available)
+  // Assign both QC and reference images to sections using AI (reuse assignments from preliminary report if available)
   if (result.sections) {
     log.info('[Final QC Analysis] Assigning images to sections...');
     const sectionNames = result.sections.map((s: any) => s.sectionName);
-    const imageAssignments = await assignImagesToSections(
+    const { qcImageAssignments, authImageAssignments } = await assignImagesToSections(
       apiKey,
       profile,
       qcImages,
       qcImageIds,
+      refImages,
+      refImageIds,
       sectionNames,
       ModelTier.FAST // Use fast model for image assignment
     );
     
     // Add image assignments to sections
-    if (Object.keys(imageAssignments).length > 0) {
+    if (Object.keys(qcImageAssignments).length > 0 || Object.keys(authImageAssignments).length > 0) {
       result.sections = result.sections.map((section: any) => ({
         ...section,
-        imageIds: imageAssignments[section.sectionName] || []
+        imageIds: qcImageAssignments[section.sectionName] || [],
+        authImageIds: authImageAssignments[section.sectionName] || []
       }));
     }
   }
@@ -1127,6 +1197,7 @@ export const runFinalQCAnalysis = async (
     generatedAt: Date.now(),
     basedOnBatchIds: [],
     qcImageIds: qcImageIds,
+    authImageIds: refImageIds, // <-- ADD THIS
     modelTier: settings.modelTier,
     expertMode: settings.expertMode,
     userComments: userComments, // Ensure user comments are highlighted
