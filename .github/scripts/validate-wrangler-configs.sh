@@ -1,7 +1,7 @@
 #!/bin/bash
 # Validate wrangler configurations to prevent name conflicts
-# This script ensures that the root wrangler.jsonc and cloudflare-worker/wrangler.toml
-# have different names to avoid deployment conflicts
+# This script ensures that if a root wrangler config exists, it doesn't conflict
+# with the cloudflare-worker/wrangler.toml configuration
 
 set -e
 
@@ -18,6 +18,8 @@ if [ -f "wrangler.jsonc" ]; then
   else
     echo "⚠ Warning: Could not extract name from wrangler.jsonc"
   fi
+else
+  echo "ℹ No root wrangler.jsonc found (this is correct for Pages deployments via GitHub Actions)"
 fi
 
 # Extract name from cloudflare-worker/wrangler.toml (supports both quoted and unquoted values)
@@ -58,16 +60,18 @@ if [ -n "$ROOT_NAME" ] && [ -n "$WORKER_NAME" ]; then
   fi
 fi
 
-# Validate root wrangler.jsonc name matches Pages project name
-EXPECTED_PAGES_NAME="qcv2"
-if [ -n "$ROOT_NAME" ] && [ "$ROOT_NAME" != "$EXPECTED_PAGES_NAME" ]; then
-  echo ""
-  echo "⚠ WARNING: Root wrangler.jsonc name does not match Pages project name"
-  echo "  Expected: $EXPECTED_PAGES_NAME"
-  echo "  Actual:   $ROOT_NAME"
-  echo ""
-  echo "This may cause deployment issues with Cloudflare Pages."
-  echo ""
+# Validate root wrangler.jsonc name matches Pages project name (only if it exists)
+if [ -n "$ROOT_NAME" ]; then
+  EXPECTED_PAGES_NAME="qcv2"
+  if [ "$ROOT_NAME" != "$EXPECTED_PAGES_NAME" ]; then
+    echo ""
+    echo "⚠ WARNING: Root wrangler.jsonc name does not match Pages project name"
+    echo "  Expected: $EXPECTED_PAGES_NAME"
+    echo "  Actual:   $ROOT_NAME"
+    echo ""
+    echo "This may cause deployment issues with Cloudflare Pages."
+    echo ""
+  fi
 fi
 
 # Validate worker name

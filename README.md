@@ -25,6 +25,12 @@ View your app in AI Studio: https://ai.studio/apps/drive/1pShI4np7Qntn9U9CTnSQ8B
 
 The app requires both a Cloudflare Pages deployment (for the frontend) and a Cloudflare Worker deployment (for the image proxy).
 
+### 🚨 Build Error? "Workers-specific command in Pages project"?
+
+**See:** [IMMEDIATE_FIX_CLOUDFLARE_PAGES.md](IMMEDIATE_FIX_CLOUDFLARE_PAGES.md) - Remove the custom deploy command in Cloudflare Pages settings
+
+This is caused by a custom "deploy command" in Cloudflare Pages dashboard that needs to be removed.
+
 ### 🚨 CORS Error? Worker Not Working?
 
 **See:** [CORS_FIX_NOW.md](CORS_FIX_NOW.md) - 2-minute quick fix guide
