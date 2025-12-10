@@ -5,6 +5,7 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "build": "echo \"No build required for worker (deployed with wrangler)\"",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "tail": "wrangler tail"
