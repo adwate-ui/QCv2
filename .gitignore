@@ -30,4 +30,6 @@ wrangler.jsonc.unused
 # Worker configuration should only exist in cloudflare-worker/
 # Root wrangler.toml causes deployment conflicts with the worker
 # See CORS_404_FIX_SUMMARY.md for details
+# NOTE: wrangler.jsonc in root is OK - it's for Pages deployment (different name: authentiqc-app)
+#       Worker deployment explicitly uses --config wrangler.toml flag to avoid conflicts
 /wrangler.toml

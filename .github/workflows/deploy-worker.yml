@@ -27,5 +27,6 @@ jobs:
         run: |
           # Deploy from the cloudflare-worker directory to ensure wrangler.toml is used
           # This ensures compatibility flags (nodejs_compat) are properly applied
+          # Use --config flag to explicitly specify wrangler.toml and avoid picking up root wrangler.jsonc
           cd cloudflare-worker
-          npx wrangler@4 deploy
+          npx wrangler@4 deploy --config wrangler.toml
