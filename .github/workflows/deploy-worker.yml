@@ -41,38 +41,56 @@ jobs:
       - name: Verify worker deployment
         run: |
           echo "Waiting for worker to be available..."
-          sleep 5
           
-          echo "Testing worker health check..."
-          RESPONSE=$(curl -s -w "\n%{http_code}" https://authentiqc-worker.adwate.workers.dev/ || echo "FAILED")
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
-          BODY=$(echo "$RESPONSE" | head -n -1)
+          # Retry mechanism with exponential backoff
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+          SUCCESS=false
           
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "✓ Worker is responding with 200 OK"
-            echo "Response: $BODY"
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES..."
             
-            # Check for CORS headers
-            CORS=$(curl -s -I https://authentiqc-worker.adwate.workers.dev/ | grep -i "access-control-allow-origin" || echo "")
-            if [ -n "$CORS" ]; then
-              echo "✓ CORS headers present"
+            # Test health check endpoint
+            HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" https://authentiqc-worker.adwate.workers.dev/ || echo "000")
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✓ Worker is responding with 200 OK"
+              cat /tmp/response.json
+              echo ""
+              SUCCESS=true
+              break
             else
-              echo "⚠ Warning: CORS headers not found"
+              echo "⚠ Attempt $((RETRY_COUNT + 1)) failed with HTTP $HTTP_CODE"
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                WAIT_TIME=$((2 ** RETRY_COUNT))
+                echo "Waiting ${WAIT_TIME}s before retry..."
+                sleep $WAIT_TIME
+              fi
             fi
-          else
-            echo "✗ Error: Worker returned HTTP $HTTP_CODE"
-            echo "Response: $BODY"
-            echo "This may indicate a deployment issue or the worker is not accessible"
+          done
+          
+          if [ "$SUCCESS" = false ]; then
+            echo "✗ Error: Worker not responding after $MAX_RETRIES attempts"
+            echo "This indicates a deployment issue or the worker is not accessible"
             exit 1
           fi
           
+          # Check for CORS headers
+          echo "Checking CORS headers..."
+          CORS=$(curl -s -I https://authentiqc-worker.adwate.workers.dev/ | grep -i "access-control-allow-origin" || echo "")
+          if [ -n "$CORS" ]; then
+            echo "✓ CORS headers present: $CORS"
+          else
+            echo "⚠ Warning: CORS headers not found"
+          fi
+          
+          # Test fetch-metadata endpoint with a safe test URL (the worker's own health endpoint)
           echo "Testing fetch-metadata endpoint..."
-          METADATA_RESPONSE=$(curl -s -w "\n%{http_code}" "https://authentiqc-worker.adwate.workers.dev/fetch-metadata?url=https://example.com" || echo "FAILED")
-          METADATA_CODE=$(echo "$METADATA_RESPONSE" | tail -n 1)
+          METADATA_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://authentiqc-worker.adwate.workers.dev/fetch-metadata?url=https://authentiqc-worker.adwate.workers.dev/" || echo "000")
           
           if [ "$METADATA_CODE" = "200" ] || [ "$METADATA_CODE" = "502" ]; then
             echo "✓ fetch-metadata endpoint is accessible (HTTP $METADATA_CODE)"
           else
             echo "⚠ Warning: fetch-metadata endpoint returned HTTP $METADATA_CODE"
-            echo "Response: $(echo "$METADATA_RESPONSE" | head -n -1)"
           fi
