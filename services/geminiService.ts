@@ -2,6 +2,7 @@ import { GoogleGenAI, Type, Schema, HarmCategory, HarmBlockThreshold } from "@go
 import { AppSettings, ExpertMode, ModelTier, ProductProfile, QCReport } from "../types";
 import { generateUUID, fetchAndEncodeImage } from "./utils";
 import { SIMILARITY, QC_SECTIONS } from "./constants";
+import { log } from "./logger";
 
 const isURL = (str: string): boolean => {
   try {
@@ -963,17 +964,24 @@ export const searchSectionSpecificImages = async (
 
     // Construct search prompt with explicit brand + product + section name
     // This ensures Google Image Search uses the most specific query
-    const searchQuery = `${productProfile.brand} ${productProfile.name} ${sectionName}`;
+    const brand = productProfile.brand || 'Unknown Brand';
+    const name = productProfile.name || 'Unknown Product';
+    const searchQuery = `${brand} ${name} ${sectionName}`;
+    
+    // Build product information with only available fields
+    const productInfo = [
+      `- Brand: ${brand}`,
+      `- Model/Name: ${name}`,
+      productProfile.category ? `- Category: ${productProfile.category}` : null,
+      productProfile.material ? `- Material: ${productProfile.material}` : null
+    ].filter(Boolean).join('\n');
     
     const searchPrompt = `Use Google Image Search to find high-quality reference images for authenticating the ${sectionName} section.
 
 Search Query: "${searchQuery}"
 
 Product Information:
-- Brand: ${productProfile.brand}
-- Model/Name: ${productProfile.name}
-- Category: ${productProfile.category}
-${productProfile.material ? `- Material: ${productProfile.material}` : ''}
+${productInfo}
 
 Requirements for images:
 1. Must show clear, detailed close-up views of the ${sectionName} specifically
@@ -983,7 +991,7 @@ Requirements for images:
 5. Focus on the ${sectionName} section, not generic product shots
 
 Priority: Look for images from:
-- Official ${productProfile.brand} website
+- Official ${brand} website
 - Authorized luxury retailers (e.g., Chrono24 for watches, authorized jewelers)
 - Authentication and verification guides
 - High-quality product photography sites
@@ -1011,7 +1019,7 @@ Prioritize official sources and high-resolution photography.`,
 
     const parts = [{ text: searchPrompt }];
     
-    console.log(`[Image Search] Searching Google Images for: "${searchQuery}"`);
+    log.info(`Image Search: Searching Google Images for "${searchQuery}"`, { sectionName, brand, name });
     
     const response = await ai.models.generateContent({
       model,
@@ -1020,7 +1028,7 @@ Prioritize official sources and high-resolution photography.`,
     });
 
     if (!response || !response.text) {
-      console.warn(`[Image Search] No response text received for ${sectionName}`);
+      log.warn(`Image Search: No response text received for ${sectionName}`);
       return [];
     }
 
@@ -1032,7 +1040,7 @@ Prioritize official sources and high-resolution photography.`,
     const matches = responseText.match(urlRegex);
     
     if (!matches || matches.length === 0) {
-      console.warn(`[Image Search] No image URLs found for ${sectionName}`);
+      log.warn(`Image Search: No image URLs found for ${sectionName}`);
       return [];
     }
 
@@ -1041,10 +1049,10 @@ Prioritize official sources and high-resolution photography.`,
       .filter((url, index, self) => self.indexOf(url) === index) // Remove duplicates
       .slice(0, 5); // Limit to 5 images
 
-    console.log(`[Image Search] Found ${validUrls.length} images for ${sectionName}`);
+    log.info(`Image Search: Found ${validUrls.length} images for ${sectionName}`);
     return validUrls;
   } catch (error) {
-    console.error(`[Image Search] Failed to search images for ${sectionName}:`, error);
+    log.error(`Image Search: Failed to search images for ${sectionName}`, error);
     return [];
   }
 };
