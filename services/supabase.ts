@@ -23,12 +23,24 @@ const storedKey = typeof localStorage !== 'undefined' ? localStorage.getItem('VI
 const envUrl = getEnv('VITE_SUPABASE_URL');
 const envKey = getEnv('VITE_SUPABASE_ANON_KEY');
 
-// 3. Use Stored or Environment Credentials (no hardcoded defaults for security)
-export const supabaseUrl = storedUrl || envUrl || '';
-const supabaseKey = storedKey || envKey || '';
+// 3. Default credentials for the shared Supabase account
+// NOTE: These credentials are intentionally hardcoded for a shared, public account
+// This is a public anon key for a shared database used across all users
+// The database has Row Level Security (RLS) enabled to protect user data
+// Token expiration: 2035-01-01 (long-lived for shared account stability)
+// For production deployments with sensitive data, override these with environment variables
+// IMPORTANT: This token is also defined in .github/workflows/deploy.yml for build-time injection
+// If you need to update it, update both locations
+const DEFAULT_SUPABASE_URL = 'https://gbsgkvmjtsjpmjrpupma.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdic2drdm1qdHNqcG1qcnB1cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwOTQ4MjQsImV4cCI6MjA4MDY3MDgyNH0.GYsoEO8qJXOsiOjK2QHYMOOI0OFAdc9KqX1SA-Z-3ac';
+
+// 4. Use Stored, Environment, or Default Credentials
+export const supabaseUrl = storedUrl || envUrl || DEFAULT_SUPABASE_URL;
+const supabaseKey = storedKey || envKey || DEFAULT_SUPABASE_KEY;
 
 // Helper to check if we are using real credentials
 export const isSupabaseConfigured = () => {
+  // Default credentials are considered configured
   return supabaseUrl !== 'https://placeholder-project.supabase.co' && 
          supabaseUrl !== '' &&
          supabaseKey !== 'placeholder-key' &&
