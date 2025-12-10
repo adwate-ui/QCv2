@@ -4,7 +4,7 @@ compatibility_date = "2025-12-08"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
-# Account ID is automatically detected from the API token
-# Hardcoding it here can cause issues if the token belongs to a different account
-# If deployment fails, you can explicitly set it with: account_id = "your-account-id"
-# Or set the CF_ACCOUNT_ID environment variable in GitHub secrets
+# Account ID - Required for deployment
+# This MUST match the account associated with your CF_API_TOKEN
+# If you get 404 errors, it means the worker is not deployed or this account ID is wrong
+account_id = "72edc81c65cb5830f76c57e841831d7d"
