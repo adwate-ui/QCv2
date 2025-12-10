@@ -68,6 +68,24 @@ export const API = {
   IMAGE_FETCH_TIMEOUT: 15000, // 15 seconds for image fetching
 } as const;
 
+// Image Search Constants
+export const IMAGE_SEARCH = {
+  // Domains that commonly block proxy requests and should be filtered
+  PROBLEMATIC_DOMAINS: [
+    'pinimg.com',        // Pinterest - blocks proxy requests with 403/502
+    'pinterest.com',
+    'instagram.com',
+    'fbcdn.net',         // Facebook CDN
+    'cdninstagram.com',
+    'facebook.com',
+    'twitter.com',
+    'twimg.com',         // Twitter images
+    'tiktok.com',
+  ],
+  MAX_URLS: 8,           // Maximum URLs to return after filtering
+  MAX_ERROR_TEXT_LENGTH: 100, // Maximum length of error text to log
+} as const;
+
 // UI Constants
 export const UI = {
   DEBOUNCE_DELAY: 300,

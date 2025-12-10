@@ -5,7 +5,7 @@ import { supabase } from '../services/supabase';
 import { identifyProduct, runQCAnalysis, runFinalQCAnalysis, searchSectionSpecificImages } from '../services/geminiService';
 import { generateUUID, calculateTaskEstimate, normalizeWorkerUrl } from '../services/utils';
 import { generateComparisonImage } from '../services/comparisonImageService';
-import { TIME, STORAGE, QC_GRADING } from '../services/constants';
+import { TIME, STORAGE, QC_GRADING, IMAGE_SEARCH } from '../services/constants';
 import { log } from '../services/logger';
 
 interface AppContextType {
@@ -445,12 +445,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
               
               if (imageUrls.length > 0) {
                 // Try to download the first valid image
+                let downloadedCount = 0;
+                let failedUrls: Array<{ url: string; reason: string }> = [];
+                
                 for (const imageUrl of imageUrls) {
                   try {
                     const proxyUrl = new URL('/proxy-image', proxyBase);
                     proxyUrl.searchParams.set('url', imageUrl);
                     const fetchUrl = proxyUrl.toString();
                     
+                    console.log(`[Comparison] Attempting to download: ${imageUrl}`);
                     const response = await fetch(fetchUrl, {
                       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
                     });
@@ -467,14 +471,60 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                         });
                         
                         referenceImageUrl = dataUrl;
-                        console.log(`[Comparison] Successfully downloaded close-up image for ${section.sectionName}`);
+                        downloadedCount++;
+                        try {
+                          const hostname = new URL(imageUrl).hostname;
+                          console.log(`[Comparison] ✓ Successfully downloaded close-up image for ${section.sectionName} from ${hostname}`);
+                        } catch {
+                          console.log(`[Comparison] ✓ Successfully downloaded close-up image for ${section.sectionName}`);
+                        }
                         break;
+                      } else {
+                        failedUrls.push({ url: imageUrl, reason: `Invalid blob: type=${blob.type}, size=${blob.size}` });
                       }
+                    } else {
+                      // Log the specific HTTP error
+                      // For JSON error responses from the worker, try to parse the error message
+                      const contentType = response.headers.get('content-type') || '';
+                      let errorText = response.statusText;
+                      
+                      // Only read JSON error responses (worker returns these)
+                      if (contentType.includes('json')) {
+                        try {
+                          const errorData = await response.json();
+                          errorText = errorData.message || errorData.error || response.statusText;
+                        } catch {
+                          errorText = response.statusText;
+                        }
+                      }
+                      
+                      // Truncate if needed
+                      if (errorText.length > IMAGE_SEARCH.MAX_ERROR_TEXT_LENGTH) {
+                        errorText = errorText.substring(0, IMAGE_SEARCH.MAX_ERROR_TEXT_LENGTH) + '...';
+                      }
+                      
+                      failedUrls.push({ url: imageUrl, reason: `HTTP ${response.status}: ${errorText}` });
+                      console.warn(`[Comparison] ✗ Failed to download ${imageUrl}: HTTP ${response.status}`);
                     }
-                  } catch (imgError) {
-                    console.debug(`[Comparison] Failed to download image ${imageUrl}:`, imgError);
+                  } catch (imgError: any) {
+                    const errorMsg = imgError?.message || String(imgError);
+                    failedUrls.push({ url: imageUrl, reason: errorMsg });
+                    console.warn(`[Comparison] ✗ Failed to download ${imageUrl}:`, errorMsg);
                     continue;
                   }
+                }
+                
+                // Log summary of download attempts
+                if (downloadedCount === 0 && failedUrls.length > 0) {
+                  console.error(`[Comparison] All ${failedUrls.length} image URLs failed for ${section.sectionName}:`);
+                  failedUrls.forEach(({ url, reason }, idx) => {
+                    try {
+                      const hostname = new URL(url).hostname;
+                      console.error(`  ${idx + 1}. ${hostname}: ${reason}`);
+                    } catch {
+                      console.error(`  ${idx + 1}. ${url}: ${reason}`);
+                    }
+                  });
                 }
               }
             } catch (searchError) {
