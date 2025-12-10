@@ -27,7 +27,10 @@ const envKey = getEnv('VITE_SUPABASE_ANON_KEY');
 // NOTE: These credentials are intentionally hardcoded for a shared, public account
 // This is a public anon key for a shared database used across all users
 // The database has Row Level Security (RLS) enabled to protect user data
+// Token expiration: 2035-01-01 (long-lived for shared account stability)
 // For production deployments with sensitive data, override these with environment variables
+// IMPORTANT: This token is also defined in .github/workflows/deploy.yml for build-time injection
+// If you need to update it, update both locations
 const DEFAULT_SUPABASE_URL = 'https://gbsgkvmjtsjpmjrpupma.supabase.co';
 const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdic2drdm1qdHNqcG1qcnB1cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwOTQ4MjQsImV4cCI6MjA4MDY3MDgyNH0.GYsoEO8qJXOsiOjK2QHYMOOI0OFAdc9KqX1SA-Z-3ac';
 

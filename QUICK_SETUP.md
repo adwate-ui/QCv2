@@ -59,8 +59,16 @@ Visit: https://qcv2.pages.dev
 
 ## Default Supabase Credentials (Pre-configured)
 
+The following credentials are hardcoded in two locations for consistency:
+1. `services/supabase.ts` (fallback defaults)
+2. `.github/workflows/deploy.yml` (build-time injection)
+
+**Credentials:**
 - **URL:** `https://gbsgkvmjtsjpmjrpupma.supabase.co`
-- **Anon Key:** `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdic2drdm1qdHNqcG1qcnB1cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwOTQ4MjQsImV4cCI6MjA4MDY3MDgyNH0.GYsoEO8qJXOsiOjK2QHYMOOI0OFAdc9KqX1SA-Z-3ac`
+- **Anon Key:** (See `services/supabase.ts` for the full key)
+- **Token Expiration:** 2035-01-01 (long-lived for shared account)
+
+**Note:** The token is duplicated in code and workflow for redundancy. If you need to update it, update both locations.
 
 These are now hardcoded as defaults. No manual setup needed!
 

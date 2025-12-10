@@ -33,7 +33,10 @@ jobs:
           # NOTE: The following Supabase credentials are for a shared public account
           # This is a public anon key that is safe to expose in client-side code
           # The database has Row Level Security (RLS) enabled to protect user data
+          # Token expiration: 2035-01-01 (long-lived for shared account stability)
           # For production deployments, these can be overridden via GitHub secrets
+          # IMPORTANT: These values match services/supabase.ts defaults
+          # If you need to update the token, update both locations
           VITE_SUPABASE_URL: https://gbsgkvmjtsjpmjrpupma.supabase.co
           VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdic2drdm1qdHNqcG1qcnB1cG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUwOTQ4MjQsImV4cCI6MjA4MDY3MDgyNH0.GYsoEO8qJXOsiOjK2QHYMOOI0OFAdc9KqX1SA-Z-3ac
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
