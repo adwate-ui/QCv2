@@ -96,7 +96,8 @@ echo "────────────────────────�
 NOT_FOUND_RESPONSE=$(curl -s "$WORKER_URL/nonexistent")
 echo "$NOT_FOUND_RESPONSE" | jq '.' 2>/dev/null || echo "$NOT_FOUND_RESPONSE"
 
-HAS_CORS=$(echo "$NOT_FOUND_RESPONSE" | curl -sI "$WORKER_URL/nonexistent" | grep -i "access-control-allow-origin")
+# Check CORS headers on 404 responses
+HAS_CORS=$(curl -sI "$WORKER_URL/nonexistent" | grep -i "access-control-allow-origin")
 if [ -n "$HAS_CORS" ]; then
   echo "✅ 404 responses include CORS headers"
 else

@@ -688,14 +688,7 @@ INSTRUCTIONS:
 1. Look at each QC inspection image carefully
 2. Determine which section(s) of the product are visible in each image
 3. An image may show multiple sections (e.g., an image showing the full watch shows dial, case, bracelet, etc.)
-4. Return a mapping of section names to arrays of image indices (0-based)
-
-Example output format:
-{
-  "Dial & Hands": [0, 2],
-  "Case & Bezel": [0, 1, 2],
-  "Bracelet/Strap": [1, 3]
-}
+4. Return a JSON array where each item contains a section name and the image indices that show that section
 
 Now analyze the following QC inspection images:`
     });
