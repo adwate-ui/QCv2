@@ -1165,6 +1165,13 @@ export const searchSectionSpecificImages = async (
       productProfile.material ? `- Material: ${productProfile.material}` : null
     ].filter(Boolean).join('\n');
     
+    // Build list of domains to avoid in the prompt
+    const avoidDomains = IMAGE_SEARCH.PROBLEMATIC_DOMAINS
+      .filter(d => d.includes('.com') || d.includes('.net')) // Only show meaningful domain names
+      .map(d => d.split('.')[0]) // Get the main part (e.g., 'pinterest' from 'pinterest.com')
+      .filter((v, i, a) => a.indexOf(v) === i) // Remove duplicates
+      .join(', ');
+    
     const searchPrompt = `Use Google Image Search to find high-quality reference images for authenticating the ${sectionName} section.
 
 Search Query: "${searchQuery}"
@@ -1178,7 +1185,7 @@ Requirements for images:
 3. High resolution and well-lit (not blurry or dark)
 4. Authentic product only (not replicas or counterfeits)
 5. Focus on the ${sectionName} section, not generic product shots
-6. IMPORTANT: Avoid social media sites (Pinterest, Instagram, Facebook) as they block automated downloads
+6. IMPORTANT: Avoid social media sites (${avoidDomains}) as they block automated downloads
 
 Priority sources (in order):
 - Official ${brand} website and product pages
@@ -1186,11 +1193,6 @@ Priority sources (in order):
 - Authentication and verification guides
 - High-quality e-commerce sites with detailed product photography
 - Professional review sites and blogs
-
-AVOID these sources:
-- Pinterest (pinimg.com, pinterest.com)
-- Instagram (instagram.com, cdninstagram.com)
-- Facebook (fbcdn.net, facebook.com)
 
 Return 5-8 image URLs that best match these criteria, prioritizing images from accessible, official sources that clearly show the ${sectionName} section in detail.`;
 

@@ -484,14 +484,23 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                       }
                     } else {
                       // Log the specific HTTP error
-                      // Limit error text length to avoid large responses
+                      // For JSON error responses from the worker, try to parse the error message
                       const contentType = response.headers.get('content-type') || '';
                       let errorText = response.statusText;
                       
-                      // Only read text if it's a text response
-                      if (contentType.includes('text/') || contentType.includes('json')) {
-                        errorText = await response.text().catch(() => response.statusText);
-                        errorText = errorText.substring(0, IMAGE_SEARCH.MAX_ERROR_TEXT_LENGTH);
+                      // Only read JSON error responses (worker returns these)
+                      if (contentType.includes('json')) {
+                        try {
+                          const errorData = await response.json();
+                          errorText = errorData.message || errorData.error || response.statusText;
+                        } catch {
+                          errorText = response.statusText;
+                        }
+                      }
+                      
+                      // Truncate if needed
+                      if (errorText.length > IMAGE_SEARCH.MAX_ERROR_TEXT_LENGTH) {
+                        errorText = errorText.substring(0, IMAGE_SEARCH.MAX_ERROR_TEXT_LENGTH) + '...';
                       }
                       
                       failedUrls.push({ url: imageUrl, reason: `HTTP ${response.status}: ${errorText}` });
