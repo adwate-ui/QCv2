@@ -103,12 +103,12 @@ const normalizeCategory = (category: string, existingCategories?: string[]): str
   }
   
   // Step 3: Normalize common category variations to simpler, more common terms
+  // Note: Plurals like 'wristwatches' and 'timepieces' are already handled by Step 2,
+  // so we only need the singular forms here
   const categoryAliases: Record<string, string> = {
     // Watch variations - all map to simple "watch"
     'wristwatch': 'watch',
-    'wristwatches': 'watch',
     'timepiece': 'watch',
-    'timepieces': 'watch',
     'smartwatch': 'watch',
     'smart watch': 'watch',
     // Bag variations - all map to simple "bag"

@@ -103,7 +103,7 @@ export const fetchAndEncodeImage = async (url: string): Promise<string> => {
       }
     }
     
-    // Create AbortController for timeout with fallback for older browsers
+    // Create AbortController for timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), API.IMAGE_FETCH_TIMEOUT);
     

@@ -2,6 +2,10 @@ import { jsPDF } from 'jspdf';
 import { QCReport, Product } from '../types';
 import { db } from './db';
 
+// PDF Layout Constants
+const PDF_MARGIN = 20;
+const PDF_COMPARISON_IMAGE_HEIGHT = 80;
+
 /**
  * Export a QC report as a PDF document
  * @param report - QC report to export
@@ -17,7 +21,7 @@ export const exportQCReportToPDF = async (
   let yPos = 20;
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 20;
+  const margin = PDF_MARGIN;
   const contentWidth = pageWidth - 2 * margin;
   
   // Helper to load and add images to PDF
@@ -144,8 +148,8 @@ export const exportQCReportToPDF = async (
     if (report.sectionComparisons && report.sectionComparisons[section.sectionName]) {
       const comparison = report.sectionComparisons[section.sectionName];
       
-      // Check if we need space for the comparison image (approximately 80 units tall)
-      const imageHeight = 80;
+      // Check if we need space for the comparison image
+      const imageHeight = PDF_COMPARISON_IMAGE_HEIGHT;
       checkPageBreak(imageHeight + 10);
       
       try {
