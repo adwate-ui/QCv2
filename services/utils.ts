@@ -103,28 +103,39 @@ export const fetchAndEncodeImage = async (url: string): Promise<string> => {
       }
     }
     
-    const response = await fetch(fetchUrl, {
-      signal: AbortSignal.timeout(API.IMAGE_FETCH_TIMEOUT)
-    });
+    // Create AbortController for timeout with fallback for older browsers
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API.IMAGE_FETCH_TIMEOUT);
     
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image from ${url}: ${response.status} ${response.statusText}`);
+    try {
+      const response = await fetch(fetchUrl, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image from ${url}: ${response.status} ${response.statusText}`);
+      }
+      
+      const blob = await response.blob();
+      
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result.split(',')[1]); // Extract Base64 part
+          } else {
+            reject(new Error("Failed to read image as Data URL."));
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      throw fetchError;
     }
-    
-    const blob = await response.blob();
-    
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          resolve(reader.result.split(',')[1]); // Extract Base64 part
-        } else {
-          reject(new Error("Failed to read image as Data URL."));
-        }
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
   } catch (error) {
     console.error("Error fetching and encoding image:", error);
     throw error;

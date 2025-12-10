@@ -167,8 +167,8 @@ export const exportQCReportToPDF = async (
           }
         }
       } catch (error) {
-        console.error(`Error adding comparison image for ${section.sectionName}:`, error);
-        // Continue without the image
+        console.error(`Error adding comparison image for ${section.sectionName}:`, error instanceof Error ? error.message : String(error));
+        // Continue without the image - the text observations will still be included
       }
     }
 
