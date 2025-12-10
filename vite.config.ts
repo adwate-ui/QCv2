@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => {
         outDir: 'dist',
         assetsDir: 'assets',
         sourcemap: !isProd, // Source maps only in development
-        minify: isProd ? 'terser' : false,
+        minify: isProd ? 'esbuild' : false, // Use esbuild (built-in, faster than terser)
         cssMinify: isProd,
         
         // Chunk splitting for better caching
@@ -48,16 +48,9 @@ export default defineConfig(({ mode }) => {
           }
         },
         
-        // Terser options for production
-        terserOptions: isProd ? {
-          compress: {
-            drop_console: true, // Remove console.log in production
-            drop_debugger: true,
-            pure_funcs: ['console.log', 'console.debug'], // Remove specific console methods
-          },
-          format: {
-            comments: false, // Remove comments
-          }
+        // esbuild minify options for production
+        esbuild: isProd ? {
+          drop: ['console', 'debugger'], // Remove console and debugger statements
         } : undefined,
         
         // Optimize chunk size
