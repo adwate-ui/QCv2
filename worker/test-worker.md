@@ -1,7 +1,7 @@
 # Worker Testing Guide
 
 ## Current Version
-Worker Version: 1.2.0 (includes logging and improved route matching)
+Worker Version: 1.4.0 (includes improved browser-like headers and 403 retry)
 
 ## Issue Fixed
 - Added request logging to help debug routing issues
@@ -21,8 +21,8 @@ curl -i https://authentiqc-worker.adwate.workers.dev/
 - Status: `200 OK`
 - Headers should include:
   - `Access-Control-Allow-Origin: *`
-  - `X-Worker-Version: 1.2.0`
-- Body should be JSON with `"version": "1.2.0"`
+  - `X-Worker-Version: 1.4.0`
+- Body should be JSON with `"version": "1.4.0"`
 
 **If you get a different version or no response:**
 - The worker needs to be redeployed (see Deployment section below)
@@ -42,7 +42,7 @@ curl -X OPTIONS https://authentiqc-worker.adwate.workers.dev/fetch-metadata \
   - `Access-Control-Allow-Origin: *`
   - `Access-Control-Allow-Methods: GET, OPTIONS`
   - `Access-Control-Allow-Headers: Content-Type`
-  - `X-Worker-Version: 1.2.0`
+  - `X-Worker-Version: 1.4.0`
 
 ### 3. Test /fetch-metadata Endpoint
 
@@ -57,7 +57,7 @@ curl "https://authentiqc-worker.adwate.workers.dev/fetch-metadata?url=https://ex
 - Headers should include:
   - `Access-Control-Allow-Origin: *`
   - `Content-Type: application/json`
-  - `X-Worker-Version: 1.2.0`
+  - `X-Worker-Version: 1.4.0`
 - Body should be JSON (either with `"images"` array or error details)
 
 **If you get 404:**
@@ -88,7 +88,7 @@ fetch('https://authentiqc-worker.adwate.workers.dev/fetch-metadata?url=https://e
 
 **Expected:**
 - No CORS errors in console
-- `Worker version: 1.2.0`
+- `Worker version: 1.4.0`
 - Metadata result returns JSON (with images or error)
 
 ## Deployment
@@ -130,7 +130,7 @@ wrangler deploy
 
 **After deployment:**
 - Test with curl commands above
-- Check version is 1.2.0
+- Check version is 1.4.0
 - Verify CORS headers are present
 
 ## Troubleshooting
@@ -145,7 +145,7 @@ wrangler deploy
 **Causes:**
 1. **Worker not deployed** - Most common cause
    - Solution: Deploy the worker (see Deployment section)
-2. **Old worker version deployed** - Worker version < 1.2.0
+2. **Old worker version deployed** - Worker version < 1.4.0
    - Solution: Redeploy with latest code
 3. **Wrong worker URL** - URL doesn't point to the worker
    - Solution: Verify `VITE_IMAGE_PROXY_URL` is set correctly
@@ -158,7 +158,7 @@ wrangler deploy
    curl https://authentiqc-worker.adwate.workers.dev/
    ```
    - If it returns 404 or non-JSON, worker is not deployed properly
-   - If version is not 1.2.0, worker needs redeployment
+   - If version is not 1.4.0, worker needs redeployment
 
 2. Check Cloudflare Dashboard logs:
    - Go to: Cloudflare Dashboard → Workers & Pages → authentiqc-worker → Logs
@@ -172,7 +172,7 @@ wrangler deploy
 
 ### CORS Errors Still Occurring After Deployment
 
-**If you've deployed version 1.2.0 but still see CORS errors:**
+**If you've deployed version 1.4.0 but still see CORS errors:**
 
 1. **Clear browser cache**: Hard refresh (Ctrl+Shift+R or Cmd+Shift+R)
 2. **Check browser is requesting correct URL**: 
