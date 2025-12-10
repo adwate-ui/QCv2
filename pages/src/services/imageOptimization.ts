@@ -7,14 +7,37 @@ import { IMAGE } from './constants';
 import { log } from './logger';
 
 /**
- * Compress an image to reduce file size
+ * Check if browser supports WebP format
+ * Uses a cached result to avoid repeated checks
+ */
+let webpSupported: boolean | null = null;
+function supportsWebP(): boolean {
+  if (webpSupported !== null) return webpSupported;
+  
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    // Check if WebP data URL is generated correctly
+    webpSupported = canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+  } catch {
+    webpSupported = false;
+  }
+  
+  return webpSupported;
+}
+
+/**
+ * Compress an image to reduce file size with WebP support
  * @param dataUrl - Base64 data URL of the image
  * @param quality - Quality level (0-1), default 0.85
+ * @param useWebP - Whether to use WebP format when supported, default true
  * @returns Promise resolving to compressed image data URL
  */
 export async function compressImage(
   dataUrl: string,
-  quality: number = IMAGE.QUALITY
+  quality: number = IMAGE.QUALITY,
+  useWebP: boolean = true
 ): Promise<string> {
   const startTime = performance.now();
 
@@ -48,7 +71,12 @@ export async function compressImage(
 
         // Draw and compress
         ctx.drawImage(img, 0, 0, width, height);
-        const compressed = canvas.toDataURL('image/jpeg', quality);
+        
+        // Use WebP if supported and requested, otherwise fallback to JPEG
+        const shouldUseWebP = useWebP && supportsWebP();
+        const compressed = shouldUseWebP 
+          ? canvas.toDataURL('image/webp', quality)
+          : canvas.toDataURL('image/jpeg', quality);
 
         const duration = performance.now() - startTime;
         const originalSize = dataUrl.length;
@@ -56,6 +84,7 @@ export async function compressImage(
         const reduction = ((1 - compressedSize / originalSize) * 100).toFixed(1);
 
         log.performance('Image compression', duration, {
+          format: shouldUseWebP ? 'webp' : 'jpeg',
           originalSize: `${Math.round(originalSize / 1024)}KB`,
           compressedSize: `${Math.round(compressedSize / 1024)}KB`,
           reduction: `${reduction}%`,
