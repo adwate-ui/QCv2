@@ -34,6 +34,8 @@ export const ProductDetailPage: React.FC = () => {
   const [refImages, setRefImages] = useState<string[]>([]);
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [imageZoom, setImageZoom] = useState(1);
+  const [imageRotation, setImageRotation] = useState(0);
   const [qcImages, setQcImages] = useState<string[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -358,11 +360,84 @@ export const ProductDetailPage: React.FC = () => {
   return (
     <div className="pb-20 relative">
       {selectedImage && (
-        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
-          <button className="absolute top-4 right-4 text-white p-2">
+        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4" onClick={() => {
+          setSelectedImage(null);
+          setImageZoom(1);
+          setImageRotation(0);
+        }}>
+          <button className="absolute top-4 right-4 text-white p-2 hover:bg-white/10 rounded-full z-10">
             <X size={28} />
           </button>
-          <img src={selectedImage} className="max-w-full max-h-[90vh] object-contain rounded" onClick={e => e.stopPropagation()} />
+          
+          {/* Zoom and Rotate Controls */}
+          <div className="absolute top-4 left-4 flex flex-col gap-2 bg-black/50 p-3 rounded-lg z-10">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setImageZoom(Math.max(0.5, imageZoom - 0.25));
+                }}
+                className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
+              >
+                Zoom -
+              </button>
+              <span className="text-white text-sm min-w-[60px] text-center">{Math.round(imageZoom * 100)}%</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setImageZoom(Math.min(3, imageZoom + 0.25));
+                }}
+                className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
+              >
+                Zoom +
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setImageRotation((imageRotation - 90) % 360);
+                }}
+                className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
+              >
+                ↶ Rotate
+              </button>
+              <span className="text-white text-sm min-w-[60px] text-center">{imageRotation}°</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setImageRotation((imageRotation + 90) % 360);
+                }}
+                className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
+              >
+                ↷ Rotate
+              </button>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setImageZoom(1);
+                setImageRotation(0);
+              }}
+              className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
+            >
+              Reset
+            </button>
+          </div>
+          
+          <div className="overflow-auto max-w-full max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <img 
+              src={selectedImage} 
+              className="object-contain rounded transition-transform duration-200" 
+              style={{
+                transform: `scale(${imageZoom}) rotate(${imageRotation}deg)`,
+                transformOrigin: 'center',
+                maxWidth: 'none',
+                maxHeight: 'none'
+              }}
+              onClick={e => e.stopPropagation()} 
+            />
+          </div>
         </div>
       )}
       
