@@ -64,7 +64,7 @@ export const DiagnosticsPage = () => {
       updateResult('proxy-config', {
         status: 'error',
         message: 'VITE_IMAGE_PROXY_URL is not configured',
-        details: 'Add VITE_IMAGE_PROXY_URL=<your-cloudflare-worker-url> to your .env.local file'
+        details: 'Add VITE_IMAGE_PROXY_URL=<your-worker-url> to your .env.local file'
       });
       setIsRunning(false);
       return;

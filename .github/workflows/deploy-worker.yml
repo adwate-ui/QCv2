@@ -121,7 +121,7 @@ jobs:
             echo "2. Verify account_id in wrangler.toml matches your account"
             echo "3. Verify CF_API_TOKEN has correct permissions"
             echo "4. Check deployment logs above for errors"
-            echo "5. Try manual deployment: cd cloudflare-worker && npx wrangler deploy"
+            echo "5. Try manual deployment: cd worker && npx wrangler deploy"
             echo ""
             exit 1
           fi

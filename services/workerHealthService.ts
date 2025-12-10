@@ -292,7 +292,7 @@ class WorkerHealthService {
       troubleshootingHint = 'Check worker deployment status and logs.';
     }
     
-    const fullError = `${errorMessage} ${troubleshootingHint}\n\nTo fix: Deploy the worker using GitHub Actions or run 'cd cloudflare-worker && npx wrangler@4 deploy'`;
+    const fullError = `${errorMessage} ${troubleshootingHint}\n\nTo fix: Deploy the worker using GitHub Actions or run 'cd worker && npx wrangler@4 deploy'`;
 
     this.healthStatus = {
       isHealthy: false,

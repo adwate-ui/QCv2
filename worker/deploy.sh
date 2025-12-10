@@ -13,8 +13,8 @@ echo ""
 # Check if we're in the correct directory
 if [ ! -f "wrangler.toml" ]; then
     echo "Error: wrangler.toml not found!"
-    echo "Please run this script from the cloudflare-worker directory:"
-    echo "  cd cloudflare-worker && ./deploy.sh"
+    echo "Please run this script from the worker directory:"
+    echo "  cd worker && ./deploy.sh"
     exit 1
 fi
 

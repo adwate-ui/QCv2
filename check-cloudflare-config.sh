@@ -70,11 +70,11 @@ echo "────────────────────────�
 echo "Check 2: Worker directory should have wrangler.toml"
 echo "─────────────────────────────────────────────────────────────────"
 
-if [ ! -f "cloudflare-worker/wrangler.toml" ]; then
-    echo "❌ ERROR: cloudflare-worker/wrangler.toml not found"
+if [ ! -f "worker/wrangler.toml" ]; then
+    echo "❌ ERROR: worker/wrangler.toml not found"
     echo "   The worker MUST have a wrangler.toml configuration"
     echo ""
-    echo "   ACTION: Check if cloudflare-worker directory exists"
+    echo "   ACTION: Check if worker directory exists"
     echo "   This is a critical file for worker deployment"
     echo ""
     EXIT_CODE=1
@@ -82,7 +82,7 @@ else
     echo "✓ Worker wrangler.toml exists"
     
     # Check worker name (flexible pattern to handle various formats)
-    WORKER_NAME=$(grep '^name' cloudflare-worker/wrangler.toml | sed -e 's/^name[[:space:]]*=[[:space:]]*["\x27]\(.*\)["\x27].*$/\1/' -e 's/^name[[:space:]]*=[[:space:]]*\([^[:space:]]*\).*$/\1/')
+    WORKER_NAME=$(grep '^name' worker/wrangler.toml | sed -e 's/^name[[:space:]]*=[[:space:]]*["\x27]\(.*\)["\x27].*$/\1/' -e 's/^name[[:space:]]*=[[:space:]]*\([^[:space:]]*\).*$/\1/')
     if [ "$WORKER_NAME" = "authentiqc-worker" ]; then
         echo "✓ Worker name is correct: $WORKER_NAME"
     elif [ -z "$WORKER_NAME" ]; then

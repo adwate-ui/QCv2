@@ -694,7 +694,7 @@ The worker URL (${proxyBase}) appears to be returning an HTML page instead of JS
 3. The worker exists but is misconfigured
 
 To fix:
-- Deploy the worker: cd cloudflare-worker && npx wrangler@4 deploy index.mjs --name authentiqc-worker
+- Deploy the worker: cd worker && npx wrangler@4 deploy index.mjs --name authentiqc-worker
 - Update VITE_IMAGE_PROXY_URL with the correct worker URL
 - See IMAGE_FETCHING_GUIDE.md for detailed instructions`
           : `Worker returned non-JSON response (Content-Type: ${contentType || 'not set'}). Please verify VITE_IMAGE_PROXY_URL (${proxyBase}) is correctly configured and the Cloudflare Worker is deployed.`;
