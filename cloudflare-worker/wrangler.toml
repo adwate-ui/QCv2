@@ -4,7 +4,7 @@ compatibility_date = "2025-12-08"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
-# Account ID - Required for deployment
-# This MUST match the account associated with your CF_API_TOKEN
-# If you get 404 errors, it means the worker is not deployed or this account ID is wrong
-account_id = "72edc81c65cb5830f76c57e841831d7d"
+# Account ID is automatically detected from the CLOUDFLARE_API_TOKEN
+# Or can be set via CLOUDFLARE_ACCOUNT_ID environment variable
+# Do NOT hardcode the account_id here as it may cause conflicts if the token
+# belongs to a different account or if deploying to multiple accounts
