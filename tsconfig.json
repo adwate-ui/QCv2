@@ -10,9 +10,6 @@
       "DOM.Iterable"
     ],
     "skipLibCheck": true,
-    "types": [
-      "node"
-    ],
     
     /* Bundler mode */
     "moduleResolution": "bundler",

@@ -47,18 +47,67 @@ export const parseObservations = (text?: string): string[] => {
 };
 
 /**
+ * Helper to normalize worker URL by removing endpoint paths
+ */
+const normalizeWorkerUrl = (workerUrl: string): string => {
+  if (!workerUrl) return workerUrl;
+  
+  // Remove trailing slash
+  let normalized = workerUrl.replace(/\/$/, '');
+  
+  // Remove common endpoint paths if they exist
+  const endpointPaths = ['/fetch-metadata', '/proxy-image', '/proxy'];
+  for (const path of endpointPaths) {
+    if (normalized.endsWith(path)) {
+      normalized = normalized.slice(0, -path.length);
+      break;
+    }
+  }
+  
+  return normalized;
+};
+
+/**
  * Fetches an image from a URL and converts it to a Base64 string.
  * This is necessary because Gemini API's inlineData expects raw Base64 image data, not a URL.
+ * Uses the Cloudflare Worker proxy to bypass CORS restrictions when fetching from external URLs.
  * @param url The URL of the image to fetch.
  * @returns A Promise that resolves to the Base64 string of the image, or rejects if fetching fails.
  */
 export const fetchAndEncodeImage = async (url: string): Promise<string> => {
   try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image from ${url}: ${response.statusText}`);
+    let fetchUrl = url;
+    
+    // Check if this is an external URL (not a data URL or blob URL)
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      // Use the image proxy to bypass CORS restrictions
+      const proxyBaseRaw = import.meta.env?.VITE_IMAGE_PROXY_URL as string || '';
+      
+      if (proxyBaseRaw) {
+        const proxyBase = normalizeWorkerUrl(proxyBaseRaw);
+        
+        // Build proxy URL
+        const proxyUrl = new URL('/proxy-image', proxyBase);
+        proxyUrl.searchParams.set('url', url);
+        fetchUrl = proxyUrl.toString();
+        
+        console.log(`[fetchAndEncodeImage] Using proxy for external URL: ${url}`);
+      } else {
+        console.warn(`[fetchAndEncodeImage] VITE_IMAGE_PROXY_URL not configured. Attempting direct fetch for: ${url}`);
+        console.warn('[fetchAndEncodeImage] This may fail due to CORS restrictions. Please configure VITE_IMAGE_PROXY_URL.');
+      }
     }
+    
+    const response = await fetch(fetchUrl, {
+      signal: AbortSignal.timeout(15000) // 15 second timeout
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image from ${url}: ${response.status} ${response.statusText}`);
+    }
+    
     const blob = await response.blob();
+    
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => {
