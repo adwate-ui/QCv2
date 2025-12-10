@@ -1,6 +1,23 @@
+# ============================================================================
+# CLOUDFLARE WORKER CONFIGURATION (Image Proxy API)
+# ============================================================================
+# This wrangler.toml is ONLY for deploying the worker (API endpoints)
+# It is NOT used for Pages deployment (that uses root wrangler.jsonc)
+#
+# DO NOT change the name from "authentiqc-worker" - the frontend expects this URL
+#
+# Deployment:
+#   - Worker name: authentiqc-worker
+#   - Worker URL: https://authentiqc-worker.adwate.workers.dev
+#   - GitHub Actions: .github/workflows/deploy-worker.yml
+#   - Manual deploy: cd cloudflare-worker && npx wrangler@4 deploy
+#
+# The frontend (Pages) uses VITE_IMAGE_PROXY_URL to connect to this worker
+# ============================================================================
+
 name = "authentiqc-worker"
 main = "index.mjs"
-compatibility_date = "2025-12-08"
+compatibility_date = "2025-12-10"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
@@ -8,3 +25,7 @@ workers_dev = true
 # Or can be set via CLOUDFLARE_ACCOUNT_ID environment variable
 # Do NOT hardcode the account_id here as it may cause conflicts if the token
 # belongs to a different account or if deploying to multiple accounts
+
+# Deployment Configuration
+# GitHub integration is handled by GitHub Actions workflows
+# This worker is deployed independently from the Pages project
