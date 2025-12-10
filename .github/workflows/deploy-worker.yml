@@ -3,6 +3,7 @@ name: Deploy Cloudflare Worker
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   deploy-worker:
@@ -21,12 +22,57 @@ jobs:
           cd cloudflare-worker
           npm install
 
+      - name: Validate worker code
+        run: |
+          cd cloudflare-worker
+          node --check index.mjs
+          echo "✓ Worker code syntax is valid"
+
       - name: Publish worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
-          # Deploy from the cloudflare-worker directory to ensure wrangler.toml is used
-          # This ensures compatibility flags (nodejs_compat) are properly applied
-          # Use --config flag to explicitly specify wrangler.toml and avoid picking up root wrangler.jsonc
           cd cloudflare-worker
+          echo "Deploying worker with wrangler@4..."
           npx wrangler@4 deploy --config wrangler.toml
+          echo "✓ Worker deployment command completed"
+
+      - name: Verify worker deployment
+        run: |
+          echo "Waiting for worker to be available..."
+          sleep 5
+          
+          echo "Testing worker health check..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" https://authentiqc-worker.adwate.workers.dev/ || echo "FAILED")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+          
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✓ Worker is responding with 200 OK"
+            echo "Response: $BODY"
+            
+            # Check for CORS headers
+            CORS=$(curl -s -I https://authentiqc-worker.adwate.workers.dev/ | grep -i "access-control-allow-origin" || echo "")
+            if [ -n "$CORS" ]; then
+              echo "✓ CORS headers present"
+            else
+              echo "⚠ Warning: CORS headers not found"
+            fi
+          else
+            echo "✗ Error: Worker returned HTTP $HTTP_CODE"
+            echo "Response: $BODY"
+            echo "This may indicate a deployment issue or the worker is not accessible"
+            exit 1
+          fi
+          
+          echo "Testing fetch-metadata endpoint..."
+          METADATA_RESPONSE=$(curl -s -w "\n%{http_code}" "https://authentiqc-worker.adwate.workers.dev/fetch-metadata?url=https://example.com" || echo "FAILED")
+          METADATA_CODE=$(echo "$METADATA_RESPONSE" | tail -n 1)
+          
+          if [ "$METADATA_CODE" = "200" ] || [ "$METADATA_CODE" = "502" ]; then
+            echo "✓ fetch-metadata endpoint is accessible (HTTP $METADATA_CODE)"
+          else
+            echo "⚠ Warning: fetch-metadata endpoint returned HTTP $METADATA_CODE"
+            echo "Response: $(echo "$METADATA_RESPONSE" | head -n -1)"
+          fi
