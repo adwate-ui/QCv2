@@ -717,18 +717,35 @@ Now analyze the following QC inspection images:`
     }
 
     parts.push({
-      text: `\n\nReturn ONLY a JSON object mapping section names to arrays of image indices. Use EXACTLY the section names provided above.`
+      text: `\n\nReturn ONLY a JSON array where each item contains a section name and the image indices that show that section. Use EXACTLY the section names provided above.
+
+Example output format:
+[
+  { "sectionName": "Dial & Hands", "imageIndices": [0, 2] },
+  { "sectionName": "Case & Bezel", "imageIndices": [0, 1, 2] },
+  { "sectionName": "Bracelet/Strap", "imageIndices": [1, 3] }
+]`
     });
 
     const schema: Schema = {
-      type: Type.OBJECT,
-      properties: {
-        mapping: {
-          type: Type.OBJECT,
-          description: 'Mapping of section names to arrays of image indices'
-        }
-      },
-      required: ['mapping']
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          sectionName: {
+            type: Type.STRING,
+            description: 'Name of the section (must match one of the provided section names)'
+          },
+          imageIndices: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.NUMBER
+            },
+            description: 'Array of image indices (0-based) that show this section'
+          }
+        },
+        required: ['sectionName', 'imageIndices']
+      }
     };
 
     const config: any = {
@@ -754,14 +771,15 @@ Now analyze the following QC inspection images:`
       config
     });
 
-    const result = JSON.parse(cleanJson(response.text || '{"mapping":{}}'));
-    const mapping = result.mapping || {};
+    const result = JSON.parse(cleanJson(response.text || '[]'));
+    const mappingArray = Array.isArray(result) ? result : [];
 
-    // Convert image indices to image IDs
+    // Convert array format to object format and image indices to image IDs
     const sectionToImageIds: Record<string, string[]> = {};
-    for (const [sectionName, indices] of Object.entries(mapping)) {
-      if (Array.isArray(indices)) {
-        sectionToImageIds[sectionName] = indices
+    for (const item of mappingArray) {
+      if (item && typeof item === 'object' && item.sectionName && Array.isArray(item.imageIndices)) {
+        const sectionName = item.sectionName;
+        sectionToImageIds[sectionName] = item.imageIndices
           .map((idx: number | string) => {
             const index = typeof idx === 'number' ? idx : parseInt(String(idx), 10);
             return isNaN(index) || index < 0 || index >= qcImageIds.length ? null : qcImageIds[index];
