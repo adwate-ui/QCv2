@@ -432,12 +432,28 @@ const _performIdentification = async (
   const ai = new GoogleGenAI({ apiKey });
   const { model } = getModelConfig(settings.modelTier);
 
-  const processedImageDatas = await Promise.all(imageDatas.map(async (data) => {
-    if (isURL(data)) {
-      return await fetchAndEncodeImage(data);
+  // Process images with error handling - skip failed images instead of blocking
+  const processedImageDatas: string[] = [];
+  for (const [i, data] of imageDatas.entries()) {
+    try {
+      if (isURL(data)) {
+        log.info(`[Identification] Fetching AI image ${i + 1} from ${data}`);
+        const encoded = await fetchAndEncodeImage(data);
+        processedImageDatas.push(encoded);
+        log.info(`[Identification] Successfully fetched AI image ${i + 1}`);
+      } else {
+        processedImageDatas.push(data.split(',')[1] || data);
+      }
+    } catch (error: any) {
+      log.error(`[Identification] Failed to fetch AI image ${i + 1} from ${data}: ${error.message || error}`);
+      // Skip this image and continue with others
     }
-    return data.split(',')[1] || data;
-  }));
+  }
+  
+  // If all images failed, log a warning but allow the process to continue
+  if (processedImageDatas.length === 0 && imageDatas.length > 0) {
+    log.warn('[Identification] All AI-provided images failed to download');
+  }
 
   const parts: any[] = processedImageDatas.map(data => ({
     inlineData: { mimeType: 'image/jpeg', data }

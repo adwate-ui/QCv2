@@ -11,7 +11,7 @@ const STORAGE_KEY = 'authentiqc_temp_product';
 
 interface TempData {
   step: 'UPLOAD' | 'REVIEW';
-  images: string[];
+  imageCount: number; // Store count instead of actual images
   productUrl: string;
   profile: ProductProfile | null;
   generatedSettings: AppSettings | null;
@@ -61,8 +61,8 @@ export const AddProductPage = () => {
     if (saved) {
       try {
         const data: TempData = JSON.parse(saved);
-        if (step === 'UPLOAD' && data.images) {
-             setImages(data.images || []);
+        // Only restore metadata, not images (images are lost on refresh by design to save space)
+        if (step === 'UPLOAD') {
              setProductUrl(data.productUrl || '');
              setStep(data.step || 'UPLOAD');
              setProfile(data.profile || null);
@@ -70,20 +70,34 @@ export const AddProductPage = () => {
         }
       } catch (e) {
         console.error("Failed to load temp data", e);
+        // Clear corrupted data
+        localStorage.removeItem(STORAGE_KEY);
       }
     }
   }, []);
 
   useEffect(() => {
+    // Only save minimal metadata to avoid QuotaExceededError
+    // Images are intentionally not saved to localStorage due to size constraints
     const data: TempData = {
       step,
-      images,
+      imageCount: images.length,
       productUrl,
       profile,
       generatedSettings
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, [step, images, productUrl, profile, generatedSettings]);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (e: any) {
+      // Handle QuotaExceededError gracefully
+      if (e.name === 'QuotaExceededError') {
+        console.warn('localStorage quota exceeded, clearing temp data');
+        localStorage.removeItem(STORAGE_KEY);
+      } else {
+        console.error('Failed to save temp data:', e);
+      }
+    }
+  }, [step, images.length, productUrl, profile, generatedSettings]);
 
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {

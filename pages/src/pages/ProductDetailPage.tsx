@@ -266,19 +266,6 @@ export const ProductDetailPage: React.FC = () => {
             </div>
           )}
 
-          {imgs.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">QC Images</h4>
-              <div className="flex gap-2 flex-wrap">
-                {imgs.map((src, i) => (
-                  <div key={i} className={`h-16 w-16 cursor-pointer ${selectedImage === src ? 'ring-2 ring-primary/50 rounded-lg' : ''}`} onClick={() => setSelectedImage(src)}>
-                    <img src={src} className="h-full w-full object-cover rounded-lg" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className="mb-4">
             <div className="text-sm text-gray-700 whitespace-pre-line">{report.summary || 'No summary available.'}</div>
           </div>
@@ -319,69 +306,54 @@ export const ProductDetailPage: React.FC = () => {
                   
                   {isSectionExpanded && (
                     <div className="px-3 pb-3">
-                      {/* Show section-specific reference/authentic images if available */}
-                      {s.authImageIds && s.authImageIds.length > 0 && (
-                        <div className="mb-3">
-                          <h5 className="text-xs font-semibold text-gray-600 mb-2">Authentic reference images for this section:</h5>
-                          <div className="flex gap-2 flex-wrap">
-                            {s.authImageIds.map((imgId, imgIdx) => {
-                              const imgUrl = getPublicImageUrl(user!.id!, imgId);
-                              return (
-                                <div 
-                                  key={imgIdx} 
-                                  className="h-16 w-16 cursor-pointer rounded overflow-hidden hover:ring-2 hover:ring-blue-500"
-                                  onClick={() => setSelectedImage(imgUrl)}
-                                >
-                                  <img src={imgUrl} className="h-full w-full object-cover" alt={`Reference image for ${s.sectionName}`} />
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Show section-specific QC images if available */}
-                      {s.imageIds && s.imageIds.length > 0 && (
-                        <div className="mb-3">
-                          <h5 className="text-xs font-semibold text-gray-600 mb-2">QC inspection images for this section:</h5>
-                          <div className="flex gap-2 flex-wrap">
-                            {s.imageIds.map((imgId, imgIdx) => {
-                              const imgUrl = getPublicImageUrl(user!.id!, imgId);
-                              return (
-                                <div 
-                                  key={imgIdx} 
-                                  className="h-16 w-16 cursor-pointer rounded overflow-hidden hover:ring-2 hover:ring-primary/50"
-                                  onClick={() => setSelectedImage(imgUrl)}
-                                >
-                                  <img src={imgUrl} className="h-full w-full object-cover" alt={`QC image for ${s.sectionName}`} />
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                      
-                      <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
+                      <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1 mb-3">
                         {observations.map((o, i) => (<li key={i}>{o}</li>))}
                       </ul>
                       
-                      {comparisonImgUrl && (s.grade === 'CAUTION' || s.grade === 'FAIL') && (
-                        <div className="mt-3 pt-3 border-t border-gray-200">
-                          {sectionComparison?.comparisonType === 'side-by-side' ? (
-                            <>
-                              <h5 className="text-xs font-semibold text-gray-600 mb-2">Side-by-Side Comparison</h5>
-                              <p className="text-xs text-gray-500 mb-2">Reference (left) vs QC Image (right)</p>
-                            </>
-                          ) : (
-                            <>
-                              <h5 className="text-xs font-semibold text-gray-600 mb-2">QC Image Analysis</h5>
-                              <p className="text-xs text-gray-500 mb-2">Highlighted differences (no authentic reference available for direct comparison)</p>
-                            </>
+                      {/* Only show images for CAUTION or FAIL sections */}
+                      {(s.grade === 'CAUTION' || s.grade === 'FAIL') && (
+                        <>
+                          {/* Show comparison image if available */}
+                          {comparisonImgUrl && (
+                            <div className="mt-3 pt-3 border-t border-gray-200">
+                              {sectionComparison?.comparisonType === 'side-by-side' ? (
+                                <>
+                                  <h5 className="text-xs font-semibold text-gray-600 mb-2">Side-by-Side Comparison</h5>
+                                  <p className="text-xs text-gray-500 mb-2">Reference (left) vs QC Image (right)</p>
+                                </>
+                              ) : (
+                                <>
+                                  <h5 className="text-xs font-semibold text-gray-600 mb-2">QC Image Analysis</h5>
+                                  <p className="text-xs text-gray-500 mb-2">Highlighted differences (no authentic reference available for direct comparison)</p>
+                                </>
+                              )}
+                              <div className="cursor-pointer border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary/30" onClick={() => setSelectedImage(comparisonImgUrl)}>
+                                <img src={comparisonImgUrl} className="w-full h-auto" alt={`Comparison for ${s.sectionName}`} />
+                              </div>
+                            </div>
                           )}
-                          <div className="cursor-pointer border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary/30" onClick={() => setSelectedImage(comparisonImgUrl)}>
-                            <img src={comparisonImgUrl} className="w-full h-auto" alt={`Comparison for ${s.sectionName}`} />
-                          </div>
-                        </div>
+                          
+                          {/* Show QC images only if no comparison image available */}
+                          {!comparisonImgUrl && s.imageIds && s.imageIds.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-gray-200">
+                              <h5 className="text-xs font-semibold text-gray-600 mb-2">QC inspection images showing issues:</h5>
+                              <div className="flex gap-2 flex-wrap">
+                                {s.imageIds.map((imgId, imgIdx) => {
+                                  const imgUrl = getPublicImageUrl(user!.id!, imgId);
+                                  return (
+                                    <div 
+                                      key={imgIdx} 
+                                      className="h-20 w-20 cursor-pointer rounded overflow-hidden hover:ring-2 hover:ring-primary/50 border-2 border-red-200"
+                                      onClick={() => setSelectedImage(imgUrl)}
+                                    >
+                                      <img src={imgUrl} className="h-full w-full object-cover" alt={`QC image for ${s.sectionName}`} />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )}

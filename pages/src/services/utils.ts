@@ -118,7 +118,7 @@ export const fetchAndEncodeImage = async (url: string): Promise<string> => {
       clearTimeout(timeoutId);
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch image from ${url}: ${response.status} ${response.statusText}`);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
       const blob = await response.blob();
@@ -135,12 +135,16 @@ export const fetchAndEncodeImage = async (url: string): Promise<string> => {
         reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
-    } catch (fetchError) {
+    } catch (fetchError: any) {
       clearTimeout(timeoutId);
+      // Provide more specific error messages
+      if (fetchError.name === 'AbortError') {
+        throw new Error(`TimeoutError: Request timed out while fetching image`);
+      }
       throw fetchError;
     }
-  } catch (error) {
-    console.error("Error fetching and encoding image:", error);
+  } catch (error: any) {
+    console.error(`[fetchAndEncodeImage] Error fetching image from ${url}:`, error.message || error);
     throw error;
   }
 };
