@@ -75,7 +75,7 @@ This fix **assumes the secret is already set** in your GitHub repository:
 
 1. Go to **Settings** → **Secrets and variables** → **Actions**
 2. Verify `VITE_IMAGE_PROXY_URL` exists in **Repository secrets**
-3. The value should be your Cloudflare Worker URL (e.g., `https://authentiqc-worker.your-subdomain.workers.dev`)
+3. The value should be your Cloudflare Worker URL (e.g., `https://your-worker-name.your-subdomain.workers.dev`)
 
 If the secret is not set, you'll need to add it:
 1. Click **New repository secret**
@@ -89,13 +89,14 @@ If the error still appears after merging this PR:
 
 1. **Verify the secret value is correct:**
    - The URL should not end with a path (e.g., `/fetch-metadata`)
-   - Just the base URL: `https://authentiqc-worker.your-subdomain.workers.dev`
+   - Just the base URL: `https://your-worker-name.your-subdomain.workers.dev`
 
 2. **Check if the worker is deployed:**
    ```bash
    cd workers/image-proxy
-   npx wrangler@4 deploy index.mjs --name authentiqc-worker
+   npx wrangler@4 deploy index.mjs
    ```
+   Note: The worker name is configured in `wrangler.toml` in the worker directory.
 
 3. **Test the worker directly:**
    - Visit your worker URL in a browser
@@ -118,7 +119,7 @@ Vite uses static replacement at build time for environment variables:
 const workerUrl = import.meta.env.VITE_IMAGE_PROXY_URL;
 
 // Built output (WITH env var set)
-const workerUrl = "https://authentiqc-worker.example.workers.dev";
+const workerUrl = "https://your-worker-name.example.workers.dev";
 
 // Built output (WITHOUT env var set)
 const workerUrl = undefined;  // This is the problem!
