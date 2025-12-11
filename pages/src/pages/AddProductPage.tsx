@@ -267,7 +267,7 @@ export const AddProductPage = () => {
 
   if (step === 'REVIEW' && profile && generatedSettings) {
     return (
-      <div className="space-y-4 pb-24 relative">
+      <div className="space-y-6 pb-24 relative">
         {selectedImage && (
             <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setSelectedImage(null)}>
             <button className="absolute top-4 right-4 text-white p-2 hover:bg-white/10 rounded-full">
@@ -282,7 +282,7 @@ export const AddProductPage = () => {
         )}
 
         <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold">Review Product</h1>
+            <h1 className="text-2xl font-bold">Review Product</h1>
             <div className="flex gap-2">
                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${generatedSettings.modelTier === ModelTier.DETAILED ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-green-50 text-green-700 border-green-200'}`}>
                     {generatedSettings.modelTier === ModelTier.DETAILED ? 'Pro 3.0' : 'Flash 2.5'}
@@ -298,95 +298,95 @@ export const AddProductPage = () => {
               <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-y-auto md:w-32 md:h-64 scrollbar-thin scrollbar-thumb-gray-200 flex-shrink-0">
                   {images.length > 0 ? images.map((img, i) => (
                       <div key={i} className="relative group cursor-pointer flex-shrink-0" onClick={() => setSelectedImage(img)}>
-                         <img src={img} className="h-16 w-16 md:h-24 md:w-24 object-cover rounded-lg border border-gray-100" />
+                         <img src={img} className="h-20 w-20 md:h-24 md:w-24 object-cover rounded-lg border border-gray-100" />
                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all rounded-lg flex items-center justify-center">
                              <ZoomIn size={16} className="text-white opacity-0 group-hover:opacity-100" />
                          </div>
                       </div>
                   )) : (
-                      <div className="h-16 w-full bg-gray-50 rounded-lg flex items-center justify-center text-[10px] text-gray-400 border border-gray-100 p-2 text-center">No Images</div>
+                      <div className="h-20 w-full bg-gray-50 rounded-lg flex items-center justify-center text-xs text-gray-400 border border-gray-100 p-2 text-center">No Images</div>
                   )}
               </div>
 
               <div className="flex-1 grid grid-cols-2 gap-3">
                  <div className="col-span-2">
-                    <label className="block text-xs font-medium text-slate-500 mb-0.5">Product Name</label>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Product Name</label>
                     <input 
                       value={profile.name} 
                       onChange={e => setProfile({...profile, name: e.target.value})}
-                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary outline-none font-bold text-slate-800"
+                      className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none font-bold text-slate-800"
                     />
                  </div>
                  
                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-0.5">Brand</label>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Brand</label>
                     <input 
                       value={profile.brand} 
                       onChange={e => setProfile({...profile, brand: e.target.value})}
-                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary outline-none"
+                      className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none"
                     />
                  </div>
                  
                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-0.5">Category</label>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Category</label>
                     <input 
                       value={profile.category} 
                       onChange={e => setProfile({...profile, category: e.target.value})}
-                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary outline-none"
+                      className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none"
                     />
                  </div>
 
                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-0.5">Price Est.</label>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Price Est.</label>
                     <input 
                       value={profile.priceEstimate} 
                       onChange={e => setProfile({...profile, priceEstimate: e.target.value})}
-                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary outline-none"
+                      className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none"
                     />
                  </div>
                  
                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-0.5">Material</label>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Material</label>
                     <input 
                       value={profile.material} 
                       onChange={e => setProfile({...profile, material: e.target.value})}
-                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary outline-none"
+                      className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none"
                     />
                  </div>
 
                  <div className="col-span-2">
-                    <label className="block text-xs font-medium text-slate-500 mb-0.5">Features</label>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Features</label>
                     <textarea 
                         value={(profile.features || []).join(', ')} 
                         onChange={e => setProfile({...profile, features: e.target.value.split(', ')})} 
                         rows={2} 
-                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary outline-none resize-none" 
+                        className="w-full px-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none resize-none" 
                     />
                  </div>
 
                  <div className="col-span-2">
-                    <label className="block text-xs font-medium text-slate-500 mb-0.5 flex justify-between items-center">
+                    <label className="block text-xs font-medium text-slate-500 mb-1 flex justify-between items-center">
                       <span>Product URL</span>
                       {profile.url && (
                           <div className="flex gap-2">
-                             <a href={profile.url} target="_blank" rel="noreferrer" className="text-primary hover:underline flex items-center gap-1 text-[10px]"><ExternalLink size={10}/> Open Link</a>
-                             <button onClick={() => setIsEditingUrl(!isEditingUrl)} className="text-gray-500 hover:text-gray-800 text-[10px] flex items-center gap-1"><Edit2 size={10}/> {isEditingUrl ? 'Done' : 'Edit'}</button>
+                             <a href={profile.url} target="_blank" rel="noreferrer" className="text-primary hover:underline flex items-center gap-1 text-xs"><ExternalLink size={12}/> Open Link</a>
+                             <button onClick={() => setIsEditingUrl(!isEditingUrl)} className="text-gray-500 hover:text-gray-800 text-xs flex items-center gap-1"><Edit2 size={12}/> {isEditingUrl ? 'Done' : 'Edit'}</button>
                           </div>
                       )}
                     </label>
                     
                     {isEditingUrl || !profile.url ? (
                         <div className="relative">
-                            <Globe size={14} className="absolute left-3 top-2 text-gray-400" />
+                            <Globe size={16} className="absolute left-3 top-2.5 text-gray-400" />
                             <input 
                                 value={profile.url || ''} 
                                 onChange={e => setProfile({...profile, url: e.target.value})}
                                 placeholder="https://..."
-                                className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-primary outline-none text-slate-600 bg-gray-50" 
+                                className="w-full pl-10 pr-3 py-2 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none text-slate-600 bg-gray-50" 
                             />
                         </div>
                     ) : (
-                        <a href={profile.url} target="_blank" rel="noreferrer" className="block w-full px-3 py-1.5 text-sm border border-transparent bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors truncate">
+                        <a href={profile.url} target="_blank" rel="noreferrer" className="block w-full px-3 py-2 text-sm border border-transparent bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors truncate">
                             {profile.url}
                         </a>
                     )}
@@ -399,14 +399,14 @@ export const AddProductPage = () => {
             <button 
                 type="button"
                 onClick={handleDiscard} 
-                className="col-span-1 py-3 px-4 rounded-xl border border-red-200 text-red-600 font-bold hover:bg-red-50 flex items-center justify-center gap-2 text-sm z-10"
+                className="col-span-1 py-2.5 px-4 rounded-xl border border-red-200 text-red-600 font-bold hover:bg-red-50 flex items-center justify-center gap-2"
             >
                 <Trash2 size={16} /> <span className="hidden sm:inline">Discard</span>
             </button>
             <button 
                 type="button"
                 onClick={handleRedo} 
-                className="col-span-1 py-3 px-4 rounded-xl border border-gray-300 text-gray-700 font-bold hover:bg-gray-50 flex items-center justify-center gap-2 text-sm z-10"
+                className="col-span-1 py-2.5 px-4 rounded-xl border border-gray-300 text-gray-700 font-bold hover:bg-gray-50 flex items-center justify-center gap-2"
             >
                 <RotateCcw size={16} /> Redo
             </button>
@@ -414,7 +414,7 @@ export const AddProductPage = () => {
                 type="button"
                 onClick={handleSave} 
                 disabled={loading} 
-                className="col-span-2 md:col-span-2 py-3 px-6 rounded-xl bg-primary text-white font-bold hover:bg-indigo-700 flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 text-sm z-10"
+                className="col-span-2 md:col-span-2 py-2.5 px-6 rounded-xl bg-primary text-white font-bold hover:bg-indigo-700 flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 z-10"
             >
                 {loading ? <Loader2 className="animate-spin" size={16} /> : <><Save size={16} /> Save to Inventory</>}
             </button>
@@ -424,13 +424,13 @@ export const AddProductPage = () => {
   }
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-24">
       <h1 className="text-2xl font-bold">Add New Product</h1>
       
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-6 border-b border-gray-100 bg-gray-50">
               <h2 className="font-bold text-gray-800">1. Upload Images</h2>
-              <p className="text-sm text-gray-500">Add photos for visual identification.</p>
+              <p className="text-sm text-gray-500 mt-1">Add photos for visual identification.</p>
           </div>
           <div 
             className={`p-8 text-center space-y-6 transition-all duration-200 ${
@@ -444,14 +444,14 @@ export const AddProductPage = () => {
                 {images.length === 0 && (
                     <div className="flex flex-col items-center text-gray-400 pointer-events-none select-none">
                         <ImagePlus size={48} className="mb-2 opacity-50" />
-                        <p>Drag & Drop images here</p>
+                        <p className="text-base">Drag & Drop images here</p>
                         <p className="text-sm mt-1">or Paste from clipboard (Ctrl+V)</p>
                     </div>
                 )}
                 {images.map((img, i) => (
                     <div key={i} className="relative group animate-in fade-in zoom-in duration-300">
                         <img src={img} className="h-32 w-32 object-cover rounded-xl shadow-sm bg-white border border-gray-200" />
-                        <button onClick={() => removeImage(i)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"><X size={12} /></button>
+                        <button onClick={() => removeImage(i)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"><X size={14} /></button>
                     </div>
                 ))}
             </div>
@@ -459,7 +459,7 @@ export const AddProductPage = () => {
             <div className="flex justify-center">
                 <label className="cursor-pointer">
                     <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
-                    <div className="flex items-center gap-2 bg-white text-slate-700 px-6 py-2 rounded-full font-semibold hover:bg-gray-50 transition shadow-sm border border-gray-200">
+                    <div className="flex items-center gap-2 bg-white text-slate-700 px-6 py-2.5 rounded-full font-semibold hover:bg-gray-50 transition shadow-sm border border-gray-200">
                         <Upload size={18} /> Choose Files
                     </div>
                 </label>
@@ -476,17 +476,17 @@ export const AddProductPage = () => {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-100 bg-gray-50">
             <h2 className="font-bold text-gray-800">2. Product URL</h2>
-            <p className="text-sm text-gray-500">Provide a link for precise identification.</p>
+            <p className="text-sm text-gray-500 mt-1">Provide a link for precise identification.</p>
         </div>
         <div className="p-6">
-            <div className="flex items-center gap-3 border border-gray-300 rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-primary transition-all">
-                <Globe className="text-gray-400" />
+            <div className="flex items-center gap-3 border border-gray-300 rounded-xl px-4 py-2.5 focus-within:ring-2 focus-within:ring-primary transition-all">
+                <Globe className="text-gray-400" size={20} />
                 <input 
                     type="text" 
                     value={productUrl}
                     onChange={(e) => setProductUrl(e.target.value)}
                     placeholder="https://brand.com/product/..." 
-                    className="flex-1 outline-none text-gray-700 bg-transparent"
+                    className="flex-1 outline-none text-gray-700 bg-transparent text-base"
                 />
             </div>
         </div>
@@ -495,7 +495,7 @@ export const AddProductPage = () => {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-100 bg-gray-50">
             <h2 className="font-bold text-gray-800">3. Model Selection</h2>
-            <p className="text-sm text-gray-500">Choose a model for product identification.</p>
+            <p className="text-sm text-gray-500 mt-1">Choose a model for product identification.</p>
         </div>
         <div className="p-6">
             <div className="flex items-center gap-2">
@@ -508,7 +508,7 @@ export const AddProductPage = () => {
                 />
                 <div className="relative group">
                   <Info size={16} className="text-gray-400 cursor-pointer" />
-                  <div className="absolute bottom-full mb-2 w-64 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="absolute bottom-full mb-2 w-64 bg-gray-800 text-white text-xs rounded py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                     <p><span className="font-semibold">Flash 2.5:</span> Faster, more cost-effective model, suitable for most identification tasks.</p>
                     <p className="mt-1"><span className="font-semibold">Pro 3.0:</span> More powerful model for higher accuracy, but slower and more expensive.</p>
                   </div>
@@ -520,7 +520,7 @@ export const AddProductPage = () => {
       <button 
         onClick={handleIdentify}
         disabled={(images.length === 0 && !productUrl) || loading}
-        className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg ${
+        className={`w-full py-3.5 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg ${
             (images.length === 0 && !productUrl) ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none' : 'bg-gradient-to-r from-primary to-accent text-white hover:shadow-indigo-200 hover:scale-[1.01] active:scale-[0.99]'
         }`}
       >
