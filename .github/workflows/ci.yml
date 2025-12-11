@@ -49,6 +49,9 @@ jobs:
 
       - name: Build Pages
         working-directory: pages
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || 'dummy_key_for_ci' }}
+          VITE_IMAGE_PROXY_URL: ${{ secrets.VITE_IMAGE_PROXY_URL || 'https://dummy-worker.workers.dev' }}
         run: npm run build
 
       - name: Verify Pages Build Output
