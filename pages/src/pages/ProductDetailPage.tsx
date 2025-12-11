@@ -126,7 +126,7 @@ export const ProductDetailPage: React.FC = () => {
   };
 
   const rerunQCWithExistingImages = async () => {
-    if (!product || !user?.apiKey || !currentReport) return;
+    if (!product || !user?.apiKey || !user?.id || !currentReport) return;
     
     // Load the QC images from the latest report
     const previousQCImages = currentReport.qcImageIds.map(id => getPublicImageUrl(user.id!, id));
@@ -247,10 +247,7 @@ export const ProductDetailPage: React.FC = () => {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleExportPDF(e);
-              }}
+              onClick={handleExportPDF}
               disabled={exportingPDF}
               className="flex items-center gap-2 px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors disabled:opacity-50"
               title="Export as PDF"
