@@ -231,18 +231,18 @@ export const InventoryPage = () => {
   );
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Inventory</h1>
-          <p className="text-slate-500 text-xs md:text-sm">Manage your authentic product profiles</p>
+          <h1 className="text-2xl font-bold text-slate-900">Inventory</h1>
+          <p className="text-slate-500 text-sm mt-1">Manage your authentic product profiles</p>
         </div>
-        <Link to="/inventory/new" className="flex items-center justify-center gap-2 bg-primary text-white px-4 py-2.5 md:py-2 rounded-lg hover:bg-indigo-700 transition shadow-sm w-full md:w-fit">
+        <Link to="/inventory/new" className="flex items-center justify-center gap-2 bg-primary text-white px-4 py-2.5 rounded-lg hover:bg-indigo-700 transition shadow-sm w-full md:w-fit">
           <Plus size={18} /> Add Product
         </Link>
       </div>
 
-      <div className="space-y-2 md:space-y-3">
+      <div className="space-y-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input 
@@ -250,13 +250,13 @@ export const InventoryPage = () => {
             placeholder="Search products..." 
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 md:py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-base md:text-sm"
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary outline-none text-base"
           />
         </div>
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-          <span className="text-gray-400 flex items-center gap-1 mr-1 text-xs md:text-sm shrink-0"><Filter size={14} /> Filter:</span>
+          <span className="text-gray-400 flex items-center gap-1 mr-1 text-sm shrink-0"><Filter size={14} /> Filter:</span>
           <FilterButton type="ALL" label="All" activeClass="bg-gray-800 text-white border-gray-800" />
           <FilterButton type="PASS" label="Passed" icon={CheckCircle} activeClass="bg-green-100 text-green-800 border-green-200" />
           <FilterButton type="FAIL" label="Failed" icon={XCircle} activeClass="bg-red-100 text-red-800 border-red-200" />
@@ -299,18 +299,18 @@ export const InventoryPage = () => {
       )}
 
       {Object.keys(groupedProducts).length === 0 ? (
-        <div className="text-center py-12 md:py-20 bg-white rounded-2xl border border-dashed border-gray-300">
-          <p className="text-slate-400 text-sm md:text-base">No products found matching your criteria.</p>
+        <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-300">
+          <p className="text-slate-400">No products found matching your criteria.</p>
         </div>
       ) : (
-        <div className="space-y-6 md:space-y-8">
+        <div className="space-y-6">
           {Object.entries(groupedProducts).map(([category, prods]: [string, Product[]]) => {
             const isCollapsed = collapsedSections.has(category);
             return (
               <div key={category}>
                 <button 
                   onClick={() => toggleSection(category)}
-                  className="flex items-center gap-2 text-base md:text-lg font-bold text-slate-800 mb-3 md:mb-4 bg-gray-100 p-2 rounded-lg px-3 md:px-4 hover:bg-gray-200 transition-colors w-auto"
+                  className="flex items-center gap-2 text-lg font-bold text-slate-800 mb-4 bg-gray-100 p-2 rounded-lg px-4 hover:bg-gray-200 transition-colors w-auto"
                 >
                   <ChevronDown 
                     size={16} 
@@ -320,7 +320,7 @@ export const InventoryPage = () => {
                   <span className="text-sm font-normal text-gray-500">({prods.length})</span>
                 </button>
                 {!isCollapsed && (
-                  <div className={`grid grid-cols-2 ${gridColsClass} gap-3 md:gap-4`}>
+                  <div className={`grid grid-cols-2 ${gridColsClass} gap-4`}>
                 {prods.map(product => {
                   const latestReport = product.reports && product.reports.length > 0 ? product.reports[product.reports.length - 1] : null;
                   
@@ -336,38 +336,38 @@ export const InventoryPage = () => {
                     <Link 
                       key={product.id} 
                       to={'/inventory/' + product.id} 
-                      className={`group bg-white rounded-lg md:rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden relative block ${isSelected ? 'ring-2 ring-primary/40' : ''}`}
+                      className={`group bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden relative block ${isSelected ? 'ring-2 ring-primary/40' : ''}`}
                     >
                       <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
                         {imageMap[product.id] ? (
                           <img src={imageMap[product.id]} alt={product.profile.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         ) : (
                           <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-                            <Tag size={20} className="md:w-6 md:h-6" />
+                            <Tag size={24} />
                           </div>
                         )}
 
                         {/* Status Badge */}
-                        <div className="absolute top-1.5 right-1.5 md:top-2 md:right-2 shadow-sm">
+                        <div className="absolute top-2 right-2 shadow-sm">
                           {latestReport ? (
-                            <div className={"px-1.5 py-0.5 md:px-2 md:py-1 rounded text-[9px] md:text-[10px] font-bold uppercase " + statusClass}>
+                            <div className={"px-2 py-1 rounded text-[10px] font-bold uppercase " + statusClass}>
                               {latestReport.overallGrade}
                             </div>
                           ) : (
-                            <div className="px-1.5 py-0.5 md:px-2 md:py-1 rounded text-[9px] md:text-[10px] font-bold uppercase bg-gray-600 text-white flex items-center gap-0.5 md:gap-1">
-                               <Clock size={8} className="md:w-2.5 md:h-2.5" /> Pending
+                            <div className="px-2 py-1 rounded text-[10px] font-bold uppercase bg-gray-600 text-white flex items-center gap-1">
+                               <Clock size={10} /> Pending
                             </div>
                           )}
                         </div>
                       </div>
-                      <div className="p-2.5 md:p-4">
-                        <p className="text-[10px] md:text-xs text-slate-500 font-semibold uppercase tracking-wider mb-0.5 md:mb-1 truncate">{product.profile.brand || 'Unknown'}</p>
-                        <h4 className="font-bold text-xs md:text-base text-slate-900 truncate">{product.profile.name || product.profile.url || 'Untitled Product'}</h4>
-                        <p className="text-xs md:text-sm text-slate-600 mt-0.5 md:mt-1 truncate">{product.profile.priceEstimate || ''}</p>
+                      <div className="p-4">
+                        <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1 truncate">{product.profile.brand || 'Unknown'}</p>
+                        <h4 className="font-bold text-sm md:text-base text-slate-900 truncate">{product.profile.name || product.profile.url || 'Untitled Product'}</h4>
+                        <p className="text-sm text-slate-600 mt-1 truncate">{product.profile.priceEstimate || ''}</p>
                       </div>
 
                       {/* Controls overlay: checkbox & delete (stop propagation/prevent navigation) */}
-                      <div className="absolute top-2 left-2 md:top-3 md:left-3 z-20">
+                      <div className="absolute top-3 left-3 z-20">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -377,7 +377,7 @@ export const InventoryPage = () => {
                             else setSelectedIds(prev => prev.filter(id => id !== product.id));
                           }}
                           onClick={e => e.stopPropagation()}
-                          className="w-3.5 h-3.5 md:w-4 md:h-4 cursor-pointer"
+                          className="w-4 h-4 cursor-pointer"
                         />
                       </div>
 
@@ -389,10 +389,10 @@ export const InventoryPage = () => {
                           await deleteProduct(product.id);
                           setSelectedIds(prev => prev.filter(id => id !== product.id));
                         }}
-                        className="absolute bottom-2 right-2 md:bottom-3 md:right-3 z-20 bg-white rounded-full p-1 shadow-sm hover:bg-red-50"
+                        className="absolute bottom-3 right-3 z-20 bg-white rounded-full p-1.5 shadow-sm hover:bg-red-50"
                         title="Delete product"
                       >
-                        <Trash2 size={14} className="md:w-4 md:h-4 text-red-600" />
+                        <Trash2 size={16} className="text-red-600" />
                       </button>
                     </Link>
                   );

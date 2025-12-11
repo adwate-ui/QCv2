@@ -35,13 +35,13 @@ export const AuthPage = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-6 bg-slate-50">
-      <div className="w-full max-w-md bg-white rounded-xl md:rounded-2xl shadow-xl p-6 md:p-8">
-        <div className="flex justify-center mb-4 md:mb-6">
+    <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
+        <div className="flex justify-center mb-6">
           <img 
             src="/logo.svg" 
             alt="AuthentiqC Logo" 
-            className="w-20 h-20 md:w-24 md:h-24"
+            className="w-24 h-24"
             loading="lazy"
             onError={(e) => {
               // Fallback to a placeholder if logo fails to load
@@ -49,10 +49,10 @@ export const AuthPage = () => {
             }}
           />
         </div>
-        <h1 className="text-xl md:text-2xl font-bold text-center text-slate-800 mb-2">
+        <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
           {isLogin ? 'Welcome Back' : 'Create Account'}
         </h1>
-        <p className="text-center text-slate-500 text-sm md:text-base mb-6 md:mb-8">
+        <p className="text-center text-slate-500 mb-8">
           {isLogin ? 'Sign in to access your inventory' : 'Start your QC journey today'}
         </p>
 
@@ -78,7 +78,7 @@ export const AuthPage = () => {
 
           <button 
             type="submit" 
-            className="w-full bg-primary text-white font-bold py-3 md:py-3.5 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 text-base md:text-lg"
+            className="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
           >
             {isLogin ? 'Sign In' : 'Create Account'}
           </button>
@@ -91,7 +91,7 @@ export const AuthPage = () => {
                 setIsLogin(!isLogin);
                 setError('');
             }}
-            className="text-sm md:text-base text-slate-500 hover:text-primary transition-colors"
+            className="text-slate-500 hover:text-primary transition-colors"
           >
             {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
           </button>

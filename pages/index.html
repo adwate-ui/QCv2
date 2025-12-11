@@ -72,6 +72,20 @@
       }
     </script>
     <style>
+      /* CSS Custom Properties for Consistency */
+      :root {
+        --header-height: 52px;
+        --bottom-nav-height: 68px;
+        --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      
+      /* Desktop: hide bottom nav padding */
+      @media (min-width: 768px) {
+        .min-h-screen {
+          padding-bottom: 0 !important;
+        }
+      }
+      
       /* Smooth scrolling for anchor links */
       html {
         scroll-behavior: smooth;
@@ -79,7 +93,7 @@
         -moz-osx-font-smoothing: grayscale;
       }
       
-      /* Improve touch targets on mobile */
+      /* Improve touch targets on mobile - minimum 44px for accessibility */
       @media (max-width: 768px) {
         button:not(.compact), 
         a:not(.compact), 
@@ -90,14 +104,14 @@
           min-height: 44px;
         }
         
-        /* Fix iOS input zoom - use specific selector */
+        /* Fix iOS input zoom - CRITICAL: must be 16px to prevent zoom */
         input[type="text"],
         input[type="email"],
         input[type="password"],
         input[type="number"],
         select, 
         textarea {
-          font-size: 16px;
+          font-size: 16px !important;
         }
       }
       
@@ -131,6 +145,15 @@
         animation: shimmer 2s infinite linear;
         background: linear-gradient(to right, #f0f0f0 4%, #e0e0e0 25%, #f0f0f0 36%);
         background-size: 1000px 100%;
+      }
+      
+      /* Consistent touch feedback */
+      @media (hover: none) and (pointer: coarse) {
+        button:active:not(:disabled), 
+        a:active {
+          transform: scale(0.98);
+          transition: transform 0.1s ease;
+        }
       }
     </style>
   <script type="importmap">

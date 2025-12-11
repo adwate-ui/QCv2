@@ -417,7 +417,7 @@ export const ProductDetailPage: React.FC = () => {
   }, [currentReport]);
 
   return (
-    <div className="pb-20 relative">
+    <div className="pb-24 relative space-y-6">
       {selectedImage && (
         <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4" onClick={resetImageViewer}>
           <button className="absolute top-4 right-4 text-white p-2 hover:bg-white/10 rounded-full z-10">
@@ -432,7 +432,7 @@ export const ProductDetailPage: React.FC = () => {
                   e.stopPropagation();
                   setImageZoom(Math.max(0.5, imageZoom - 0.25));
                 }}
-                className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
+                className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
               >
                 Zoom -
               </button>
@@ -442,7 +442,7 @@ export const ProductDetailPage: React.FC = () => {
                   e.stopPropagation();
                   setImageZoom(Math.min(3, imageZoom + 0.25));
                 }}
-                className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
+                className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
               >
                 Zoom +
               </button>
@@ -453,7 +453,7 @@ export const ProductDetailPage: React.FC = () => {
                   e.stopPropagation();
                   setImageRotation((imageRotation - 90) % 360);
                 }}
-                className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
+                className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
               >
                 ↶ Rotate
               </button>
@@ -463,7 +463,7 @@ export const ProductDetailPage: React.FC = () => {
                   e.stopPropagation();
                   setImageRotation((imageRotation + 90) % 360);
                 }}
-                className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
+                className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
               >
                 ↷ Rotate
               </button>
@@ -474,7 +474,7 @@ export const ProductDetailPage: React.FC = () => {
                 setImageZoom(1);
                 setImageRotation(0);
               }}
-              className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
+              className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded text-sm"
             >
               Reset
             </button>
@@ -498,102 +498,102 @@ export const ProductDetailPage: React.FC = () => {
       
       {feedbackTask && feedbackTask.preliminaryReport && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl p-4 md:p-6 w-full max-w-2xl max-h-[90vh] flex flex-col">
-            <h2 className="text-lg md:text-xl font-bold mb-3 md:mb-4">Preliminary Report - Provide Feedback</h2>
-            <div className="flex-1 overflow-y-auto p-3 md:p-4 bg-gray-50 rounded">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <h2 className="text-xl font-bold mb-4">Preliminary Report - Provide Feedback</h2>
+            <div className="flex-1 overflow-y-auto p-4 bg-gray-50 rounded-lg">
               <ReportCard key={feedbackTask.preliminaryReport.id} report={feedbackTask.preliminaryReport} refImages={refImages} expanded={true} />
             </div>
-            <div className="mt-3 md:mt-4">
-              <label className="text-sm font-medium text-gray-700">Additional Comments</label>
+            <div className="mt-4">
+              <label className="text-sm font-medium text-gray-700 mb-1.5 block">Additional Comments</label>
               <textarea
                 value={additionalComments}
                 onChange={(e) => setAdditionalComments(e.target.value)}
                 rows={3}
-                className="w-full mt-1 p-2 md:p-3 border border-gray-300 rounded-md text-base md:text-sm"
+                className="w-full p-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-primary outline-none"
                 placeholder="e.g., The lighting was poor in the photos, please focus on the stitching."
               />
             </div>
-            <div className="mt-3 md:mt-4 flex flex-col md:flex-row justify-end gap-2">
-              <button onClick={handleCancelPreliminaryReport} className="w-full md:w-auto px-4 py-2.5 md:py-2 bg-gray-200 rounded text-base md:text-sm">Cancel</button>
-              <button onClick={handleFinalizeQC} className="w-full md:w-auto px-4 py-2.5 md:py-2 bg-primary text-white rounded text-base md:text-sm">Submit for Final Report</button>
+            <div className="mt-4 flex flex-col md:flex-row justify-end gap-2">
+              <button onClick={handleCancelPreliminaryReport} className="w-full md:w-auto px-4 py-2.5 bg-gray-200 rounded-lg">Cancel</button>
+              <button onClick={handleFinalizeQC} className="w-full md:w-auto px-4 py-2.5 bg-primary text-white rounded-lg">Submit for Final Report</button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="bg-white p-4 md:p-6 rounded-xl md:rounded-2xl shadow mb-4 md:mb-6">
-        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="flex flex-col md:flex-row gap-6">
           <div className="w-full md:w-1/3">
-            <div onClick={() => refImages[0] && setSelectedImage(refImages[0])} className="aspect-square bg-gray-100 rounded overflow-hidden mb-2 cursor-pointer">
+            <div onClick={() => refImages[0] && setSelectedImage(refImages[0])} className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-2 cursor-pointer border border-gray-200">
               {refImages[0] && <img src={refImages[0]} className="w-full h-full object-cover" />}
             </div>
             <div className="flex gap-2 overflow-auto">
               {refImages.slice(1).map((r, i) => (
-                <div key={i} onClick={() => setSelectedImage(r)} className="h-14 w-14 md:h-16 md:w-16 rounded overflow-hidden cursor-pointer shrink-0">
+                <div key={i} onClick={() => setSelectedImage(r)} className="h-16 w-16 rounded-lg overflow-hidden cursor-pointer shrink-0 border border-gray-200">
                   <img src={r} className="h-full w-full object-cover" />
                 </div>
               ))}
             </div>
           </div>
           <div className="flex-1">
-            <div className="flex flex-col md:flex-row justify-between gap-3 md:gap-0">
+            <div className="flex flex-col md:flex-row justify-between gap-3">
               <div>
-                <h1 className="text-xl md:text-2xl font-bold">{product.profile.name}</h1>
-                <div className="text-sm text-gray-600">{product.profile.brand}</div>
+                <h1 className="text-2xl font-bold">{product.profile.name}</h1>
+                <div className="text-sm text-gray-600 mt-1">{product.profile.brand}</div>
               </div>
               <div className="text-right">
                 {product.profile.url ? (
-                  <a href={product.profile.url} target="_blank" rel="noreferrer" className="text-sm text-blue-600 flex items-center gap-1 justify-end md:justify-start">
+                  <a href={product.profile.url} target="_blank" rel="noreferrer" className="text-sm text-blue-600 flex items-center gap-1 hover:underline">
                     <ExternalLink size={14} /> View Source
                   </a>
                 ) : null}
               </div>
             </div>
 
-            <div className="mt-3 md:mt-4 flex flex-wrap gap-2">
+            <div className="mt-4 flex flex-wrap gap-2">
               {product.creationSettings && (
-                <div className="px-2 py-1 rounded border text-xs md:text-sm">
+                <div className="px-3 py-1 rounded-lg border text-sm">
                   {product.creationSettings.modelTier === ModelTier.DETAILED ? 'Pro 3.0' : 'Flash 2.5'}
                 </div>
               )}
               {product.creationSettings && (
-                <div className="px-2 py-1 rounded border text-xs md:text-sm">
+                <div className="px-3 py-1 rounded-lg border text-sm">
                   {product.creationSettings.expertMode === ExpertMode.EXPERT ? 'Expert' : 'Normal'}
                 </div>
               )}
             </div>
 
-            <div className="mt-4 md:mt-6">
-              <div className="grid grid-cols-2 gap-3 md:gap-4 bg-gray-50 p-2.5 md:p-3 rounded">
+            <div className="mt-6">
+              <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-lg">
                 <div>
                   <div className="text-xs text-gray-500">Est. Price</div>
-                  <div className="font-semibold text-sm md:text-base">{product.profile.priceEstimate}</div>
+                  <div className="font-semibold">{product.profile.priceEstimate}</div>
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Material</div>
-                  <div className="font-semibold text-sm md:text-base">{product.profile.material}</div>
+                  <div className="font-semibold">{product.profile.material}</div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 md:mt-6">
-              <div className="flex flex-wrap gap-1.5 md:gap-2">
+            <div className="mt-6">
+              <div className="flex flex-wrap gap-2">
                 {product.profile.features?.map((f, i) => (
-                  <span key={i} className="px-2 py-0.5 md:py-1 bg-white rounded border text-xs md:text-sm">{f}</span>
+                  <span key={i} className="px-3 py-1 bg-white rounded-lg border text-sm">{f}</span>
                 ))}
               </div>
             </div>
 
-            <div className="mt-4 md:mt-6">
-              <button onClick={handleDelete} className="w-full md:w-auto px-4 py-2.5 md:py-2 bg-red-50 text-red-600 rounded text-sm md:text-base">Delete Identification</button>
+            <div className="mt-6">
+              <button onClick={handleDelete} className="w-full md:w-auto px-4 py-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors">Delete Identification</button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="mb-4 md:mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-0">
-        <h2 className="text-lg md:text-xl font-bold">Quality Control</h2>
-        <button onClick={() => setShowHistory(v => !v)} className="text-xs md:text-sm text-gray-600 flex items-center gap-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+        <h2 className="text-xl font-bold">Quality Control</h2>
+        <button onClick={() => setShowHistory(v => !v)} className="text-sm text-gray-600 flex items-center gap-2 hover:text-gray-800">
           <History size={16} /> {showHistory ? 'Hide History' : `History (${product.reports?.length || 0})`}
         </button>
       </div>

@@ -32,11 +32,11 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 pb-20 md:pb-0">
+    <div className="min-h-screen flex flex-col bg-gray-50" style={{paddingBottom: 'var(--bottom-nav-height)'}}>
       {/* Top Bar */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50 px-3 md:px-4 py-2.5 md:py-3 flex items-center justify-between shadow-sm flex-shrink-0">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50 px-4 py-3 flex items-center justify-between shadow-sm flex-shrink-0" style={{height: 'var(--header-height)'}}>
         <Link to="/inventory" className="flex items-center gap-2 group">
-          <img src="/logo.svg" alt="AuthentiQC Logo" className="w-7 h-7 md:w-8 md:h-8 transition-transform group-hover:scale-110" />
+          <img src="/logo.svg" alt="AuthentiQC Logo" className="w-8 h-8 transition-transform group-hover:scale-110" />
           <span className="text-lg md:text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             AuthentiQC
           </span>
@@ -50,14 +50,14 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           <div className="relative">
              <button 
                 onClick={() => setShowTasks(!showTasks)}
-                className="p-1.5 md:p-2 rounded-lg hover:bg-gray-100 relative text-gray-600 transition-colors"
+                className="p-2 rounded-lg hover:bg-gray-100 relative text-gray-600 transition-colors"
              >
                 <Bell size={20} />
                 {activeTasks.length > 0 && (
-                    <span className="absolute top-0.5 right-0.5 md:top-1 md:right-1 h-2.5 w-2.5 bg-blue-500 rounded-full border border-white animate-pulse"></span>
+                    <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-blue-500 rounded-full border border-white animate-pulse"></span>
                 )}
                 {completedTasks.length > 0 && activeTasks.length === 0 && (
-                     <span className="absolute top-0.5 right-0.5 md:top-1 md:right-1 h-2.5 w-2.5 bg-green-500 rounded-full border border-white"></span>
+                     <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-green-500 rounded-full border border-white"></span>
                 )}
              </button>
 
@@ -103,19 +103,19 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
              )}
           </div>
 
-          <div className="h-5 md:h-6 w-px bg-gray-200 mx-0.5 md:mx-1"></div>
+          <div className="h-6 w-px bg-gray-200 mx-1"></div>
 
           {/* Model & Persona toggles moved to identification/QC flows per UX request */}
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-3 md:p-4 lg:p-6 xl:p-8 md:ml-64">
+      <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 md:ml-64">
         {children}
       </main>
 
       {/* Desktop Sidebar (Hidden on Mobile) */}
-      <nav className="hidden md:flex fixed left-0 top-12 md:top-[52px] lg:top-14 bottom-0 w-64 bg-white border-r border-gray-200 flex-col p-4 z-40">
+      <nav className="hidden md:flex fixed left-0 bottom-0 w-64 bg-white border-r border-gray-200 flex-col p-4 z-40" style={{top: 'var(--header-height)'}}>
         <div className="space-y-2">
           <Link to="/inventory" className={`flex items-center gap-3 p-3 rounded-xl font-medium ${location.pathname === '/inventory' ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-gray-50'}`}>
             <Home size={20} /> Inventory
@@ -135,18 +135,18 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       </nav>
 
       {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around p-2.5 md:p-3 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]" style={{paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom))'}}>
-        <Link to="/inventory" className={`flex flex-col items-center gap-0.5 md:gap-1 min-w-[64px] ${isActive('/inventory')}`}>
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around p-3 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]" style={{height: 'var(--bottom-nav-height)', paddingBottom: 'calc(0.75rem + var(--safe-area-bottom))'}}>
+        <Link to="/inventory" className={`flex flex-col items-center justify-center gap-1 min-w-[64px] ${isActive('/inventory')}`}>
           <Home size={22} />
-          <span className="text-[10px] md:text-xs">Home</span>
+          <span className="text-xs">Home</span>
         </Link>
-        <Link to="/inventory/new" className={`flex flex-col items-center gap-0.5 md:gap-1 min-w-[64px] ${isActive('/inventory/new')}`}>
+        <Link to="/inventory/new" className={`flex flex-col items-center justify-center gap-1 min-w-[64px] ${isActive('/inventory/new')}`}>
           <PlusSquare size={22} />
-          <span className="text-[10px] md:text-xs">Add</span>
+          <span className="text-xs">Add</span>
         </Link>
-        <Link to="/user" className={`flex flex-col items-center gap-0.5 md:gap-1 min-w-[64px] ${isActive('/user')}`}>
+        <Link to="/user" className={`flex flex-col items-center justify-center gap-1 min-w-[64px] ${isActive('/user')}`}>
           <UserIcon size={22} />
-          <span className="text-[10px] md:text-xs">Profile</span>
+          <span className="text-xs">Profile</span>
         </Link>
       </nav>
     </div>
