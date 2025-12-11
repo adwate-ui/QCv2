@@ -125,6 +125,16 @@ export const ProductDetailPage: React.FC = () => {
     setQcImages([]);
   };
 
+  const rerunQCWithExistingImages = async () => {
+    if (!product || !user?.apiKey || !user?.id || !currentReport) return;
+    
+    // Load the QC images from the latest report
+    const previousQCImages = currentReport.qcImageIds.map(id => getPublicImageUrl(user.id, id));
+    
+    const useSettings = { modelTier: localModelTier, expertMode: localExpertMode };
+    startQCTask(user.apiKey, product, previousQCImages, useSettings, qcUserComments);
+  };
+
   const handleFinalizeQC = () => {
     if (!feedbackTask || !user?.apiKey) return;
     finalizeQCTask(user.apiKey, feedbackTask, additionalComments);
@@ -219,12 +229,15 @@ export const ProductDetailPage: React.FC = () => {
 
     return (
       <div className={`bg-white rounded-2xl shadow-sm border p-6 mb-6 ${expanded ? 'ring-2 ring-primary/30' : ''}`}>
-        <div className="flex justify-between items-start mb-4">
+        <div 
+          className="flex justify-between items-start mb-4 cursor-pointer"
+          onClick={() => onToggle?.(report.id)}
+        >
           <div>
             <div className="flex items-center gap-3">
-              <button onClick={() => onToggle?.(report.id)} className="font-bold text-left">
+              <div className="font-bold text-left">
                 Final QC Analysis Report
-              </button>
+              </div>
               <div className="text-xs text-gray-400">{new Date(report.generatedAt).toLocaleString()}</div>
             </div>
             <div className="flex items-center gap-2 mt-1 text-xs">
@@ -269,6 +282,23 @@ export const ProductDetailPage: React.FC = () => {
           <div className="mb-4">
             <div className="text-sm text-gray-700 whitespace-pre-line">{report.summary || 'No summary available.'}</div>
           </div>
+
+          {imgs.length > 0 && (
+            <div className="mb-4 p-4 bg-gray-50 rounded-lg border">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">QC Inspection Images</h4>
+              <div className="flex gap-2 flex-wrap">
+                {imgs.map((imgUrl, idx) => (
+                  <div 
+                    key={`qc-img-${report.id}-${idx}`} 
+                    className="h-24 w-24 cursor-pointer rounded overflow-hidden hover:ring-2 hover:ring-primary/50 border"
+                    onClick={() => setSelectedImage(imgUrl)}
+                  >
+                    <img src={imgUrl} className="h-full w-full object-cover" alt={`QC inspection image ${idx + 1}`} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="grid gap-3">
             {report.sections && report.sections.length > 0 ? report.sections.map((s, idx) => {
@@ -568,12 +598,32 @@ export const ProductDetailPage: React.FC = () => {
         </button>
       </div>
 
-      {currentReport ? (
-        <ReportCard report={currentReport} refImages={refImages} expanded={expandedReportId === currentReport.id} onToggle={(id) => setExpandedReportId(prev => prev === id ? null : id)} />
+      {showHistory ? (
+        // Show all historical reports when history is visible
+        sortedReports.length > 0 ? (
+          sortedReports.map((report) => (
+            <ReportCard 
+              key={report.id} 
+              report={report} 
+              refImages={refImages} 
+              expanded={expandedReportId === report.id} 
+              onToggle={(id) => setExpandedReportId(prev => prev === id ? null : id)} 
+            />
+          ))
+        ) : (
+          <div className="text-center py-10 bg-white rounded border-dashed border">
+            <div className="text-gray-500">No QC reports generated yet.</div>
+          </div>
+        )
       ) : (
-        <div className="text-center py-10 bg-white rounded border-dashed border">
-          <div className="text-gray-500">No QC reports generated yet.</div>
-        </div>
+        // Show only the current (latest) report when history is hidden
+        currentReport ? (
+          <ReportCard report={currentReport} refImages={refImages} expanded={expandedReportId === currentReport.id} onToggle={(id) => setExpandedReportId(prev => prev === id ? null : id)} />
+        ) : (
+          <div className="text-center py-10 bg-white rounded border-dashed border">
+            <div className="text-gray-500">No QC reports generated yet.</div>
+          </div>
+        )
       )}
 
       {isRunningQC && (
@@ -668,6 +718,21 @@ export const ProductDetailPage: React.FC = () => {
             <Zap size={16} />
             <span>Start Background Analysis</span>
           </button>
+
+          {currentReport && currentReport.qcImageIds && currentReport.qcImageIds.length > 0 && (
+            <div className="mt-4 pt-4 border-t">
+              <p className="text-sm text-gray-600 mb-3">
+                Or reanalyze with existing images from the latest report using different model/persona settings:
+              </p>
+              <button
+                onClick={rerunQCWithExistingImages}
+                className="w-full py-2 rounded font-semibold flex items-center justify-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200"
+              >
+                <Brain size={16} />
+                <span>Rerun Analysis with Existing Images</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
