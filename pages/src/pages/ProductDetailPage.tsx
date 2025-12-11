@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { getPublicImageUrl } from '../services/db';
+import { getPublicImageUrl, db } from '../services/db';
 import { Product, QCReport, ModelTier, ExpertMode, BackgroundTask } from '../types';
 import { Loader2, CheckCircle, XCircle, Upload, History, ExternalLink, X, ZoomIn, Zap, Brain, Activity, Trash2, Info, ChevronDown, Clock, FileDown } from 'lucide-react';
 import { parseObservations, formatEstimatedTime } from '../services/utils';
@@ -128,8 +128,30 @@ export const ProductDetailPage: React.FC = () => {
   const rerunQCWithExistingImages = async () => {
     if (!product || !user?.apiKey || !user?.id || !currentReport) return;
     
-    // Load the QC images from the latest report
-    const previousQCImages = currentReport.qcImageIds.map(id => getPublicImageUrl(user.id, id));
+    // Load the QC images from the latest report - fetch actual base64 data
+    const previousQCImagesPromises = currentReport.qcImageIds.map(async (id) => {
+      const base64Data = await db.getImage(id);
+      if (!base64Data) {
+        // Fallback: try to fetch from public URL and convert to base64
+        const publicUrl = getPublicImageUrl(user.id, id);
+        try {
+          const response = await fetch(publicUrl);
+          const blob = await response.blob();
+          return new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        } catch (error) {
+          console.error('Failed to fetch image from URL:', error);
+          throw error;
+        }
+      }
+      return base64Data;
+    });
+    
+    const previousQCImages = await Promise.all(previousQCImagesPromises);
     
     const useSettings = { modelTier: localModelTier, expertMode: localExpertMode };
     startQCTask(user.apiKey, product, previousQCImages, useSettings, qcUserComments);
@@ -230,38 +252,39 @@ export const ProductDetailPage: React.FC = () => {
     return (
       <div className={`bg-white rounded-2xl shadow-sm border p-6 mb-6 ${expanded ? 'ring-2 ring-primary/30' : ''}`}>
         <div 
-          className="flex justify-between items-start mb-4 cursor-pointer"
+          className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 cursor-pointer gap-4"
           onClick={() => onToggle?.(report.id)}
         >
-          <div>
-            <div className="flex items-center gap-3">
+          <div className="flex-shrink min-w-0">
+            <div className="flex flex-wrap items-center gap-2 md:gap-3">
               <div className="font-bold text-left">
                 Final QC Analysis Report
               </div>
               <div className="text-xs text-gray-400">{new Date(report.generatedAt).toLocaleString()}</div>
             </div>
-            <div className="flex items-center gap-2 mt-1 text-xs">
-                <span className="bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">{report.modelTier === 'FAST' ? 'Flash 2.5' : 'Pro 3.0'}</span>
-                <span className="bg-purple-100 text-purple-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">{report.expertMode}</span>
+            <div className="flex flex-wrap items-center gap-2 mt-1 text-xs">
+                <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">{report.modelTier === 'FAST' ? 'Flash 2.5' : 'Pro 3.0'}</span>
+                <span className="bg-purple-100 text-purple-800 text-xs font-medium px-2.5 py-0.5 rounded-full">{report.expertMode}</span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 w-full md:w-auto">
             <button
               onClick={handleExportPDF}
               disabled={exportingPDF}
-              className="flex items-center gap-2 px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
               title="Export as PDF"
             >
               {exportingPDF ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
-              <span>Export PDF</span>
+              <span className="hidden sm:inline">Export PDF</span>
+              <span className="sm:hidden">PDF</span>
             </button>
-            <div className="text-right">
+            <div className="text-left sm:text-right">
               {report.overallScore !== undefined && report.overallGrade ? (() => {
                 const cls = gradeToClasses(report.overallGrade);
                 return (
-                  <div className={`inline-flex items-center gap-3 px-3 py-2 rounded ${cls.bg} ${cls.text} font-bold`}>
-                    <div className="text-xl">{report.overallScore}/100</div>
-                    <div className="text-sm">{report.overallGrade}</div>
+                  <div className={`inline-flex items-center gap-2 md:gap-3 px-2 md:px-3 py-1.5 md:py-2 rounded ${cls.bg} ${cls.text} font-bold`}>
+                    <div className="text-lg md:text-xl">{report.overallScore}/100</div>
+                    <div className="text-xs md:text-sm">{report.overallGrade}</div>
                   </div>
                 );
               })() : (
