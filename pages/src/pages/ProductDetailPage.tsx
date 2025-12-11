@@ -219,12 +219,15 @@ export const ProductDetailPage: React.FC = () => {
 
     return (
       <div className={`bg-white rounded-2xl shadow-sm border p-6 mb-6 ${expanded ? 'ring-2 ring-primary/30' : ''}`}>
-        <div className="flex justify-between items-start mb-4">
+        <div 
+          className="flex justify-between items-start mb-4 cursor-pointer"
+          onClick={() => onToggle?.(report.id)}
+        >
           <div>
             <div className="flex items-center gap-3">
-              <button onClick={() => onToggle?.(report.id)} className="font-bold text-left">
+              <div className="font-bold text-left">
                 Final QC Analysis Report
-              </button>
+              </div>
               <div className="text-xs text-gray-400">{new Date(report.generatedAt).toLocaleString()}</div>
             </div>
             <div className="flex items-center gap-2 mt-1 text-xs">
@@ -234,7 +237,10 @@ export const ProductDetailPage: React.FC = () => {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={handleExportPDF}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleExportPDF(e);
+              }}
               disabled={exportingPDF}
               className="flex items-center gap-2 px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors disabled:opacity-50"
               title="Export as PDF"
@@ -269,6 +275,23 @@ export const ProductDetailPage: React.FC = () => {
           <div className="mb-4">
             <div className="text-sm text-gray-700 whitespace-pre-line">{report.summary || 'No summary available.'}</div>
           </div>
+
+          {imgs.length > 0 && (
+            <div className="mb-4 p-4 bg-gray-50 rounded-lg border">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">QC Inspection Images</h4>
+              <div className="flex gap-2 flex-wrap">
+                {imgs.map((imgUrl, idx) => (
+                  <div 
+                    key={idx} 
+                    className="h-24 w-24 cursor-pointer rounded overflow-hidden hover:ring-2 hover:ring-primary/50 border"
+                    onClick={() => setSelectedImage(imgUrl)}
+                  >
+                    <img src={imgUrl} className="h-full w-full object-cover" alt={`QC inspection image ${idx + 1}`} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="grid gap-3">
             {report.sections && report.sections.length > 0 ? report.sections.map((s, idx) => {
