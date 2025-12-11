@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { getPublicImageUrl } from '../services/db';
+import { getPublicImageUrl, db } from '../services/db';
 import { Product, QCReport, ModelTier, ExpertMode, BackgroundTask } from '../types';
 import { Loader2, CheckCircle, XCircle, Upload, History, ExternalLink, X, ZoomIn, Zap, Brain, Activity, Trash2, Info, ChevronDown, Clock, FileDown } from 'lucide-react';
 import { parseObservations, formatEstimatedTime } from '../services/utils';
@@ -130,7 +130,7 @@ export const ProductDetailPage: React.FC = () => {
     
     // Load the QC images from the latest report - fetch actual base64 data
     const previousQCImagesPromises = currentReport.qcImageIds.map(async (id) => {
-      const base64Data = await (await import('../services/db')).db.getImage(id);
+      const base64Data = await db.getImage(id);
       if (!base64Data) {
         // Fallback: try to fetch from public URL and convert to base64
         const publicUrl = getPublicImageUrl(user.id, id);

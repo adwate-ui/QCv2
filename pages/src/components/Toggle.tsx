@@ -28,7 +28,7 @@ export const Toggle = memo<ToggleProps>(({ labelLeft, labelRight, value, onChang
           aria-hidden="true"
           className={`${
             value ? 'translate-x-5' : 'translate-x-0'
-          } pointer-events-none inline-block h-5 w-5 min-w-[1.25rem] min-h-[1.25rem] transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+          } pointer-events-none inline-block h-5 w-5 min-w-[1.25rem] transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
         />
       </button>
       <span className={`text-xs sm:text-sm font-medium whitespace-nowrap ${value ? 'text-gray-900' : 'text-gray-500'}`}>{labelRight}</span>
