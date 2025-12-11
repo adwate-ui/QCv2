@@ -129,7 +129,7 @@ export const ProductDetailPage: React.FC = () => {
     if (!product || !user?.apiKey || !user?.id || !currentReport) return;
     
     // Load the QC images from the latest report
-    const previousQCImages = currentReport.qcImageIds.map(id => getPublicImageUrl(user.id!, id));
+    const previousQCImages = currentReport.qcImageIds.map(id => getPublicImageUrl(user.id, id));
     
     const useSettings = { modelTier: localModelTier, expertMode: localExpertMode };
     startQCTask(user.apiKey, product, previousQCImages, useSettings, qcUserComments);
@@ -289,7 +289,7 @@ export const ProductDetailPage: React.FC = () => {
               <div className="flex gap-2 flex-wrap">
                 {imgs.map((imgUrl, idx) => (
                   <div 
-                    key={idx} 
+                    key={`qc-img-${report.id}-${idx}`} 
                     className="h-24 w-24 cursor-pointer rounded overflow-hidden hover:ring-2 hover:ring-primary/50 border"
                     onClick={() => setSelectedImage(imgUrl)}
                   >
