@@ -26,7 +26,7 @@ interface AppContextType {
   toggleExpertMode: () => void;
   refreshProducts: () => Promise<void>;
   startIdentificationTask: (apiKey: string, images: string[], url: string | undefined, settings: AppSettings) => Promise<void>;
-  startQCTask: (apiKey: string, product: Product, qcImages: string[], settings: AppSettings, qcUserComments: string) => void;
+  startQCTask: (apiKey: string, product: Product, qcImages: string[], settings: AppSettings, qcUserComments: string, isRerun?: boolean) => void;
   finalizeQCTask: (apiKey: string, task: BackgroundTask, userComments: string) => void;
   dismissTask: (taskId: string) => void;
   bulkDeleteProducts: (ids: string[]) => Promise<void>;
@@ -1052,7 +1052,7 @@ To fix:
         });
   };
 
-  const startQCTask = async (apiKey: string, product: Product, qcImages: string[], settings: AppSettings, qcUserComments: string) => {
+  const startQCTask = async (apiKey: string, product: Product, qcImages: string[], settings: AppSettings, qcUserComments: string, isRerun: boolean = false) => {
     const taskId = generateUUID();
     // Estimate based on number of QC images (we'll refine this with section count later)
     const estimatedTime = calculateTaskEstimate('QC', settings.modelTier, qcImages.length, 8, 0);
@@ -1074,22 +1074,41 @@ To fix:
 
    (async () => {
      try {
-       // Parallel operations: save new images and load previous images simultaneously
-       const [newImageIds, previousImages, refImages] = await Promise.all([
-         Promise.all(
-           qcImages.map(async (img) => {
-             const id = generateUUID();
-             await db.saveImage(id, img);
-             return id;
-           })
-         ),
-         Promise.all((product.qcBatches || []).flatMap(b => b.imageIds).map(id => db.getImage(id))),
-         Promise.all((product.referenceImageIds || []).map(id => db.getImage(id)))
-       ]);
+       // When rerunning with existing images, skip saving them as new images
+       // and use the existing image IDs from previous batches
+       let newImageIds: string[];
+       let allQCRawImages: string[];
+       let allQCImageIds: string[];
+       
+       if (isRerun) {
+         // Rerun mode: use existing images without saving duplicates
+         const previousImages = await Promise.all((product.qcBatches || []).flatMap(b => b.imageIds).map(id => db.getImage(id)));
+         
+         const validPrevImages = previousImages.filter(Boolean) as string[];
+         newImageIds = []; // No new images to save
+         allQCRawImages = validPrevImages; // Use only existing images
+         allQCImageIds = (product.qcBatches || []).flatMap(b => b.imageIds); // Use only existing IDs
+       } else {
+         // Normal mode: save new images and combine with previous ones
+         const [savedImageIds, previousImages] = await Promise.all([
+           Promise.all(
+             qcImages.map(async (img) => {
+               const id = generateUUID();
+               await db.saveImage(id, img);
+               return id;
+             })
+           ),
+           Promise.all((product.qcBatches || []).flatMap(b => b.imageIds).map(id => db.getImage(id)))
+         ]);
 
-       const validPrevImages = previousImages.filter(Boolean) as string[];
-       const allQCRawImages = [...validPrevImages, ...qcImages];
-       const allQCImageIds = [...(product.qcBatches || []).flatMap(b => b.imageIds), ...newImageIds];
+         const validPrevImages = previousImages.filter(Boolean) as string[];
+         newImageIds = savedImageIds;
+         allQCRawImages = [...validPrevImages, ...qcImages];
+         allQCImageIds = [...(product.qcBatches || []).flatMap(b => b.imageIds), ...newImageIds];
+       }
+       
+       // Load reference images (common for both modes)
+       const refImages = await Promise.all((product.referenceImageIds || []).map(id => db.getImage(id)));
        const validRefImages = refImages.filter(Boolean) as string[];
 
        // Convert reference images to base64 in parallel
@@ -1133,17 +1152,21 @@ To fix:
        // Correct grades to match scores based on rubric
        const correctedPreliminaryReport = correctGradeBasedOnScore(preliminaryReport);
 
-       // Generate comparison images and update product in parallel
+       // Generate comparison images and optionally update product with new batch
+       const updateProductPromise = isRerun 
+         ? Promise.resolve() // Skip creating new batch when rerunning
+         : (async () => {
+             const newBatch: QCBatch = { id: generateUUID(), timestamp: Date.now(), imageIds: newImageIds };
+             const updatedProduct = {
+               ...product,
+               qcBatches: [...(product.qcBatches || []), newBatch],
+             };
+             await updateProduct(updatedProduct);
+           })();
+       
        const [sectionComparisons] = await Promise.all([
          generateAndStoreComparisonImages(apiKey, product, allQCRawImages, correctedPreliminaryReport, settings),
-         (async () => {
-           const newBatch: QCBatch = { id: generateUUID(), timestamp: Date.now(), imageIds: newImageIds };
-           const updatedProduct = {
-             ...product,
-             qcBatches: [...(product.qcBatches || []), newBatch],
-           };
-           await updateProduct(updatedProduct);
-         })()
+         updateProductPromise
        ]);
        
        correctedPreliminaryReport.sectionComparisons = sectionComparisons;

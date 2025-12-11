@@ -154,7 +154,8 @@ export const ProductDetailPage: React.FC = () => {
     const previousQCImages = await Promise.all(previousQCImagesPromises);
     
     const useSettings = { modelTier: localModelTier, expertMode: localExpertMode };
-    startQCTask(user.apiKey, product, previousQCImages, useSettings, qcUserComments);
+    // Pass true as the isRerun flag to prevent image duplication
+    startQCTask(user.apiKey, product, previousQCImages, useSettings, qcUserComments, true);
   };
 
   const handleFinalizeQC = () => {
