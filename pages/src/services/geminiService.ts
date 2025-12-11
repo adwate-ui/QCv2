@@ -434,8 +434,7 @@ const _performIdentification = async (
 
   // Process images with error handling - skip failed images instead of blocking
   const processedImageDatas: string[] = [];
-  for (let i = 0; i < imageDatas.length; i++) {
-    const data = imageDatas[i];
+  for (const [i, data] of imageDatas.entries()) {
     try {
       if (isURL(data)) {
         log.info(`[Identification] Fetching AI image ${i + 1} from ${data}`);

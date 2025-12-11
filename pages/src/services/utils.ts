@@ -139,7 +139,7 @@ export const fetchAndEncodeImage = async (url: string): Promise<string> => {
       clearTimeout(timeoutId);
       // Provide more specific error messages
       if (fetchError.name === 'AbortError') {
-        throw new Error(`TimeoutError: signal timed out`);
+        throw new Error(`TimeoutError: Request timed out while fetching image`);
       }
       throw fetchError;
     }

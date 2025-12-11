@@ -62,7 +62,7 @@ export const AddProductPage = () => {
       try {
         const data: TempData = JSON.parse(saved);
         // Only restore metadata, not images (images are lost on refresh by design to save space)
-        if (step === 'UPLOAD' && data.productUrl) {
+        if (step === 'UPLOAD') {
              setProductUrl(data.productUrl || '');
              setStep(data.step || 'UPLOAD');
              setProfile(data.profile || null);

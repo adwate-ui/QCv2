@@ -324,7 +324,7 @@ export const ProductDetailPage: React.FC = () => {
                               ) : (
                                 <>
                                   <h5 className="text-xs font-semibold text-gray-600 mb-2">QC Image Analysis</h5>
-                                  <p className="text-xs text-gray-500 mb-2">Highlighted differences</p>
+                                  <p className="text-xs text-gray-500 mb-2">Highlighted differences (no authentic reference available for direct comparison)</p>
                                 </>
                               )}
                               <div className="cursor-pointer border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary/30" onClick={() => setSelectedImage(comparisonImgUrl)}>
