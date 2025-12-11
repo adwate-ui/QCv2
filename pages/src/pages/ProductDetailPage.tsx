@@ -125,6 +125,16 @@ export const ProductDetailPage: React.FC = () => {
     setQcImages([]);
   };
 
+  const rerunQCWithExistingImages = async () => {
+    if (!product || !user?.apiKey || !currentReport) return;
+    
+    // Load the QC images from the latest report
+    const previousQCImages = currentReport.qcImageIds.map(id => getPublicImageUrl(user.id!, id));
+    
+    const useSettings = { modelTier: localModelTier, expertMode: localExpertMode };
+    startQCTask(user.apiKey, product, previousQCImages, useSettings, qcUserComments);
+  };
+
   const handleFinalizeQC = () => {
     if (!feedbackTask || !user?.apiKey) return;
     finalizeQCTask(user.apiKey, feedbackTask, additionalComments);
@@ -591,12 +601,32 @@ export const ProductDetailPage: React.FC = () => {
         </button>
       </div>
 
-      {currentReport ? (
-        <ReportCard report={currentReport} refImages={refImages} expanded={expandedReportId === currentReport.id} onToggle={(id) => setExpandedReportId(prev => prev === id ? null : id)} />
+      {showHistory ? (
+        // Show all historical reports when history is visible
+        sortedReports.length > 0 ? (
+          sortedReports.map((report) => (
+            <ReportCard 
+              key={report.id} 
+              report={report} 
+              refImages={refImages} 
+              expanded={expandedReportId === report.id} 
+              onToggle={(id) => setExpandedReportId(prev => prev === id ? null : id)} 
+            />
+          ))
+        ) : (
+          <div className="text-center py-10 bg-white rounded border-dashed border">
+            <div className="text-gray-500">No QC reports generated yet.</div>
+          </div>
+        )
       ) : (
-        <div className="text-center py-10 bg-white rounded border-dashed border">
-          <div className="text-gray-500">No QC reports generated yet.</div>
-        </div>
+        // Show only the current (latest) report when history is hidden
+        currentReport ? (
+          <ReportCard report={currentReport} refImages={refImages} expanded={expandedReportId === currentReport.id} onToggle={(id) => setExpandedReportId(prev => prev === id ? null : id)} />
+        ) : (
+          <div className="text-center py-10 bg-white rounded border-dashed border">
+            <div className="text-gray-500">No QC reports generated yet.</div>
+          </div>
+        )
       )}
 
       {isRunningQC && (
@@ -691,6 +721,21 @@ export const ProductDetailPage: React.FC = () => {
             <Zap size={16} />
             <span>Start Background Analysis</span>
           </button>
+
+          {currentReport && currentReport.qcImageIds && currentReport.qcImageIds.length > 0 && (
+            <div className="mt-4 pt-4 border-t">
+              <p className="text-sm text-gray-600 mb-3">
+                Or reanalyze with existing images from the latest report using different model/persona settings:
+              </p>
+              <button
+                onClick={rerunQCWithExistingImages}
+                className="w-full py-2 rounded font-semibold flex items-center justify-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200"
+              >
+                <Brain size={16} />
+                <span>Rerun Analysis with Existing Images</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
