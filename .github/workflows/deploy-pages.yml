@@ -41,6 +41,7 @@ jobs:
       - name: Build Pages
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          VITE_IMAGE_PROXY_URL: ${{ secrets.VITE_IMAGE_PROXY_URL }}
         run: npm run build:pages
 
       - name: Deploy to Cloudflare Pages
