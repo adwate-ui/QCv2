@@ -79,6 +79,13 @@
         --safe-area-bottom: env(safe-area-inset-bottom, 0px);
       }
       
+      /* Desktop: hide bottom nav padding */
+      @media (min-width: 768px) {
+        .min-h-screen {
+          padding-bottom: 0 !important;
+        }
+      }
+      
       /* Smooth scrolling for anchor links */
       html {
         scroll-behavior: smooth;

@@ -32,9 +32,9 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 pb-[68px] md:pb-0">
+    <div className="min-h-screen flex flex-col bg-gray-50" style={{paddingBottom: 'var(--bottom-nav-height)'}}>
       {/* Top Bar */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50 px-4 py-3 flex items-center justify-between shadow-sm flex-shrink-0 h-[52px]">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50 px-4 py-3 flex items-center justify-between shadow-sm flex-shrink-0" style={{height: 'var(--header-height)'}}>
         <Link to="/inventory" className="flex items-center gap-2 group">
           <img src="/logo.svg" alt="AuthentiQC Logo" className="w-8 h-8 transition-transform group-hover:scale-110" />
           <span className="text-lg md:text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
@@ -115,7 +115,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       </main>
 
       {/* Desktop Sidebar (Hidden on Mobile) */}
-      <nav className="hidden md:flex fixed left-0 top-[52px] bottom-0 w-64 bg-white border-r border-gray-200 flex-col p-4 z-40">
+      <nav className="hidden md:flex fixed left-0 bottom-0 w-64 bg-white border-r border-gray-200 flex-col p-4 z-40" style={{top: 'var(--header-height)'}}>
         <div className="space-y-2">
           <Link to="/inventory" className={`flex items-center gap-3 p-3 rounded-xl font-medium ${location.pathname === '/inventory' ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-gray-50'}`}>
             <Home size={20} /> Inventory
@@ -135,7 +135,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       </nav>
 
       {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around p-3 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] h-[68px]" style={{paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))'}}>
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around p-3 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]" style={{height: 'var(--bottom-nav-height)', paddingBottom: 'calc(0.75rem + var(--safe-area-bottom))'}}>
         <Link to="/inventory" className={`flex flex-col items-center justify-center gap-1 min-w-[64px] ${isActive('/inventory')}`}>
           <Home size={22} />
           <span className="text-xs">Home</span>
