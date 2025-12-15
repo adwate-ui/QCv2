@@ -38,12 +38,8 @@ This repository is organized as a monorepo with complete separation between fron
 ### Prerequisites
 - Node.js 20 or higher
 - npm (comes with Node.js)
-- Supabase account (for database and authentication)
-- Google Gemini API key (for AI features)
 
-### Setup
-
-#### 1. Install Dependencies
+### Installation
 
 ```bash
 # Install all dependencies (root + workspaces)
@@ -54,71 +50,15 @@ cd pages && npm install
 cd workers/image-proxy && npm install
 ```
 
-#### 2. Set Up Supabase (Required)
-
-The app uses Supabase for authentication, database, and storage. Follow these steps:
-
-1. Create a Supabase project at https://supabase.com
-2. Run the SQL setup script (see **[SUPABASE_SETUP_GUIDE.md](./SUPABASE_SETUP_GUIDE.md)** for detailed instructions):
-   - Go to your Supabase SQL Editor
-   - Copy and run the contents of `SUPABASE_SETUP.sql`
-3. Create an "images" storage bucket (see guide for details)
-4. Get your Supabase credentials from Project Settings → API
-5. Configure environment variables (see below)
-
-**📖 Full Supabase setup guide:** [SUPABASE_SETUP_GUIDE.md](./SUPABASE_SETUP_GUIDE.md)
-
-#### 3. Get Gemini API Key
-
-Get a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
-
-You can either:
-- Add it to your `.env.local` file (for development)
-- Enter it when you first login to the app (stored in your profile)
-
 ### Development
-
-#### 4. Configure Environment Variables
-
-Create a `.env.local` file in the `pages` directory:
-
-```bash
-cd pages
-touch .env.local
-```
-
-Add your configuration:
-
-```env
-# Supabase (Required - get from Supabase Dashboard → Settings → API)
-VITE_SUPABASE_URL=https://xxxxxxxxxxxxx.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-
-# Gemini API (Optional - can also be set when logging in)
-GEMINI_API_KEY=your-gemini-api-key-here
-
-# Image Proxy Worker (Optional - for fetching images from product URLs)
-VITE_IMAGE_PROXY_URL=https://authentiqc-worker.your-subdomain.workers.dev
-```
-
-#### 5. Start Development Server
 
 ```bash
 # Start frontend development server
 npm run dev
 # Or: cd pages && npm run dev
 
-# Frontend runs at http://localhost:5173
+# Frontend runs at http://localhost:3000
 ```
-
-#### 6. Create an Account
-
-1. Open http://localhost:5173
-2. Click "Create Account"
-3. Enter your email and password
-4. (Optional) Add your Gemini API key during signup or later in your profile
-5. Check your email for confirmation (if enabled in Supabase)
-6. Start adding products and performing QC inspections!
 
 ### Building
 
@@ -171,21 +111,11 @@ Or use GitHub Actions (automatically deploys on push to `main`).
 ## Environment Variables
 
 ### Pages (.env.local in `/pages`)
-
-**Required:**
-```env
-# Supabase Configuration (Required)
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
-
-**Optional:**
-```env
-# Gemini API Key (can also be set at login time in the app)
 GEMINI_API_KEY=your_gemini_api_key_here
-
-# Image Proxy Worker (for fetching product images from URLs)
 VITE_IMAGE_PROXY_URL=https://authentiqc-worker.your-subdomain.workers.dev
+VITE_SUPABASE_URL=your_supabase_url (optional)
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key (optional)
 ```
 
 ### Workers
@@ -194,25 +124,11 @@ Workers use Cloudflare environment variables (set via wrangler or dashboard).
 ## Cloudflare Configuration
 
 ### Pages Project Settings
-
-When deploying to Cloudflare Pages:
-
 - **Project Name:** qcv2
-- **Framework Preset:** None (or Vite)
 - **Build Command:** `npm run build`
-- **Build Output Directory:** `pages/dist`
-- **Root Directory:** Leave empty (build command handles it)
-- **Node Version:** 20
-
-**Required Environment Variables:**
-- `VITE_SUPABASE_URL` - Your Supabase project URL
-- `VITE_SUPABASE_ANON_KEY` - Your Supabase anonymous key
-
-**Optional Environment Variables:**
-- `GEMINI_API_KEY` - Google Gemini API key (can be set by users at login)
-- `VITE_IMAGE_PROXY_URL` - URL to your deployed image proxy worker
-
-**⚠️ Important:** The build command in the root `package.json` is `npm run build`, which builds both pages and workers. Cloudflare Pages should run this command from the repository root.
+- **Build Output Directory:** `dist`
+- **Root Directory:** `pages`
+- **Environment Variables:** Set `GEMINI_API_KEY` and `VITE_IMAGE_PROXY_URL`
 
 ### Worker Settings
 - **Worker Name:** authentiqc-worker
@@ -226,8 +142,7 @@ When deploying to Cloudflare Pages:
 - **Build Tool:** Vite 6
 - **Routing:** React Router DOM
 - **AI:** Google Gemini API
-- **Database:** Supabase (for authentication, storage, and data persistence)
-- **Authentication:** Supabase Auth
+- **Database:** Supabase (optional, fallback to in-memory)
 - **Styling:** Tailwind CSS (CDN)
 
 ### Workers (Backend)
@@ -290,23 +205,9 @@ Runs on push to `main` when worker files change:
 
 ## Documentation
 
-- **Supabase Setup:** [SUPABASE_SETUP_GUIDE.md](./SUPABASE_SETUP_GUIDE.md) - Complete guide for setting up the database
-- **SQL Schema:** [SUPABASE_SETUP.sql](./SUPABASE_SETUP.sql) - Database schema and policies
 - **Frontend:** See `/pages/README.md`
 - **Workers:** See `/workers/README.md`
 - **Deployment Guides:** Check documentation files in root
-
-## Features
-
-- **Product Identification:** AI-powered product identification from images or URLs
-- **Quality Control:** Comprehensive QC inspections with detailed reports
-- **Image Analysis:** Compare inspection images against reference images
-- **Multi-tier AI Models:** Choose between FAST (Gemini Flash) and DETAILED (Gemini Pro)
-- **Expert Mode:** Get deeper, more detailed analysis
-- **User Authentication:** Secure account management with Supabase
-- **Cloud Storage:** Store images and data securely in Supabase
-- **Account Management:** Users can manage API keys and delete their accounts
-- **PDF Export:** Export QC reports as PDFs
 
 ## Support
 
