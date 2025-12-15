@@ -4,12 +4,14 @@ import { Input } from '../components/Input';
 import { useNavigate } from 'react-router-dom';
 
 export const AuthPage = () => {
-  const { login, register } = useApp();
+  const { login, register, updateApiKey } = useApp();
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [apiKey, setApiKey] = useState('');
   const [error, setError] = useState('');
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,6 +25,15 @@ export const AuthPage = () => {
     }
 
     if (result.success) {
+      // If API key was provided, save it
+      if (apiKey.trim()) {
+        try {
+          await updateApiKey(apiKey.trim());
+        } catch (err) {
+          console.error('Failed to save API key:', err);
+          // Don't block login if API key save fails
+        }
+      }
       // Redirect to inventory immediately on success
       navigate('/inventory');
     } else {
@@ -73,6 +84,39 @@ export const AuthPage = () => {
             required 
             placeholder="••••••••"
           />
+          
+          {/* Optional API Key Input */}
+          <div className="mb-4">
+            <button
+              type="button"
+              onClick={() => setShowApiKeyInput(!showApiKeyInput)}
+              className="text-sm text-slate-600 hover:text-primary transition-colors flex items-center gap-2"
+            >
+              {showApiKeyInput ? '− Hide' : '+ Add'} Gemini API Key (Optional)
+            </button>
+            {showApiKeyInput && (
+              <div className="mt-2 animate-in fade-in slide-in-from-top-2">
+                <Input 
+                  label="Gemini API Key" 
+                  type="password" 
+                  value={apiKey} 
+                  onChange={e => setApiKey(e.target.value)} 
+                  placeholder="AIza..."
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  You can also add this later in your profile. Get a free key at{' '}
+                  <a 
+                    href="https://aistudio.google.com/app/apikey" 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    Google AI Studio
+                  </a>
+                </p>
+              </div>
+            )}
+          </div>
           
           {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
